@@ -51,6 +51,7 @@ import {
 import { pickUpCost, pickUpPool } from './words';
 
 export type Rejection =
+  | { readonly kind: 'staleSeq'; readonly seq: number; readonly last: number }
   | { readonly kind: 'unknownEncounter'; readonly id: string }
   | {
       readonly kind: 'encounterLocked';

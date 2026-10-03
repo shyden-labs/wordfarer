@@ -9,6 +9,7 @@ text they ship follows the list, printed once with the packages it covers.
 
 ## Packages
 
+- `@noble/hashes` 2.4.0 (MIT)
 - `@stdlib/array-float32` 0.2.3 (Apache-2.0)
 - `@stdlib/array-float64` 0.2.3 (Apache-2.0)
 - `@stdlib/array-uint16` 0.2.3 (Apache-2.0)
@@ -177,6 +178,34 @@ text they ship follows the list, printed once with the packages it covers.
 ## Licence and notice texts
 
 ### Text 1
+
+Covers: `@noble/hashes`.
+
+```text
+The MIT License (MIT)
+
+Copyright (c) 2022 Paul Miller (https://paulmillr.com)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the “Software”), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+```
+
+### Text 2
 
 Covers: `@stdlib/array-float32`, `@stdlib/array-float64`, `@stdlib/array-uint16`, `@stdlib/array-uint32`, `@stdlib/array-uint8`, `@stdlib/assert-has-float32array-support`, `@stdlib/assert-has-float64array-support`, `@stdlib/assert-has-own-property`, `@stdlib/assert-has-symbol-support`, `@stdlib/assert-has-to-primitive-symbol-support`, `@stdlib/assert-has-tostringtag-support`, `@stdlib/assert-has-uint16array-support`, `@stdlib/assert-has-uint32array-support`, `@stdlib/assert-has-uint8array-support`, `@stdlib/assert-is-array`, `@stdlib/assert-is-big-endian`, `@stdlib/assert-is-boolean`, `@stdlib/assert-is-buffer`, `@stdlib/assert-is-float32array`, `@stdlib/assert-is-float64array`, `@stdlib/assert-is-function`, `@stdlib/assert-is-little-endian`, `@stdlib/assert-is-number`, `@stdlib/assert-is-object`, `@stdlib/assert-is-object-like`, `@stdlib/assert-is-plain-object`, `@stdlib/assert-is-regexp`, `@stdlib/assert-is-string`, `@stdlib/assert-is-uint16array`, `@stdlib/assert-is-uint32array`, `@stdlib/assert-is-uint8array`, `@stdlib/assert-napi-equal-types`, `@stdlib/assert-napi-is-type`, `@stdlib/assert-napi-status-ok`, `@stdlib/assert-tools-array-function`, `@stdlib/boolean-ctor`, `@stdlib/complex-float32-ctor`, `@stdlib/complex-float32-reim`, `@stdlib/complex-float64-ctor`, `@stdlib/complex-float64-reim`, `@stdlib/constants-float16-eps`, `@stdlib/constants-float16-exponent-bias`, `@stdlib/constants-float16-exponent-mask`, `@stdlib/constants-float16-max`, `@stdlib/constants-float16-num-significand-bits`, `@stdlib/constants-float16-sign-mask`, `@stdlib/constants-float16-significand-mask`, `@stdlib/constants-float16-smallest-normal`, `@stdlib/constants-float32-abs-mask`, `@stdlib/constants-float32-eps`, `@stdlib/constants-float32-exponent-bias`, `@stdlib/constants-float32-exponent-mask`, `@stdlib/constants-float32-ninf`, `@stdlib/constants-float32-num-significand-bits`, `@stdlib/constants-float32-pinf`, `@stdlib/constants-float32-sign-mask`, `@stdlib/constants-float32-significand-mask`, `@stdlib/constants-float64-eps`, `@stdlib/constants-float64-exponent-bias`, `@stdlib/constants-float64-half-ln-two`, `@stdlib/constants-float64-high-word-abs-mask`, `@stdlib/constants-float64-high-word-exponent-mask`, `@stdlib/constants-float64-high-word-sign-mask`, `@stdlib/constants-float64-high-word-significand-mask`, `@stdlib/constants-float64-ln-two`, `@stdlib/constants-float64-max-base2-exponent`, `@stdlib/constants-float64-max-base2-exponent-subnormal`, `@stdlib/constants-float64-min-base2-exponent-subnormal`, `@stdlib/constants-float64-ninf`, `@stdlib/constants-float64-num-high-word-significand-bits`, `@stdlib/constants-float64-pinf`, `@stdlib/constants-float64-smallest-normal`, `@stdlib/constants-uint16-max`, `@stdlib/constants-uint32-max`, `@stdlib/constants-uint8-max`, `@stdlib/error-tools-fmtprodmsg`, `@stdlib/fs-exists`, `@stdlib/fs-resolve-parent-path`, `@stdlib/math-base-assert-is-even`, `@stdlib/math-base-assert-is-finite`, `@stdlib/math-base-assert-is-finitef`, `@stdlib/math-base-assert-is-infinite`, `@stdlib/math-base-assert-is-integer`, `@stdlib/math-base-assert-is-nan`, `@stdlib/math-base-assert-is-nanf`, `@stdlib/math-base-assert-is-odd`, `@stdlib/math-base-napi-binary`, `@stdlib/math-base-napi-unary`, `@stdlib/math-base-special-abs`, `@stdlib/math-base-special-absf`, `@stdlib/math-base-special-ceil`, `@stdlib/math-base-special-copysign`, `@stdlib/math-base-special-floor`, `@stdlib/math-base-special-ldexp`, `@stdlib/math-base-special-sqrt`, `@stdlib/math-base-special-trunc`, `@stdlib/napi-argv`, `@stdlib/napi-argv-double`, `@stdlib/napi-argv-float`, `@stdlib/napi-argv-int32`, `@stdlib/napi-create-int32`, `@stdlib/napi-export`, `@stdlib/number-ctor`, `@stdlib/number-float16-base-to-float32`, `@stdlib/number-float16-base-to-float64`, `@stdlib/number-float16-ctor`, `@stdlib/number-float32-base-exponent`, `@stdlib/number-float32-base-to-float16`, `@stdlib/number-float32-base-to-word`, `@stdlib/number-float64-base-exponent`, `@stdlib/number-float64-base-from-words`, `@stdlib/number-float64-base-get-high-word`, `@stdlib/number-float64-base-normalize`, `@stdlib/number-float64-base-set-high-word`, `@stdlib/number-float64-base-set-low-word`, `@stdlib/number-float64-base-to-float16`, `@stdlib/number-float64-base-to-float32`, `@stdlib/number-float64-base-to-words`, `@stdlib/number-uint32-base-to-int32`, `@stdlib/object-ctor`, `@stdlib/os-byte-order`, `@stdlib/os-float-word-order`, `@stdlib/process-cwd`, `@stdlib/regexp-extended-length-path`, `@stdlib/regexp-function-name`, `@stdlib/string-base-format-interpolate`, `@stdlib/string-base-format-tokenize`, `@stdlib/string-base-lowercase`, `@stdlib/string-base-replace`, `@stdlib/string-format`, `@stdlib/string-replace`, `@stdlib/symbol-ctor`, `@stdlib/symbol-to-primitive`, `@stdlib/types`, `@stdlib/utils-constructor-name`, `@stdlib/utils-convert-path`, `@stdlib/utils-define-nonenumerable-read-only-property`, `@stdlib/utils-define-property`, `@stdlib/utils-define-read-only-property`, `@stdlib/utils-escape-regexp-string`, `@stdlib/utils-get-prototype-of`, `@stdlib/utils-global`, `@stdlib/utils-library-manifest`, `@stdlib/utils-native-class`, `@stdlib/utils-type-of`.
 
@@ -359,7 +388,7 @@ Apache License
    END OF TERMS AND CONDITIONS
 ```
 
-### Text 2
+### Text 3
 
 Covers: `@stdlib/array-float32`, `@stdlib/array-float64`, `@stdlib/array-uint16`, `@stdlib/array-uint32`, `@stdlib/array-uint8`, `@stdlib/assert-has-float32array-support`, `@stdlib/assert-has-float64array-support`, `@stdlib/assert-has-own-property`, `@stdlib/assert-has-symbol-support`, `@stdlib/assert-has-to-primitive-symbol-support`, `@stdlib/assert-has-tostringtag-support`, `@stdlib/assert-has-uint16array-support`, `@stdlib/assert-has-uint32array-support`, `@stdlib/assert-has-uint8array-support`, `@stdlib/assert-is-array`, `@stdlib/assert-is-big-endian`, `@stdlib/assert-is-boolean`, `@stdlib/assert-is-buffer`, `@stdlib/assert-is-float32array`, `@stdlib/assert-is-float64array`, `@stdlib/assert-is-function`, `@stdlib/assert-is-little-endian`, `@stdlib/assert-is-number`, `@stdlib/assert-is-object`, `@stdlib/assert-is-object-like`, `@stdlib/assert-is-plain-object`, `@stdlib/assert-is-regexp`, `@stdlib/assert-is-string`, `@stdlib/assert-is-uint16array`, `@stdlib/assert-is-uint32array`, `@stdlib/assert-is-uint8array`, `@stdlib/assert-napi-equal-types`, `@stdlib/assert-napi-is-type`, `@stdlib/assert-napi-status-ok`, `@stdlib/assert-tools-array-function`, `@stdlib/boolean-ctor`, `@stdlib/complex-float32-ctor`, `@stdlib/complex-float32-reim`, `@stdlib/complex-float64-ctor`, `@stdlib/complex-float64-reim`, `@stdlib/constants-float16-eps`, `@stdlib/constants-float16-exponent-bias`, `@stdlib/constants-float16-exponent-mask`, `@stdlib/constants-float16-max`, `@stdlib/constants-float16-num-significand-bits`, `@stdlib/constants-float16-sign-mask`, `@stdlib/constants-float16-significand-mask`, `@stdlib/constants-float16-smallest-normal`, `@stdlib/constants-float32-abs-mask`, `@stdlib/constants-float32-eps`, `@stdlib/constants-float32-exponent-bias`, `@stdlib/constants-float32-exponent-mask`, `@stdlib/constants-float32-ninf`, `@stdlib/constants-float32-num-significand-bits`, `@stdlib/constants-float32-pinf`, `@stdlib/constants-float32-sign-mask`, `@stdlib/constants-float32-significand-mask`, `@stdlib/constants-float64-eps`, `@stdlib/constants-float64-exponent-bias`, `@stdlib/constants-float64-half-ln-two`, `@stdlib/constants-float64-high-word-abs-mask`, `@stdlib/constants-float64-high-word-exponent-mask`, `@stdlib/constants-float64-high-word-significand-mask`, `@stdlib/constants-float64-ln-two`, `@stdlib/constants-float64-max-base2-exponent`, `@stdlib/constants-float64-ninf`, `@stdlib/constants-float64-num-high-word-significand-bits`, `@stdlib/constants-float64-pinf`, `@stdlib/constants-float64-smallest-normal`, `@stdlib/constants-uint16-max`, `@stdlib/constants-uint32-max`, `@stdlib/constants-uint8-max`, `@stdlib/error-tools-fmtprodmsg`, `@stdlib/fs-exists`, `@stdlib/fs-resolve-parent-path`, `@stdlib/math-base-assert-is-even`, `@stdlib/math-base-assert-is-finite`, `@stdlib/math-base-assert-is-finitef`, `@stdlib/math-base-assert-is-infinite`, `@stdlib/math-base-assert-is-integer`, `@stdlib/math-base-assert-is-nan`, `@stdlib/math-base-assert-is-nanf`, `@stdlib/math-base-assert-is-odd`, `@stdlib/math-base-napi-binary`, `@stdlib/math-base-napi-unary`, `@stdlib/math-base-special-abs`, `@stdlib/math-base-special-absf`, `@stdlib/math-base-special-ceil`, `@stdlib/math-base-special-copysign`, `@stdlib/math-base-special-exp`, `@stdlib/math-base-special-expm1`, `@stdlib/math-base-special-floor`, `@stdlib/math-base-special-kernel-log1p`, `@stdlib/math-base-special-ldexp`, `@stdlib/math-base-special-ln`, `@stdlib/math-base-special-log10`, `@stdlib/math-base-special-log1p`, `@stdlib/math-base-special-pow`, `@stdlib/math-base-special-sqrt`, `@stdlib/math-base-special-trunc`, `@stdlib/napi-argv`, `@stdlib/napi-argv-double`, `@stdlib/napi-argv-float`, `@stdlib/napi-argv-int32`, `@stdlib/napi-create-int32`, `@stdlib/napi-export`, `@stdlib/number-ctor`, `@stdlib/number-float16-base-to-float32`, `@stdlib/number-float16-base-to-float64`, `@stdlib/number-float16-ctor`, `@stdlib/number-float32-base-exponent`, `@stdlib/number-float32-base-to-float16`, `@stdlib/number-float32-base-to-word`, `@stdlib/number-float64-base-exponent`, `@stdlib/number-float64-base-from-words`, `@stdlib/number-float64-base-get-high-word`, `@stdlib/number-float64-base-normalize`, `@stdlib/number-float64-base-set-high-word`, `@stdlib/number-float64-base-set-low-word`, `@stdlib/number-float64-base-to-float16`, `@stdlib/number-float64-base-to-float32`, `@stdlib/number-float64-base-to-words`, `@stdlib/number-uint32-base-to-int32`, `@stdlib/object-ctor`, `@stdlib/os-byte-order`, `@stdlib/os-float-word-order`, `@stdlib/process-cwd`, `@stdlib/regexp-extended-length-path`, `@stdlib/regexp-function-name`, `@stdlib/string-base-format-interpolate`, `@stdlib/string-base-format-tokenize`, `@stdlib/string-base-lowercase`, `@stdlib/string-base-replace`, `@stdlib/string-format`, `@stdlib/string-replace`, `@stdlib/symbol-ctor`, `@stdlib/symbol-to-primitive`, `@stdlib/utils-constructor-name`, `@stdlib/utils-convert-path`, `@stdlib/utils-define-nonenumerable-read-only-property`, `@stdlib/utils-define-property`, `@stdlib/utils-define-read-only-property`, `@stdlib/utils-escape-regexp-string`, `@stdlib/utils-get-prototype-of`, `@stdlib/utils-global`, `@stdlib/utils-library-manifest`, `@stdlib/utils-native-class`, `@stdlib/utils-type-of`.
 
@@ -367,7 +396,7 @@ Covers: `@stdlib/array-float32`, `@stdlib/array-float64`, `@stdlib/array-uint16`
 Copyright (c) 2016-2026 The Stdlib Authors.
 ```
 
-### Text 3
+### Text 4
 
 Covers: `@stdlib/constants-float64-high-word-sign-mask`, `@stdlib/constants-float64-max-base2-exponent-subnormal`, `@stdlib/constants-float64-min-base2-exponent-subnormal`, `@stdlib/types`.
 
@@ -375,7 +404,7 @@ Covers: `@stdlib/constants-float64-high-word-sign-mask`, `@stdlib/constants-floa
 Copyright (c) 2016-2024 The Stdlib Authors.
 ```
 
-### Text 4
+### Text 5
 
 Covers: `@stdlib/math-base-special-exp`.
 
@@ -603,7 +632,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### Text 5
+### Text 6
 
 Covers: `@stdlib/math-base-special-expm1`, `@stdlib/math-base-special-log1p`.
 
@@ -801,7 +830,7 @@ software is freely granted, provided that this notice
 is preserved.
 ```
 
-### Text 6
+### Text 7
 
 Covers: `@stdlib/math-base-special-kernel-log1p`, `@stdlib/math-base-special-ln`, `@stdlib/math-base-special-log10`, `@stdlib/math-base-special-pow`.
 
@@ -999,7 +1028,7 @@ software is freely granted, provided that this notice
 is preserved.
 ```
 
-### Text 7
+### Text 8
 
 Covers: `break_infinity.js`.
 
@@ -1027,7 +1056,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### Text 8
+### Text 9
 
 Covers: `debug`.
 
@@ -1052,7 +1081,7 @@ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN 
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### Text 9
+### Text 10
 
 Covers: `es-errors`.
 
@@ -1080,7 +1109,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### Text 10
+### Text 11
 
 Covers: `function-bind`.
 
@@ -1106,7 +1135,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### Text 11
+### Text 12
 
 Covers: `hasown`.
 
@@ -1134,7 +1163,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### Text 12
+### Text 13
 
 Covers: `is-core-module`.
 
@@ -1161,7 +1190,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### Text 13
+### Text 14
 
 Covers: `ms`.
 
@@ -1189,7 +1218,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### Text 14
+### Text 15
 
 Covers: `pad-end`.
 
@@ -1217,7 +1246,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### Text 15
+### Text 16
 
 Covers: `path-parse`.
 
@@ -1245,7 +1274,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### Text 16
+### Text 17
 
 Covers: `resolve`.
 
@@ -1273,7 +1302,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### Text 17
+### Text 18
 
 Covers: `supports-preserve-symlinks-flag`.
 
@@ -1301,7 +1330,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### Text 18
+### Text 19
 
 Covers: `ts-fsrs`.
 

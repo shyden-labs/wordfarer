@@ -113,6 +113,18 @@ export {
   type SailPreview,
 } from './sail';
 export { UNFOLD_FLAGS, unfold, type Unfold, type UnfoldFlag } from './unfold';
+export { stateHash } from './hash';
+export { apply, replay, type Refusal, type Replayed } from './log';
+export {
+  EVENT_TYPES,
+  parseEvent,
+  PROMPT_TYPES,
+  type EventError,
+  type EventType,
+  type GameEvent,
+  type ParsedEvent,
+  type PromptType,
+} from './events';
 export {
   advance,
   answerPractice,

@@ -121,6 +121,7 @@ describe('initialState', () => {
       playableRegions: 3,
       grammar: [],
       automation: { enabled: false, intervalMs: 10_000 },
+      seq: 0,
     });
     expect(JSON.parse(JSON.stringify(s))).toEqual(s);
   });
@@ -287,6 +288,7 @@ const arbState = fc
     playableRegions: 3,
     grammar: [],
     automation: { enabled: false, intervalMs: 10_000 },
+    seq: 0,
   }));
 
 describe('integrate (AC6)', () => {

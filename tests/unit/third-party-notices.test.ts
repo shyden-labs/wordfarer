@@ -22,12 +22,13 @@ const lock = JSON.parse(readFileSync('package-lock.json', 'utf8')) as Lockfile;
 const listing = readFileSync('THIRD-PARTY-NOTICES.md', 'utf8');
 
 /**
- * Direct dependencies per shipped workspace, measured at b2a6f3f (#82). Each
- * floor sits at measured - 1; lower one only in the commit that removes a
- * dependency. A workspace with no entry fails, so a new one is measured.
+ * Direct dependencies per shipped workspace, measured at b2a6f3f (#82) and
+ * raised to 9 when #34 added `@noble/hashes`. Each floor sits at measured -
+ * 1; lower one only in the commit that removes a dependency. A workspace
+ * with no entry fails, so a new one is measured.
  */
 const MEASURED_DIRECT: Readonly<Record<string, number>> = {
-  'packages/core': 8,
+  'packages/core': 9,
 };
 
 function directDependencies(workspace: string): string[] {

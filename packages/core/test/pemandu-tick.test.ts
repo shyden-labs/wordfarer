@@ -228,6 +228,7 @@ const arbCase: fc.Arbitrary<Case> = fc
       playableRegions: 3,
       grammar: [],
       automation: { enabled: true, intervalMs: r.interval },
+      seq: 0,
     };
     // Hold the cheapest price less what `lead` of the horizon earns at the
     // anchor's rate, so most purchases land inside the horizon, some at its
@@ -390,6 +391,7 @@ describe('nextPurchaseTick (AC3)', () => {
       playableRegions: 3,
       grammar: [],
       automation: { enabled: true, intervalMs },
+      seq: 0,
     };
   }
 
