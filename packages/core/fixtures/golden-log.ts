@@ -4,7 +4,7 @@ import type { CourseData } from '../src/course';
 import { parseEvent, PROMPT_TYPES, type GameEvent } from '../src/events';
 import { stateHash } from '../src/hash';
 import { journeyDurationMs, journeyStatus } from '../src/journeys';
-import { apply } from '../src/log';
+import { apply, replay } from '../src/log';
 import { reviewQueue } from '../src/memory';
 import { nextFloat, nextInt, seedRng, type RngState } from '../src/rng';
 import { sailPreview } from '../src/sail';
@@ -449,5 +449,24 @@ export function goldenStart(header: GoldenHeader): {
   return {
     course: syntheticCourse(header.courseSeed),
     initial: initialState(wallMs(header.startWallMs), header.stateSeed),
+  };
+}
+
+/** What a replay of a fixture's text reached: for the cross-engine check. */
+export interface GoldenReplay {
+  readonly hash: string;
+  readonly events: number;
+  readonly refused: number;
+}
+
+/** Read a fixture's text, replay it from the start its header names, and hash the result. */
+export function replayGolden(text: string): GoldenReplay {
+  const { header, events } = readGolden(text);
+  const { course, initial } = goldenStart(header);
+  const { state, refused } = replay(course, initial, events);
+  return {
+    hash: stateHash(state),
+    events: events.length,
+    refused: refused.length,
   };
 }

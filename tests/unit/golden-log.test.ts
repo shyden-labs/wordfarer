@@ -5,6 +5,7 @@ import {
   goldenStart,
   playGolden,
   readGolden,
+  replayGolden,
   writeGolden,
   type GoldenRun,
 } from '../../packages/core/fixtures/golden-log';
@@ -134,6 +135,16 @@ describe('the golden log fixture (AC5)', { timeout: 600_000 }, () => {
     expect(stateHash(replayed.state), REGENERATE).toBe(
       readGolden(text).header.liveHash,
     );
+  });
+
+  it('replayGolden, which each browser engine runs, gives Node the same hash', () => {
+    const { text, replayed } = golden();
+    const { header } = readGolden(text);
+    expect(replayGolden(text)).toEqual({
+      hash: header.liveHash,
+      events: header.events,
+      refused: replayed.refused.length,
+    });
   });
 
   it('replay reaches the state a walk of the same events reaches', () => {
