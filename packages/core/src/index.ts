@@ -113,6 +113,7 @@ export {
   type SailPreview,
 } from './sail';
 export { UNFOLD_FLAGS, unfold, type Unfold, type UnfoldFlag } from './unfold';
+export { stateHash } from './hash';
 export { apply, replay, type Refusal, type Replayed } from './log';
 export {
   EVENT_TYPES,
