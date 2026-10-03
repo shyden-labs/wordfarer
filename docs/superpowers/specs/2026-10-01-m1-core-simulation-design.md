@@ -99,7 +99,8 @@ packages/core/src
   grammar.ts       nodes and their multipliers
   automation.ts    Pemandu: best-payback choice and its grid
   unfold.ts        which features are revealed (DN7), from state alone
-  sim.ts           integrate, advance, apply(event), replay, view
+  sim.ts           integrate, advance, view
+  log.ts           apply(event) and replay (#34): sail and journeys import sim, so these sit above it
   hash.ts          the canonical serialisation and stateHash (#34)
   index.ts         the public API
 packages/core/test   unit, property and determinism tests

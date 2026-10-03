@@ -96,6 +96,8 @@ export interface GameState {
   readonly grammar: readonly string[];
   /** Pemandu's setting, which a sail keeps (#33). */
   readonly automation: Automation;
+  /** The last accepted event's `seq`, 0 before any (#34): the next must be above it. */
+  readonly seq: number;
 }
 
 /**
@@ -140,6 +142,7 @@ export function initialState(
       enabled: false,
       intervalMs: BALANCE.automation.intervalsMs[0],
     },
+    seq: 0,
   };
 }
 
