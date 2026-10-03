@@ -114,6 +114,16 @@ export {
 } from './sail';
 export { UNFOLD_FLAGS, unfold, type Unfold, type UnfoldFlag } from './unfold';
 export {
+  EVENT_TYPES,
+  parseEvent,
+  PROMPT_TYPES,
+  type EventError,
+  type EventType,
+  type GameEvent,
+  type ParsedEvent,
+  type PromptType,
+} from './events';
+export {
   advance,
   answerPractice,
   answerReview,
