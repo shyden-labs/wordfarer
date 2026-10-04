@@ -11,6 +11,12 @@ name: build-and-test
 on:
   pull_request:
   workflow_call:
+    inputs:
+      ref:
+        description: The commit to test; empty tests the event's own commit (every-commit.yml passes each commit of a pull request, #348)
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -32,6 +38,8 @@ jobs:
       options: --user 1001
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: '.nvmrc'
@@ -55,7 +63,9 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: pacing-report
+          # every-commit.yml calls this once per commit in one run, where an
+          # artifact name may appear once, so a called run names its commit.
+          name: ${{ inputs.ref && format('pacing-report-{0}', inputs.ref) || 'pacing-report' }}
           path: pacing-report.json
           if-no-files-found: error
       - name: Worker tests (sync in workerd + local D1, web gate through the asset router)

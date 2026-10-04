@@ -1,0 +1,88 @@
+# Every commit a pull request brings passes CI on its own (#348).
+#
+# GitHub runs build-and-test once per pull request, on its head, and a merge
+# keeps every commit of the branch in develop's history, so a red commit in
+# the middle of a branch would land unseen and stop `git bisect`. This
+# workflow lists the commits (`list`), calls ci.yml once per commit, checked
+# out alone (`commit`), and judges the lot (`every-commit`, the required
+# check). The head commit is in the list, so the verdict does not lean on
+# build-and-test.
+#
+# The matrix limit is GitHub's, 256 jobs per run (MATRIX_LIMIT in
+# scripts/every-commit.ts). A pull request bringing more fails `list` by
+# name and tests none of them, so `every-commit` is red, never green on part
+# of the list.
+#
+# Every third-party `uses:` is a full commit SHA with its version comment,
+# the same SHAs as ci.yml (tests/unit/supply-chain.test.ts).
+name: every-commit
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    # A checkout with history and one git log: seconds.
+    timeout-minutes: 5
+    outputs:
+      commits: ${{ steps.list.outputs.commits }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.nvmrc'
+      - name: List the commits the pull request brings, oldest first
+        id: list
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/every-commit.ts list "$BASE_SHA" "$HEAD_SHA"
+
+  commit:
+    needs: list
+    # The job's checks-list name is `<short SHA> <subject> / build-and-test`.
+    name: ${{ matrix.commit.label }}
+    strategy:
+      # Every commit runs to its own verdict: one red commit must not hide
+      # whether the others are green.
+      fail-fast: false
+      matrix:
+        commit: ${{ fromJSON(needs.list.outputs.commits) }}
+    # ci.yml's own job, so every step build-and-test runs, in its order and
+    # its Playwright image, with its 20-minute timeout.
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ matrix.commit.sha }}
+    permissions:
+      contents: read
+
+  every-commit:
+    needs: [list, commit]
+    # Runs when the list or a commit failed, which is when it must be red.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    # One paged read of the run's jobs: seconds.
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.nvmrc'
+      - name: Green only when every listed commit's job succeeded
+        env:
+          COMMITS: ${{ needs.list.outputs.commits }}
+          LIST_RESULT: ${{ needs.list.result }}
+          COMMIT_RESULT: ${{ needs.commit.result }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/every-commit.ts verdict

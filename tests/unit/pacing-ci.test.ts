@@ -53,8 +53,10 @@ describe('the pacing suite in CI (#35)', () => {
     expect(at).toBeGreaterThan(suite ?? Infinity);
     const step = steps[at ?? -1];
     expect(step?.if).toBe('${{ !cancelled() }}');
+    // Called once per commit inside one every-commit run (#348), where an
+    // artifact name may appear once, so a called run names its commit.
     expect(step?.with).toEqual({
-      name: 'pacing-report',
+      name: "${{ inputs.ref && format('pacing-report-{0}', inputs.ref) || 'pacing-report' }}",
       path: 'pacing-report.json',
       'if-no-files-found': 'error',
     });
