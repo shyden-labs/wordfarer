@@ -37,14 +37,19 @@ Learner in one behaviour only.
   `i` lands by `firstMinutes + i × gapDays`, then prints the table to paste
   into `packages/core/src/balance.ts`. The options are
   `npm run pacing:calibrate -- --gap-days 2.2 --first-minutes 45`, and those
-  are also the defaults. It takes about an hour.
+  are also the defaults. Its one measured run (2026-10-04) took 25 minutes
+  of CPU.
 - `npm run pacing:sweep` plays the asserted personas on the committed
   balance, then once with every goal at ×0.9 and ×1.1, then once with each
   tuned lever at ×0.9 and ×1.1, one at a time. The levers are the rank
   ladder, the floor share, the repeat-card Insight, the Phrasebook's cost
-  and Listen's value. It prints a table for the PR and exits 1 if any
-  variant breaks a CI bound. `-- --only baseline` plays the committed
-  balance alone.
+  and Listen's value. A variant may cross a gap bound by one open, since a
+  sail waits for an open; the committed balance may not. The table gives each
+  variant's largest shift of any sail, goal moment or finale as a share of
+  that figure, and names as inert a variant that shifts nothing by 0.1%: its
+  green row proves nothing about robustness. It prints the table for the PR
+  and exits 1 if any variant breaks a CI bound. `-- --only baseline` plays
+  the committed balance alone.
 
 ## When a pacing test goes red
 
@@ -54,8 +59,11 @@ anything:
 1. **Read the report first.** Download the `pacing-report` artifact from the
    red run, or run `npm run test:pacing` locally. Each failing test names
    what broke it, for example `destination 7 came 3.104 days after the one
-before`. The report holds every sail day, the finale, the first Mastered
-   word, the opens that offered no decision, and each persona's CPU time.
+before`. The report holds each sail's day and the day its goal was
+   reached, the finale, the first Mastered word, the opens that offered no
+   decision, the 15-minute returns that offered none and those that offered
+   only Practice, any NaN, negative or infinite value, and each persona's
+   CPU time.
 2. **Decide whether the rule change or the tuning is wrong.** A red pacing
    test after a rule change is the bots doing their job. Re-tune only when
    the new rule is the one wanted.
@@ -71,9 +79,11 @@ before`. The report holds every sail day, the finale, the first Mastered
    - the Casual finale on days 23–32;
    - the Idler's finale by day 63;
    - the Casual Learner at least 35% sooner than the Non-learner;
-   - the Clicker at least 97% of the Casual Learner's time at every sail.
+   - the Clicker at least 97% of the Casual Learner's time to reach each
+     sail's goal.
 
-   Every variant must keep every CI bound. Put the sweep's table in the PR.
+   Every variant must keep every CI bound, a gap within one open. Put the
+   sweep's table in the PR, and say that its inert rows prove nothing.
 
 5. **Regenerate the golden log** with `npm run golden-log`, in the same commit
    as the new balance. The balance moves the golden log's hash, and the
