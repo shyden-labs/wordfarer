@@ -10,6 +10,7 @@ import {
   idlerFinishes,
   learnersOrder,
   learningPays,
+  largestShift,
   sanity,
   TUNING_TARGETS,
 } from '../src/targets';
@@ -40,7 +41,7 @@ function run(
     sails,
     finaleDay: sails.at(-1)?.day,
     firstMasteredDay: undefined,
-    opens: 72,
+    openDays: Array.from({ length: 72 }, (_, i) => i / 3),
     undecided: [],
     returnsJudged: 71,
     returnsUndecided: [],
@@ -119,6 +120,47 @@ describe('(b) gaps', () => {
     expect(gaps({ ...r, sails }, CI_BOUNDS)).toEqual([
       'destination 5 came 0.500 days after the one before',
       'destination 6 came 3.500 days after the one before',
+    ]);
+  });
+
+  /** Sails every 2.5 days from day 1, one moved to `day`, opens every 6 hours. */
+  function moved(index: number, day: number): PersonaRun {
+    const r = run('casual', 1, 2.5, {
+      openDays: Array.from({ length: 160 }, (_, i) => i / 4),
+    });
+    return {
+      ...r,
+      sails: r.sails.map((s, i) => (i === index ? { ...s, day } : s)),
+    };
+  }
+
+  it('lets a variant cross by one open: a sail one open sooner would have kept within 3 days (operator, 2026-10-04)', () => {
+    expect(gaps(moved(4, 11.6), CI_BOUNDS)).toEqual([
+      'destination 5 came 3.100 days after the one before',
+    ]);
+    expect(gaps(moved(4, 11.6), CI_BOUNDS, 1)).toEqual([]);
+  });
+
+  it('still names a gap that one open sooner would not bring within 3 days', () => {
+    expect(gaps(moved(4, 12.1), CI_BOUNDS, 1)).toEqual([
+      'destination 5 came 3.600 days after the one before',
+    ]);
+  });
+
+  it('lets a short gap through when a sail one open later would have been a day after', () => {
+    expect(gaps(moved(4, 9.45), CI_BOUNDS)).toEqual([
+      'destination 5 came 0.950 days after the one before',
+      'destination 6 came 4.050 days after the one before',
+    ]);
+    expect(gaps(moved(4, 9.45), CI_BOUNDS, 1)).toEqual([
+      'destination 6 came 4.050 days after the one before',
+    ]);
+  });
+
+  it('gives no slack to a sail in no recorded open', () => {
+    const r = moved(4, 11.6);
+    expect(gaps({ ...r, openDays: [] }, CI_BOUNDS, 1)).toEqual([
+      'destination 5 came 3.100 days after the one before',
     ]);
   });
 
@@ -336,5 +378,81 @@ describe('(h) sanity', () => {
     expect(
       sanity(run('casual', 0, 2, { insane: ['rate', 'price.r0-e1'] })),
     ).toEqual(['casual: rate', 'casual: price.r0-e1']);
+  });
+});
+
+describe('largestShift (the sweep’s inert levers)', () => {
+  const baseline = new Map([
+    ['casual', run('casual', 0.03, 2)],
+    ['idler', run('idler', 0.03, 4)],
+  ]);
+
+  it('is 0 for a variant whose every run sails exactly as the baseline’s', () => {
+    expect(largestShift(new Map(baseline), baseline)).toBe(0);
+  });
+
+  it('is a goal moment’s move as a share of that moment: one second sooner on day 14.03', () => {
+    const casual = run('casual', 0.03, 2);
+    const moved = {
+      ...casual,
+      sails: casual.sails.map((s, i) =>
+        i === 7 ? { ...s, reachedDay: s.reachedDay - 1 / 86_400 } : s,
+      ),
+    };
+    expect(
+      largestShift(new Map([...baseline, ['casual', moved]]), baseline),
+    ).toBeCloseTo(1 / 86_400 / 14.03, 12);
+  });
+
+  it('weighs each move against its own figure: half a day on day 4.03 outweighs 1.25 days on the day-44 finale', () => {
+    const casual = run('casual', 0.03, 2);
+    const sailed = {
+      ...casual,
+      sails: casual.sails.map((s, i) =>
+        i === 2 ? { ...s, day: s.day + 0.5 } : s,
+      ),
+    };
+    const idler = { ...run('idler', 0.03, 4), finaleDay: 44.03 + 1.25 };
+    expect(
+      largestShift(
+        new Map<string, PersonaRun>([
+          ['casual', sailed],
+          ['idler', idler],
+        ]),
+        baseline,
+      ),
+    ).toBeCloseTo(0.5 / 4.03, 9);
+  });
+
+  it('sees a finale moved alone', () => {
+    const idler = { ...run('idler', 0.03, 4), finaleDay: 44.03 + 1.25 };
+    expect(
+      largestShift(new Map([...baseline, ['idler', idler]]), baseline),
+    ).toBeCloseTo(1.25 / 44.03, 9);
+  });
+
+  it('is infinite when a run reaches fewer destinations or no finale', () => {
+    const casual = run('casual', 0.03, 2);
+    expect(
+      largestShift(
+        new Map([
+          ...baseline,
+          ['casual', { ...casual, sails: casual.sails.slice(0, 11) }],
+        ]),
+        baseline,
+      ),
+    ).toBe(Infinity);
+    expect(
+      largestShift(
+        new Map([...baseline, ['casual', { ...casual, finaleDay: undefined }]]),
+        baseline,
+      ),
+    ).toBe(Infinity);
+  });
+
+  it('refuses runs of different personas rather than compare them', () => {
+    expect(() =>
+      largestShift(new Map([['casual', run('casual', 0.03, 2)]]), baseline),
+    ).toThrow('the variant played casual, the baseline casual, idler');
   });
 });

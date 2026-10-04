@@ -94,7 +94,10 @@ describe('runPersona', () => {
     () => {
       const run = runPersona(course(), persona('casual'), BOT_EPOCH_WALL_MS, 1);
       expect(run.persona).toBe('casual');
-      expect(run.opens).toBe(3);
+      expect(run.openDays).toHaveLength(3);
+      expect(run.openDays[0]).toBe(0);
+      expect(run.openDays).toEqual([...run.openDays].sort((a, b) => a - b));
+      expect(run.openDays.filter((d) => d < 0 || d >= 1)).toEqual([]);
       expect(run.events).toBeGreaterThan(100);
       expect(run.cpuMs).toBeGreaterThan(0);
       expect(run.insane).toEqual([]);
@@ -129,7 +132,10 @@ describe('runPersona', () => {
       );
       expect(stopped.sails.length).toBeGreaterThanOrEqual(2);
       expect(stopped.sails).toEqual(full.sails.slice(0, stopped.sails.length));
-      expect(stopped.opens).toBeLessThan(full.opens);
+      expect(stopped.openDays.length).toBeLessThan(full.openDays.length);
+      expect(stopped.openDays).toEqual(
+        full.openDays.slice(0, stopped.openDays.length),
+      );
     },
   );
 

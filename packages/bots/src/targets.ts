@@ -63,7 +63,11 @@ export function firstSail(run: PersonaRun, b: Bounds): string[] {
 }
 
 /** (b) Every later sail lands `gapDays` after the one before, all the way to the finale. */
-export function gaps(run: PersonaRun, b: Bounds): string[] {
+export function gaps(
+  run: PersonaRun,
+  b: Bounds,
+  slackOpens: 0 | 1 = 0,
+): string[] {
   const found: string[] = [];
   if (run.sails.length < DESTINATIONS) {
     found.push(
@@ -74,13 +78,40 @@ export function gaps(run: PersonaRun, b: Bounds): string[] {
     const before = run.sails[i - 1];
     if (before === undefined) return;
     const gap = sail.day - before.day;
-    if (outside(gap, b.gapDays)) {
+    if (
+      outside(gap, b.gapDays) &&
+      !withinOneOpen(run, sail.day, before.day, b, slackOpens)
+    ) {
       found.push(
         `destination ${String(sail.destination)} came ${days(gap)} days after the one before`,
       );
     }
   });
   return found;
+}
+
+/**
+ * Whether a sail one open sooner (for a long gap) or one open later (for a
+ * short one) would have kept the gap in bounds: the robustness sweep's
+ * slack, since a variant can tip a sail across an open by a sliver
+ * (operator, 2026-10-04). A sail in no recorded open gets none.
+ */
+function withinOneOpen(
+  run: PersonaRun,
+  day: number,
+  beforeDay: number,
+  b: Bounds,
+  slackOpens: 0 | 1,
+): boolean {
+  if (slackOpens === 0) return false;
+  const open = run.openDays.findLastIndex((d) => d <= day);
+  if (open === -1) return false;
+  const [lo, hi] = b.gapDays;
+  const sooner = run.openDays[open - 1];
+  const later = run.openDays[open + 1];
+  return day - beforeDay > hi
+    ? sooner !== undefined && sooner - beforeDay <= hi
+    : later !== undefined && later - beforeDay >= lo;
 }
 
 function finaleOf(run: PersonaRun): number | undefined {
@@ -107,7 +138,8 @@ export function idlerFinishes(idler: PersonaRun, b: Bounds): string[] {
 
 /** (e) Every open offered a meaningful decision (DN1). */
 export function decisions(run: PersonaRun): string[] {
-  const expected = run.opens - (run.finaleDay === undefined ? 0 : 1);
+  const opens = run.openDays.length;
+  const expected = opens - (run.finaleDay === undefined ? 0 : 1);
   return [
     ...run.undecided.map(
       (d) => `${run.persona}'s open on day ${days(d)} offered no decision`,
@@ -119,7 +151,7 @@ export function decisions(run: PersonaRun): string[] {
     ...(run.returnsJudged === expected
       ? []
       : [
-          `${run.persona} judged ${String(run.returnsJudged)} 15-minute returns after ${String(run.opens)} opens, not ${String(expected)}`,
+          `${run.persona} judged ${String(run.returnsJudged)} 15-minute returns after ${String(opens)} opens, not ${String(expected)}`,
         ]),
   ];
 }
@@ -180,6 +212,55 @@ export function clickingNeverWins(
         ]
       : [];
   });
+}
+
+/** How far `v` moved from `b`, as a share of `b`. */
+function shift(v: number, b: number): number {
+  if (b === 0) return v === 0 ? 0 : Infinity;
+  return Math.abs(v - b) / Math.abs(b);
+}
+
+/**
+ * The largest shift of any sail's day or goal moment or any finale between a
+ * sweep variant's runs and the baseline's, each as a share of its own
+ * baseline figure, so a minute at the 43-minute first sail weighs what an
+ * hour does on day 43; infinite when a run reaches a different number of
+ * destinations or a finale only one has. A lever that shifts nothing by
+ * much is inert at this balance, and its green row proves nothing about
+ * robustness (measured 2026-10-04: the Insight glut left the Phrasebook cost
+ * so). Runs of different personas are refused rather than compared.
+ */
+export function largestShift(
+  variant: ReadonlyMap<string, PersonaRun>,
+  baseline: ReadonlyMap<string, PersonaRun>,
+): number {
+  const names = (m: ReadonlyMap<string, PersonaRun>) =>
+    [...m.keys()].sort().join(', ');
+  if (names(variant) !== names(baseline)) {
+    throw new Error(
+      `the variant played ${names(variant)}, the baseline ${names(baseline)}`,
+    );
+  }
+  const shifts = [...baseline].flatMap(([name, b]) => {
+    const v = variant.get(name);
+    if (v === undefined || v.sails.length !== b.sails.length) return [Infinity];
+    const finale =
+      v.finaleDay === undefined || b.finaleDay === undefined
+        ? v.finaleDay === b.finaleDay
+          ? 0
+          : Infinity
+        : shift(v.finaleDay, b.finaleDay);
+    return [
+      finale,
+      ...v.sails.flatMap((s, i) => {
+        const t = b.sails[i];
+        return t === undefined
+          ? [Infinity]
+          : [shift(s.day, t.day), shift(s.reachedDay, t.reachedDay)];
+      }),
+    ];
+  });
+  return Math.max(0, ...shifts);
 }
 
 /** (h) No value on the path was NaN, negative or infinite. */

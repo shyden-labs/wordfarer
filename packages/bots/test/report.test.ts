@@ -12,7 +12,7 @@ const run: PersonaRun = {
   ],
   finaleDay: undefined,
   firstMasteredDay: 17.33333,
-  opens: 9,
+  openDays: [0, 0.2, 0.4, 1, 1.2, 1.4, 2, 2.2, 2.4],
   undecided: [4.0004],
   returnsJudged: 8,
   returnsUndecided: [4.0109],

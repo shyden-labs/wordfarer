@@ -118,7 +118,7 @@ describe(
       '(e) every open of %s offers a meaningful decision',
       async (name) => {
         const r = await run(name);
-        expect(r.opens).toBeGreaterThan(10);
+        expect(r.openDays.length).toBeGreaterThan(10);
         expect(decisions(r)).toEqual([]);
       },
     );

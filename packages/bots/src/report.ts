@@ -56,7 +56,7 @@ export function pacingReport(
         run.firstMasteredDay === undefined
           ? null
           : round(run.firstMasteredDay, 3),
-      opens: run.opens,
+      opens: run.openDays.length,
       opensWithoutDecision: run.undecided.map((d) => round(d, 3)),
       returnsJudged: run.returnsJudged,
       returnsWithoutDecision: run.returnsUndecided.map((d) => round(d, 3)),

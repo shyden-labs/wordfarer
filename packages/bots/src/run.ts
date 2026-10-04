@@ -42,7 +42,8 @@ export interface PersonaRun {
   readonly finaleDay: number | undefined;
   /** The day a word first reached Mastered (parent §10.1). */
   readonly firstMasteredDay: number | undefined;
-  readonly opens: number;
+  /** The day each open started, in order. */
+  readonly openDays: readonly number[];
   /** The days of the opens that offered no meaningful decision (DN1). */
   readonly undecided: readonly number[];
   readonly returnsJudged: number;
@@ -235,7 +236,7 @@ export function runPersona(
       }
     },
   });
-  let opens = 0;
+  const openDays: number[] = [];
   const undecided: number[] = [];
   let returnsJudged = 0;
   const returnsUndecided: number[] = [];
@@ -250,7 +251,7 @@ export function runPersona(
     const tomorrow = epochMs + (day + 1) * DAY_MS + WAKE_MS;
     for (const [i, { startMs, lengthMs }] of today.entries()) {
       if (finished()) break;
-      opens += 1;
+      openDays.push(dayOf(startMs));
       const decided = player.open(
         startMs,
         lengthMs,
@@ -273,7 +274,7 @@ export function runPersona(
     sails,
     finaleDay,
     firstMasteredDay,
-    opens,
+    openDays,
     undecided,
     returnsJudged,
     returnsUndecided,
