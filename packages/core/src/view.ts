@@ -14,7 +14,7 @@ import {
   type JourneyDurationId,
 } from './balance';
 import type { WallMs } from './clock';
-import type { CourseData } from './course';
+import type { Course } from './course';
 import { grammarNodeCost } from './grammar';
 import {
   journeyDurationMs,
@@ -137,7 +137,7 @@ export interface View {
 }
 
 function encounterOffers(
-  course: CourseData,
+  course: Course,
   state: GameState,
 ): readonly EncounterOffer[] {
   const gainOf = rateGain(course, state, state.sim);
@@ -156,7 +156,7 @@ function encounterOffers(
 }
 
 function pickUpOffer(
-  course: CourseData,
+  course: Course,
   state: GameState,
 ): PickUpOffer | undefined {
   const next = nextPickUp(course, state);
@@ -173,7 +173,7 @@ function pickUpOffer(
 }
 
 function upgradeOffers(
-  course: CourseData,
+  course: Course,
   state: GameState,
 ): readonly UpgradeOffer[] {
   return upgradeCatalogue(course).map(({ id, currency, costs }) => {
@@ -190,7 +190,7 @@ function upgradeOffers(
 }
 
 function grammarOffers(
-  course: CourseData,
+  course: Course,
   state: GameState,
 ): readonly GrammarOffer[] {
   const cost = grammarNodeCost(state.grammar.length);
@@ -206,7 +206,7 @@ function grammarOffers(
   );
 }
 
-function journeyOffers(course: CourseData, state: GameState): Shop['journeys'] {
+function journeyOffers(course: Course, state: GameState): Shop['journeys'] {
   const slots = Array.from({ length: BALANCE.journeys.maxSlots }, (_, slot) =>
     journeyStatus(state, slot),
   );
@@ -223,7 +223,7 @@ function journeyOffers(course: CourseData, state: GameState): Shop['journeys'] {
   return { slots, startable };
 }
 
-function shop(course: CourseData, state: GameState): Shop {
+function shop(course: Course, state: GameState): Shop {
   return {
     encounters: encounterOffers(course, state),
     pickUp: pickUpOffer(course, state),
@@ -240,7 +240,7 @@ function shop(course: CourseData, state: GameState): Shop {
 }
 
 /** The values at wall time `now`, derived without changing `state`. */
-export function view(course: CourseData, state: GameState, now: WallMs): View {
+export function view(course: Course, state: GameState, now: WallMs): View {
   const at = advance(course, state, now).state;
   const breakdown = rateBreakdown(course, at, at.sim);
   return {

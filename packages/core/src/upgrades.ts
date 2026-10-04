@@ -12,7 +12,7 @@
  * so a level past the last (from an older balance table) cannot exceed it.
  */
 import { BALANCE, type InsightUpgradeId, type StampUpgradeId } from './balance';
-import type { CourseData, Encounter } from './course';
+import type { Course, Encounter } from './course';
 import { purchaseCost } from './encounters';
 import { Num } from './num';
 import { ownedCount, type GameState } from './state';
@@ -60,7 +60,7 @@ export function phrasebookId(tag: string): string {
   return `phrasebook:${tag}`;
 }
 
-function build(course: CourseData): ReadonlyMap<string, Upgrade> {
+function build(course: Course): ReadonlyMap<string, Upgrade> {
   const list: Upgrade[] = [
     insight('journeySlot2'),
     insight('journeySlot3', 'journeySlot2'),
@@ -83,9 +83,9 @@ function build(course: CourseData): ReadonlyMap<string, Upgrade> {
   return new Map(list.map((u) => [u.id, u]));
 }
 
-const catalogues = new WeakMap<CourseData, ReadonlyMap<string, Upgrade>>();
+const catalogues = new WeakMap<Course, ReadonlyMap<string, Upgrade>>();
 
-function catalogueOf(course: CourseData): ReadonlyMap<string, Upgrade> {
+function catalogueOf(course: Course): ReadonlyMap<string, Upgrade> {
   let found = catalogues.get(course);
   if (found === undefined) {
     found = build(course);
@@ -95,15 +95,12 @@ function catalogueOf(course: CourseData): ReadonlyMap<string, Upgrade> {
 }
 
 /** Every upgrade `course` offers: the Insight ones, then the stamp ones. */
-export function upgradeCatalogue(course: CourseData): readonly Upgrade[] {
+export function upgradeCatalogue(course: Course): readonly Upgrade[] {
   return [...catalogueOf(course).values()];
 }
 
 /** The upgrade with id `id`, or `undefined` when the course offers none. */
-export function findUpgrade(
-  course: CourseData,
-  id: string,
-): Upgrade | undefined {
+export function findUpgrade(course: Course, id: string): Upgrade | undefined {
   return catalogueOf(course).get(id);
 }
 

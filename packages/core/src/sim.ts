@@ -19,7 +19,7 @@ import {
 import { BALANCE } from './balance';
 import { heldCards } from './cards';
 import { simMs, wallMs, type WallMs } from './clock';
-import type { CourseData, Encounter } from './course';
+import type { Course, Encounter } from './course';
 import { findGrammarNode, grammarNodeCost, ownedGrammarNodes } from './grammar';
 import { insightFor, isDue, newWordMemory, review } from './memory';
 import { Num, type NumTuple } from './num';
@@ -139,7 +139,7 @@ export interface AdvanceSummary {
 }
 
 /** Move the anchor to the state's simulated time, holding the same values. */
-export function reanchor(course: CourseData, state: GameState): GameState {
+export function reanchor(course: Course, state: GameState): GameState {
   return {
     ...state,
     anchor: {
@@ -157,7 +157,7 @@ export function reanchor(course: CourseData, state: GameState): GameState {
  * purchases at the same ticks, and stored arithmetic still cannot tell.
  */
 export function integrate(
-  course: CourseData,
+  course: Course,
   state: GameState,
   elapsedMs: number,
 ): GameState {
@@ -184,7 +184,7 @@ export function integrate(
  * two disagree, and that is thrown, never skipped.
  */
 function pemanduBuys(
-  course: CourseData,
+  course: Course,
   state: GameState,
   { tick, understanding }: PurchaseTick,
 ): GameState {
@@ -213,7 +213,7 @@ function pemanduBuys(
  * word's hour mean restarts there.
  */
 export function advance(
-  course: CourseData,
+  course: Course,
   state: GameState,
   now: WallMs,
 ): { readonly state: GameState; readonly summary: AdvanceSummary } {
@@ -245,7 +245,7 @@ export function advance(
 }
 
 /** One Listen tap: +1 Understanding (design §5). */
-export function listen(course: CourseData, state: GameState): GameState {
+export function listen(course: Course, state: GameState): GameState {
   const anchored = reanchor(course, state);
   const understanding = Num.add(
     Num.fromTuple(anchored.anchor.understanding),
@@ -258,7 +258,7 @@ export function listen(course: CourseData, state: GameState): GameState {
 }
 
 function findEncounter(
-  course: CourseData,
+  course: Course,
   id: string,
 ): { readonly encounter: Encounter; readonly region: number } | undefined {
   for (const [region, { encounters }] of course.regions.entries()) {
@@ -274,7 +274,7 @@ function findEncounter(
  * later region is refused. The cost counts towards this run's spend.
  */
 export function buyEncounter(
-  course: CourseData,
+  course: Course,
   state: GameState,
   id: string,
   count: number,
@@ -342,7 +342,7 @@ export interface NextPickUp {
  * is empty. Nothing is paid: `view`'s shop reads it too (#35 AC3).
  */
 export function nextPickUp(
-  course: CourseData,
+  course: Course,
   state: GameState,
 ): NextPickUp | undefined {
   const pool = pickUpPool(
@@ -373,7 +373,7 @@ export function nextPickUp(
  * `tutorialDueMs` later, when Review unfolds (parent §4.1); every other word
  * is due at once.
  */
-export function pickUpWord(course: CourseData, state: GameState): Result {
+export function pickUpWord(course: Course, state: GameState): Result {
   const next = nextPickUp(course, state);
   if (next === undefined) {
     return { ok: false, rejection: { kind: 'poolEmpty' } };
@@ -412,7 +412,7 @@ export function pickUpWord(course: CourseData, state: GameState): Result {
  * hour mean restarts here.
  */
 export function answerReview(
-  course: CourseData,
+  course: Course,
   state: GameState,
   itemId: string,
   correct: boolean,
@@ -465,7 +465,7 @@ export function answerPractice(state: GameState, itemId: string): Result {
  * and so the global bonus, alone.
  */
 export function buyUpgrade(
-  course: CourseData,
+  course: Course,
   state: GameState,
   id: string,
 ): Result {
@@ -524,7 +524,7 @@ export function buyUpgrade(
  * is banked first.
  */
 export function buyGrammarNode(
-  course: CourseData,
+  course: Course,
   state: GameState,
   id: string,
 ): Result {
@@ -579,7 +579,7 @@ export function buyGrammarNode(
  * ticks of the new setting start after it.
  */
 export function setAutomation(
-  course: CourseData,
+  course: Course,
   state: GameState,
   enabled: boolean,
   intervalMs: number,

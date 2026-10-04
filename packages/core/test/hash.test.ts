@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { syntheticCourse } from '../fixtures/synthetic-course';
 import { HOUR_MS, wallMs, type WallMs } from '../src/clock';
-import type { CourseData } from '../src/course';
+import type { Course } from '../src/course';
 import type { GameEvent } from '../src/events';
 import { canonical, stateHash } from '../src/hash';
 import { replay } from '../src/log';
@@ -18,8 +18,8 @@ import { initialState, type GameState } from '../src/state';
 
 const START: WallMs = wallMs(Date.UTC(2027, 0, 4, 8));
 
-let builtCourse: CourseData | undefined;
-function course(): CourseData {
+let builtCourse: Course | undefined;
+function course(): Course {
   builtCourse ??= syntheticCourse(1);
   return builtCourse;
 }
@@ -29,7 +29,7 @@ function course(): CourseData {
  * Encounters, reviewed words, a Journey out, upgrades, grammar and Pemandu
  * on, built by replaying a short log over a state set up by spreading.
  */
-function lived(c: CourseData): GameState {
+function lived(c: Course): GameState {
   const number = c.regions[0]?.destinations.length ?? 0;
   const lexicon = c.regions[1]?.destinations[0]?.lexicon ?? [];
   const base = initialState(START, 34);

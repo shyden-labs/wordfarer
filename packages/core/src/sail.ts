@@ -16,7 +16,7 @@
  * flag; from then on every sail names a visited destination to replay.
  */
 import { BALANCE } from './balance';
-import type { CourseData } from './course';
+import type { Course } from './course';
 import { Num } from './num';
 import { understandingNow } from './production';
 import { currentDestination, route } from './route';
@@ -74,7 +74,7 @@ function replayCount(state: GameState, id: string): number {
 }
 
 /** The goal of the run at the current destination (AC1, AC5). */
-export function sailGoal(course: CourseData, state: GameState): SailGoal {
+export function sailGoal(course: Course, state: GameState): SailGoal {
   const i = state.destination;
   const here = currentDestination(course, state)?.id;
   const replays = here === undefined ? 0 : replayCount(state, here);
@@ -87,7 +87,7 @@ export function sailGoal(course: CourseData, state: GameState): SailGoal {
 }
 
 /** `U_run`: the Understanding earned this run, held now plus spent. */
-export function runUnderstanding(course: CourseData, state: GameState): Num {
+export function runUnderstanding(course: Course, state: GameState): Num {
   return Num.add(
     understandingNow(course, state),
     Num.fromTuple(state.runSpent),
@@ -95,14 +95,14 @@ export function runUnderstanding(course: CourseData, state: GameState): Num {
 }
 
 /** How many words of the current destination's own lexicon are held. */
-export function wordsHeld(course: CourseData, state: GameState): number {
+export function wordsHeld(course: Course, state: GameState): number {
   const lexicon = currentDestination(course, state)?.lexicon ?? [];
   return lexicon.filter((item) => pickedWord(state, item.id) !== undefined)
     .length;
 }
 
 /** Whether the run's goal is met: both its Understanding and its words (AC1). */
-export function goalMet(course: CourseData, state: GameState): boolean {
+export function goalMet(course: Course, state: GameState): boolean {
   const goal = sailGoal(course, state);
   return (
     Num.cmp(runUnderstanding(course, state), goal.understanding) >= 0 &&
@@ -117,7 +117,7 @@ export function stampGain(uRun: Num, goal: Num): number {
 }
 
 /** Whether the player names the destination: the finale sail and Mastery mode. */
-function choosing(course: CourseData, state: GameState): boolean {
+function choosing(course: Course, state: GameState): boolean {
   return state.finale || state.destination === route(course).length - 1;
 }
 
@@ -127,7 +127,7 @@ function choosing(course: CourseData, state: GameState): boolean {
  * otherwise the visited destination `to` names.
  */
 function target(
-  course: CourseData,
+  course: Course,
   state: GameState,
   to: string | undefined,
 ):
@@ -178,11 +178,7 @@ function target(
  * only the starting grant with nothing spent, moves to the target, and
  * changes nothing else.
  */
-export function setSail(
-  course: CourseData,
-  state: GameState,
-  to?: string,
-): Result {
+export function setSail(course: Course, state: GameState, to?: string): Result {
   const resolved = target(course, state, to);
   if (!resolved.ok) return resolved;
   const goal = sailGoal(course, state);
@@ -228,7 +224,7 @@ export function setSail(
 }
 
 /** The preview of a sail now: the goal, progress, and what resets, is kept and is gained. */
-export function sailPreview(course: CourseData, state: GameState): SailPreview {
+export function sailPreview(course: Course, state: GameState): SailPreview {
   const goal = sailGoal(course, state);
   const uRun = runUnderstanding(course, state);
   const gain = stampGain(uRun, goal.understanding);

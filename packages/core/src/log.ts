@@ -11,7 +11,7 @@
  * advancing and then applying differs from applying alone when the offline
  * cap clips.
  */
-import type { CourseData } from './course';
+import type { Course } from './course';
 import type { GameEvent } from './events';
 import { collectJourney, startJourney } from './journeys';
 import { setSail } from './sail';
@@ -43,7 +43,7 @@ export interface Replayed {
 }
 
 /** The action `event` names, at the state already advanced to its wall time. */
-function dispatch(course: CourseData, at: GameState, event: GameEvent): Result {
+function dispatch(course: Course, at: GameState, event: GameEvent): Result {
   switch (event.type) {
     case 'resume':
       return { ok: true, state: at };
@@ -78,7 +78,7 @@ function dispatch(course: CourseData, at: GameState, event: GameEvent): Result {
  * becomes the state's.
  */
 export function apply(
-  course: CourseData,
+  course: Course,
   state: GameState,
   event: GameEvent,
 ): Result {
@@ -100,7 +100,7 @@ export function apply(
 
 /** Apply a log in order from `state`, keeping each refusal with its `seq`. */
 export function replay(
-  course: CourseData,
+  course: Course,
   state: GameState,
   events: readonly GameEvent[],
 ): Replayed {

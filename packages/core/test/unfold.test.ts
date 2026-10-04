@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { DAY_MS, simMs, wallMs, type WallMs } from '../src/clock';
-import type { CourseData, Destination } from '../src/course';
+import type { Course, Destination } from '../src/course';
 import { collectJourney, startJourney } from '../src/journeys';
 import { isDue } from '../src/memory';
 import { Num } from '../src/num';
@@ -25,7 +25,7 @@ import { UNFOLD_FLAGS, unfold, type UnfoldFlag } from '../src/unfold';
  * state just after. Journeys unfold with Review, and the goal with Culture
  * or once it can be met (operator, 2026-10-03).
  *
- * The course is declared here, so it is checked against the `CourseData`
+ * The course is declared here, so it is checked against the `Course`
  * contract rather than sharing it.
  */
 
@@ -47,7 +47,7 @@ function destination(d: number): Destination {
   };
 }
 
-const course: CourseData = {
+const course: Course = {
   id: 'unfold-course',
   tags: ['food'],
   regions: [

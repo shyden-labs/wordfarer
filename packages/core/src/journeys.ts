@@ -17,7 +17,7 @@ import {
   type JourneyDurationId,
 } from './balance';
 import { simMs } from './clock';
-import type { CourseData, CultureCard } from './course';
+import type { Course, CultureCard } from './course';
 import { Num } from './num';
 import { rateAt } from './production';
 import { intFrom } from './rng';
@@ -31,7 +31,7 @@ export type JourneyStatus = 'locked' | 'empty' | 'away' | 'returned';
 
 /** The cards Journeys draw from: the current region's, in course order. */
 export function cardPool(
-  course: CourseData,
+  course: Course,
   state: GameState,
 ): readonly CultureCard[] {
   return currentRegion(course, state).cultureCards;
@@ -97,7 +97,7 @@ function withSlot(
  * is unknown or is the tutorial a second time, or the region has no cards.
  */
 export function startJourney(
-  course: CourseData,
+  course: Course,
   state: GameState,
   slot: number,
   durationId: string,
@@ -154,7 +154,7 @@ export function startJourney(
  * reward time. Either way production up to now is banked first.
  */
 export function collectJourney(
-  course: CourseData,
+  course: Course,
   state: GameState,
   slot: number,
 ): Result {

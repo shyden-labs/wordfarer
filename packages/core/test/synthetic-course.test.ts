@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { CourseData, LexiconItem, Region } from '../src/course';
+import {
+  resolveCourse,
+  type CourseData,
+  type LexiconItem,
+  type RegionData,
+} from '../src/course';
 import {
   BOT_EPOCH_WALL_MS,
   syntheticCourse,
+  syntheticCourseData,
 } from '../fixtures/synthetic-course';
 
 /**
@@ -14,7 +20,7 @@ import {
 // Built on first use inside a test, so a generator that throws fails each
 // test on its own rather than the whole file at collection.
 let cached: CourseData | undefined;
-const course = (): CourseData => (cached ??= syntheticCourse(1));
+const course = (): CourseData => (cached ??= syntheticCourseData(1));
 
 const nonEmpty = (ids: readonly string[]) =>
   ids.filter((id) => id.trim() !== '');
@@ -22,7 +28,7 @@ const nonEmpty = (ids: readonly string[]) =>
 /** The spec's three regions (#26 AC8), by index: each region is its own test. */
 const REGION_INDICES = [0, 1, 2] as const;
 
-const region = (index: number): Region => {
+const region = (index: number): RegionData => {
   const found = course().regions[index];
   if (found === undefined)
     throw new Error(`the course has no region ${String(index)}`);
@@ -39,12 +45,12 @@ function allItems(c: CourseData): LexiconItem[] {
 
 describe('syntheticCourse', () => {
   it('gives a deep-equal course for the same seed, and plain JSON data', () => {
-    expect(syntheticCourse(1)).toEqual(course());
+    expect(syntheticCourseData(1)).toEqual(course());
     expect(JSON.parse(JSON.stringify(course()))).toEqual(course());
   });
 
   it('varies with the seed beyond its id', () => {
-    expect(syntheticCourse(2).regions).not.toEqual(course().regions);
+    expect(syntheticCourseData(2).regions).not.toEqual(course().regions);
   });
 
   it('has 3 regions', () => {
@@ -151,15 +157,20 @@ describe('syntheticCourse', () => {
     });
 
   for (const index of REGION_INDICES)
-    it(`region ${String(index)} prices its Encounters positively and ascending`, () => {
+    it(`region ${String(index)} places its six Encounters on tiers 1 to 6, in order`, () => {
       const r = region(index);
-      const c0 = r.encounters.map((e) => e.c0);
       expect(
-        c0.every((c) => c > 0) && r.encounters.every((e) => e.p0 > 0),
+        r.encounters.map((e) => e.tier),
         r.id,
-      ).toBe(true);
-      expect(c0, r.id).toEqual([...c0].sort((a, b) => a - b));
+      ).toEqual([1, 2, 3, 4, 5, 6]);
     });
+
+  it('plays as its content priced by the ladder (#35 AC8)', () => {
+    expect(syntheticCourse(1)).toEqual(resolveCourse(course()));
+    expect(syntheticCourse(1).regions[2]?.encounters[5]?.c0).toBe(
+      2_488_320_000_000,
+    );
+  });
 
   it('places festival windows on the bot calendar, as integer half-open wall-clock spans', () => {
     const windows = course().regions.flatMap((r) =>

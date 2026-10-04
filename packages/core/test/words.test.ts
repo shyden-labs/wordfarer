@@ -10,7 +10,7 @@ import {
   wallMs,
   type WallMs,
 } from '../src/clock';
-import type { CourseData, Encounter, LexiconItem } from '../src/course';
+import type { Course, Encounter, LexiconItem } from '../src/course';
 import { encounterOutput } from '../src/encounters';
 import {
   insightFor,
@@ -46,7 +46,7 @@ import { exactMean, exactR } from './fsrs-reference';
 /**
  * Words, ranks and FSRS review in the game (#28 AC1, AC2, AC4 to AC9).
  *
- * The course is declared here, so it is checked against the `CourseData`
+ * The course is declared here, so it is checked against the `Course`
  * contract rather than sharing it. Its first destination lists its lexicon
  * out of CEFR order on purpose, and holds an id that is an
  * `Object.prototype` member.
@@ -71,7 +71,7 @@ const lexicon: readonly LexiconItem[] = [
 ];
 const CURRICULUM = ['a1-food', 'a1-bus', 'both', 'toString', 'b1-food'];
 
-const course: CourseData = {
+const course: Course = {
   id: 'words-course',
   tags: ['food', 'transport', 'market'],
   regions: [
@@ -632,7 +632,7 @@ describe('the view (AC6, DN23)', () => {
     );
     const region = course.regions[0];
     if (region === undefined) throw new Error('the course has no region');
-    const crowded: CourseData = {
+    const crowded: Course = {
       ...course,
       regions: [
         {

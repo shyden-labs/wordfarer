@@ -10,7 +10,7 @@ import {
   type SimMs,
   type WallMs,
 } from '../src/clock';
-import type { CourseData, CultureCard, Region } from '../src/course';
+import type { Course, CultureCard, Region } from '../src/course';
 import { newWordMemory, review, type WordMemory } from '../src/memory';
 import { Num } from '../src/num';
 import {
@@ -28,7 +28,7 @@ import { encounterPrice } from '../src/upgrades';
  * rate, then confirmed at that tick and the one before, so it equals a
  * tick-by-tick scan.
  *
- * The course is declared here, so it is checked against the `CourseData`
+ * The course is declared here, so it is checked against the `Course`
  * contract rather than sharing it. A held festival card cuts segments inside
  * an hour, so the solve meets both kinds of edge.
  */
@@ -89,7 +89,7 @@ function shopRegion(r: number, scale: number, card?: CultureCard): Region {
 }
 
 /** Every price is `scale` times the listed one, so a purchase can be hours away. */
-function shopWith(window: readonly [number, number], scale = 1): CourseData {
+function shopWith(window: readonly [number, number], scale = 1): Course {
   return {
     id: 'pemandu-course',
     tags: ['food', 'travel'],
@@ -108,7 +108,7 @@ function positioned(state: GameState, t: SimMs): GameState {
 
 /** The reference: every tick in (anchor, until], one at a time. */
 function scan(
-  course: CourseData,
+  course: Course,
   state: GameState,
   until: SimMs,
 ): SimMs | undefined {
@@ -131,7 +131,7 @@ function scan(
 }
 
 interface Case {
-  readonly course: CourseData;
+  readonly course: Course;
   readonly state: GameState;
   readonly until: SimMs;
 }
@@ -454,7 +454,7 @@ describe('nextPurchaseTick (AC3)', () => {
   });
 
   it('finds nothing, testing no tick, when the regions reached sell nothing', () => {
-    const bare: CourseData = {
+    const bare: Course = {
       ...course,
       regions: course.regions.map((r) => ({ ...r, encounters: [] })),
     };

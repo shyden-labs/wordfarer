@@ -11,7 +11,7 @@
  * others.
  */
 import { BALANCE } from './balance';
-import type { CourseData, GrammarNode } from './course';
+import type { Course, GrammarNode } from './course';
 import { Num } from './num';
 import type { GameState } from './state';
 
@@ -30,7 +30,7 @@ export function grammarNodeCost(owned: number): Num {
 
 /** Node `id` and the index of the region that holds it, if the course has it. */
 export function findGrammarNode(
-  course: CourseData,
+  course: Course,
   id: string,
 ): { readonly node: GrammarNode; readonly region: number } | undefined {
   for (const [region, { grammarNodes }] of course.regions.entries()) {
@@ -45,7 +45,7 @@ export function findGrammarNode(
  * pick-up pool never depends on purchase order (design §5, #32).
  */
 export function ownedGrammarNodes(
-  course: CourseData,
+  course: Course,
   state: GameState,
 ): readonly GrammarNode[] {
   return course.regions.flatMap((region) =>
@@ -60,7 +60,7 @@ export function ownedGrammarNodes(
  * since every factor is the same number.
  */
 export function rootFactors(
-  course: CourseData,
+  course: Course,
   state: GameState,
 ): ReadonlyMap<string, number> {
   const gain = 1 + BALANCE.grammar.rootGain;

@@ -10,14 +10,14 @@
  * engine.
  */
 import { BALANCE } from './balance';
-import type { CourseData, CultureCard, Encounter } from './course';
+import type { Course, CultureCard, Encounter } from './course';
 import type { GameState } from './state';
 import { sharesTag } from './words';
 
-const cardIndexes = new WeakMap<CourseData, ReadonlyMap<string, CultureCard>>();
+const cardIndexes = new WeakMap<Course, ReadonlyMap<string, CultureCard>>();
 
 /** The culture card `id` anywhere in the course. */
-export function cultureCard(course: CourseData, id: string): CultureCard {
+export function cultureCard(course: Course, id: string): CultureCard {
   let index = cardIndexes.get(course);
   if (index === undefined) {
     const built = new Map<string, CultureCard>();
@@ -36,7 +36,7 @@ export function cultureCard(course: CourseData, id: string): CultureCard {
 
 /** The held cards in course order. A held id the course lacks is refused. */
 export function heldCards(
-  course: CourseData,
+  course: Course,
   state: GameState,
 ): readonly CultureCard[] {
   for (const id of state.cards) cultureCard(course, id);
@@ -77,7 +77,7 @@ export function cardFactor(
 
 /** The `sets` line, or `undefined` when no set is complete. */
 export function setFactor(
-  course: CourseData,
+  course: Course,
   held: readonly CultureCard[],
 ): number | undefined {
   const ids = new Set(held.map((card) => card.id));

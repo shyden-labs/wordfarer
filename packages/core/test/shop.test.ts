@@ -4,7 +4,7 @@ import {
   syntheticCourse,
 } from '../fixtures/synthetic-course';
 import { wallMs } from '../src/clock';
-import type { CourseData } from '../src/course';
+import type { Course } from '../src/course';
 import { startJourney } from '../src/journeys';
 import { Num } from '../src/num';
 import {
@@ -25,10 +25,10 @@ import { view, type EncounterOffer, type UpgradeOffer } from '../src/view';
  * `affordable` is whether the action is accepted, at the boundary itself.
  */
 
-let built: CourseData | undefined;
+let built: Course | undefined;
 
 /** The synthetic course(), built on first use rather than at collection. */
-function course(): CourseData {
+function course(): Course {
   built ??= syntheticCourse(1);
   return built;
 }

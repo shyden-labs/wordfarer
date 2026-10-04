@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { HOUR_MS, simMs, wallMs, type WallMs } from '../src/clock';
-import type { CourseData, Encounter } from '../src/course';
+import type { Course, Encounter } from '../src/course';
 import { encounterOutput, purchaseCost } from '../src/encounters';
 import { Num, type NumTuple } from '../src/num';
 import { encounterRate, understandingNow } from '../src/production';
@@ -14,7 +14,7 @@ import { initialState, ownedCount, type GameState } from '../src/state';
  * The time model and the Encounter actions (#27 AC1, AC4 to AC9).
  *
  * The course is declared here rather than imported, so it is checked against
- * the `CourseData` contract instead of sharing it.
+ * the `Course` contract instead of sharing it.
  */
 
 const DAY_MS = 24 * HOUR_MS;
@@ -25,7 +25,7 @@ const market: Encounter = { id: 'market', tags: ['food'], c0: 100, p0: 1 };
 /** An id that is also an `Object.prototype` member. */
 const odd: Encounter = { id: 'toString', tags: ['food'], c0: 5, p0: 0.5 };
 
-const course: CourseData = {
+const course: Course = {
   id: 'test-course',
   tags: ['food'],
   regions: [

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { heldCards } from '../src/cards';
 import { DAY_MS, HOUR_MS, simMs, wallMs, type WallMs } from '../src/clock';
-import type { CourseData, CultureCard, Encounter } from '../src/course';
+import type { Course, CultureCard, Encounter } from '../src/course';
 import { Num } from '../src/num';
 import { producedBetween, rateAt, type RateLine } from '../src/production';
 import { view } from '../src/view';
@@ -12,7 +12,7 @@ import { initialState, type GameState } from '../src/state';
  * rate breakdown, the festival doubling and the production split at a
  * festival edge.
  *
- * The course is declared here, so it is checked against the `CourseData`
+ * The course is declared here, so it is checked against the `Course`
  * contract rather than sharing it.
  */
 
@@ -62,7 +62,7 @@ const ojek: CultureCard = {
   phrasePack: [],
 };
 
-const course: CourseData = {
+const course: Course = {
   id: 'cards-course',
   tags: ['food', 'transport', 'family'],
   regions: [

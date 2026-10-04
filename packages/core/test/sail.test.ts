@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HOUR_MS, simMs, wallMs, type WallMs } from '../src/clock';
 import type {
-  CourseData,
+  Course,
   CultureCard,
   Destination,
   Encounter,
@@ -28,7 +28,7 @@ import { initialState, type GameState } from '../src/state';
  * a sail resets and keeps, the order destinations unlock in, the finale and
  * Mastery mode.
  *
- * The course is declared here, so it is checked against the `CourseData`
+ * The course is declared here, so it is checked against the `Course`
  * contract rather than sharing it. The goal curve is written out as literals
  * (U_goal(i) = 10,000 x 10^i, words(i) = 8 + 2i, k = 3, x 1.5 per replay),
  * so a change to `BALANCE.sail` fails here as well as in its own pin.
@@ -75,7 +75,7 @@ function region(r: number): Region {
   };
 }
 
-const course: CourseData = {
+const course: Course = {
   id: 'sail-course',
   tags: ['food'],
   regions: [region(0), region(1), region(2)],
@@ -497,7 +497,7 @@ describe('destinations unlock in order (AC4)', () => {
   });
 
   it('refuses a sail on a course with no destinations', () => {
-    const bare: CourseData = {
+    const bare: Course = {
       ...course,
       regions: [{ ...region(0), destinations: [] }],
     };

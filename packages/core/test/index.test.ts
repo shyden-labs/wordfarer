@@ -57,6 +57,7 @@ describe('the package entry point', () => {
     'encounterPrice',
     'view',
     'nextPickUp',
+    'resolveCourse',
   ] as const)
     it(`exports ${name}`, () => {
       expect(core[name]).toBeTypeOf('function');

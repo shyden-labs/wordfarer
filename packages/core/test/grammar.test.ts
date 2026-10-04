@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HOUR_MS, wallMs, type WallMs } from '../src/clock';
 import type {
-  CourseData,
+  Course,
   Destination,
   GrammarNode,
   LexiconItem,
@@ -30,7 +30,7 @@ import { lexiconItem, pickUpPool } from '../src/words';
  * Grammar nodes (#32 AC1 to AC4): buying one, the words it multiplies, the
  * derived words it teaches, its breakdown line, and that a sail keeps it.
  *
- * The course is declared here, so it is checked against the `CourseData`
+ * The course is declared here, so it is checked against the `Course`
  * contract rather than sharing it. The cost curve is written out as literals
  * (50 x 1.5^n Insight, open from region 2), so a change to `BALANCE.grammar`
  * fails here as well as in its own pin.
@@ -114,7 +114,7 @@ function region(r: number): Region {
   };
 }
 
-const course: CourseData = {
+const course: Course = {
   id: 'grammar-course',
   tags: ['food', 'travel'],
   regions: [region(0), region(1), region(2)],

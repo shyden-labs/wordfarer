@@ -21,7 +21,7 @@
 import { BALANCE } from './balance';
 import { DAY_MS, HOUR_MS, bucketStart, simMs, type SimMs } from './clock';
 import { cardFactor, heldCards, nextFestivalEdge, setFactor } from './cards';
-import type { CourseData, CultureCard, Encounter } from './course';
+import type { Course, CultureCard, Encounter } from './course';
 import { encounterOutput, milestoneFactor } from './encounters';
 import { rootFactors } from './grammar';
 import { meanRetrievability } from './memory';
@@ -58,7 +58,7 @@ interface TaggedBonus {
 }
 
 /** Understanding per second from every owned Encounter, before any multiplier. */
-export function encounterRate(course: CourseData, state: GameState): Num {
+export function encounterRate(course: Course, state: GameState): Num {
   let rate = Num.from(0);
   for (const region of course.regions) {
     for (const encounter of region.encounters) {
@@ -74,7 +74,7 @@ export function encounterRate(course: CourseData, state: GameState): Num {
  * the sums that use them add in the same order on every engine.
  */
 function bucketBonuses(
-  course: CourseData,
+  course: Course,
   state: GameState,
   t: SimMs,
 ): readonly TaggedBonus[] {
@@ -125,15 +125,11 @@ interface BucketWords {
  * object stands for its contents, as a course does for `lexiconItem`'s index.
  */
 const bucketMemo = new WeakMap<
-  CourseData,
+  Course,
   WeakMap<object, Map<string, BucketWords>>
 >();
 
-function bucketWords(
-  course: CourseData,
-  state: GameState,
-  t: SimMs,
-): BucketWords {
+function bucketWords(course: Course, state: GameState, t: SimMs): BucketWords {
   let byWords = bucketMemo.get(course);
   if (byWords === undefined) {
     byWords = new WeakMap();
@@ -202,7 +198,7 @@ function grammarRatio(
 
 /** M_words for `encounter` in the bucket holding `t`, before grammar. */
 export function wordMultiplier(
-  course: CourseData,
+  course: Course,
   state: GameState,
   encounter: Encounter,
   t: SimMs,
@@ -246,7 +242,7 @@ function linesFor(
   return lines;
 }
 
-function sharedAt(course: CourseData, state: GameState, t: SimMs): Shared {
+function sharedAt(course: Course, state: GameState, t: SimMs): Shared {
   const held = heldCards(course, state);
   return {
     held,
@@ -267,7 +263,7 @@ function product(lines: readonly RateLine[]): Num {
  * bucket's; a festival is judged at `t`'s wall time, `t` plus the skew.
  */
 export function rateBreakdown(
-  course: CourseData,
+  course: Course,
   state: GameState,
   t: SimMs,
 ): readonly EncounterRate[] {
@@ -295,7 +291,7 @@ export function rateBreakdown(
  * bucket's word bonuses and the shared lines are worked out once.
  */
 export function rateGain(
-  course: CourseData,
+  course: Course,
   state: GameState,
   t: SimMs,
 ): (encounter: Encounter) => Num {
@@ -316,12 +312,12 @@ export function totalRate(breakdown: readonly EncounterRate[]): Num {
 }
 
 /** Understanding per second at simulated time `t`, every multiplier included. */
-export function rateAt(course: CourseData, state: GameState, t: SimMs): Num {
+export function rateAt(course: Course, state: GameState, t: SimMs): Num {
   return totalRate(rateBreakdown(course, state, t));
 }
 
 /** Understanding at the state's simulated time: the anchor's, plus production since. */
-export function understandingNow(course: CourseData, state: GameState): Num {
+export function understandingNow(course: Course, state: GameState): Num {
   return understandingAfter(
     Num.fromTuple(state.anchor.understanding),
     rateMs(course, state, state.anchor.sim, state.sim),
@@ -357,7 +353,7 @@ export interface Segment {
  * card's window edge, in order, with the rate paid over each piece.
  */
 export function* segments(
-  course: CourseData,
+  course: Course,
   state: GameState,
   from: SimMs,
   to: SimMs,
@@ -386,12 +382,7 @@ export function* segments(
 }
 
 /** Rate-milliseconds over `[from, to)`: each segment's rate times its length, added in order. */
-function rateMs(
-  course: CourseData,
-  state: GameState,
-  from: SimMs,
-  to: SimMs,
-): Num {
+function rateMs(course: Course, state: GameState, from: SimMs, to: SimMs): Num {
   if (to < from) {
     throw new RangeError(
       `producedBetween: ${String(to)} is before ${String(from)}`,
@@ -409,7 +400,7 @@ function rateMs(
  * split at a held festival card's window edges.
  */
 export function producedBetween(
-  course: CourseData,
+  course: Course,
   state: GameState,
   from: SimMs,
   to: SimMs,

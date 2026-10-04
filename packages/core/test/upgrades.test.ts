@@ -5,7 +5,7 @@ import {
   type StampUpgradeId,
 } from '../src/balance';
 import { simMs, wallMs, type WallMs } from '../src/clock';
-import type { CourseData, Encounter } from '../src/course';
+import type { Course, Encounter } from '../src/course';
 import { purchaseCost } from '../src/encounters';
 import { Num } from '../src/num';
 import { understandingNow, type EncounterRate } from '../src/production';
@@ -31,12 +31,12 @@ import {
  * catalogues, their effects, and `buyUpgrade`.
  *
  * The course is declared here rather than imported, so it is checked against
- * the `CourseData` contract instead of sharing it.
+ * the `Course` contract instead of sharing it.
  */
 
 const HOUR_MS = 3_600_000;
 
-const course: CourseData = {
+const course: Course = {
   id: 'upgrades-course',
   tags: ['food', 'market', 'family'],
   regions: [
@@ -533,7 +533,7 @@ const stall: Encounter = {
 };
 const bus: Encounter = { id: 'bus', tags: ['family'], c0: 100, p0: 1 };
 
-const economy: CourseData = {
+const economy: Course = {
   ...course,
   id: 'economy-course',
   regions: [

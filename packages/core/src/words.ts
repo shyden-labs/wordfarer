@@ -13,7 +13,7 @@
 import { BALANCE, type Rank } from './balance';
 import type {
   Cefr,
-  CourseData,
+  Course,
   CultureCard,
   Destination,
   GrammarNode,
@@ -66,13 +66,13 @@ export function sharesTag(a: readonly string[], b: readonly string[]): boolean {
   return a.some((tag) => b.includes(tag));
 }
 
-const itemIndexes = new WeakMap<CourseData, ReadonlyMap<string, LexiconItem>>();
+const itemIndexes = new WeakMap<Course, ReadonlyMap<string, LexiconItem>>();
 
 /**
  * The lexicon item `id` anywhere in the course: a destination's, a card's
  * phrase pack's, or a grammar node's derived word.
  */
-export function lexiconItem(course: CourseData, id: string): LexiconItem {
+export function lexiconItem(course: Course, id: string): LexiconItem {
   let index = itemIndexes.get(course);
   if (index === undefined) {
     const built = new Map<string, LexiconItem>();

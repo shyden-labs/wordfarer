@@ -5,7 +5,7 @@ import {
   readGolden,
 } from '../../packages/core/fixtures/golden-log';
 import { BALANCE, JOURNEY_DURATION_IDS } from '../../packages/core/src/balance';
-import type { CourseData } from '../../packages/core/src/course';
+import type { Course } from '../../packages/core/src/course';
 import type { GameEvent } from '../../packages/core/src/events';
 import { apply } from '../../packages/core/src/log';
 import { advance } from '../../packages/core/src/sim';
@@ -71,7 +71,7 @@ type Action = GameEvent extends infer E
   : never;
 
 function judge(
-  course: CourseData,
+  course: Course,
   state: GameState,
   wallMs: GameEvent['wallMs'],
   tally: Tally,
@@ -90,7 +90,7 @@ function judge(
 }
 
 function judgeShop(
-  course: CourseData,
+  course: Course,
   state: GameState,
   wallMs: GameEvent['wallMs'],
   shop: Shop,

@@ -4,7 +4,7 @@ import {
   syntheticCourse,
 } from '../fixtures/synthetic-course';
 import { DAY_MS, HOUR_MS, simMs, wallMs } from '../src/clock';
-import type { CourseData } from '../src/course';
+import type { Course } from '../src/course';
 import { newWordMemory, review, type WordMemory } from '../src/memory';
 import { Num } from '../src/num';
 import { rateBreakdown } from '../src/production';
@@ -40,14 +40,14 @@ declare const process: {
   };
 };
 
-let builtCourse: CourseData | undefined;
+let builtCourse: Course | undefined;
 
 /**
  * The synthetic course, built on first use inside a test and kept, so every
  * test reads the same object (the bucket memo is keyed by it) and a throwing
  * build fails each test that needs it by name, never the file (#97).
  */
-function course(): CourseData {
+function course(): Course {
   builtCourse ??= syntheticCourse(1);
   return builtCourse;
 }
@@ -143,9 +143,9 @@ describe('a 72 h return with Pemandu at 1 s (AC5)', () => {
  */
 describe('the bucket memo behind a fast return', () => {
   const node = (): string => course().regions[0]?.grammarNodes[0]?.id ?? '';
-  let builtOther: CourseData | undefined;
+  let builtOther: Course | undefined;
   /** A second course with the same word ids, built on first use like course(). */
-  function other(): CourseData {
+  function other(): Course {
     builtOther ??= syntheticCourse(2);
     return builtOther;
   }
@@ -154,7 +154,7 @@ describe('the bucket memo behind a fast return', () => {
   // name rather than dropping them from the count.
   type Change = (s: GameState) => Partial<GameState>;
 
-  it.each<readonly [string, () => CourseData, Change, number]>([
+  it.each<readonly [string, () => Course, Change, number]>([
     [
       'memorySince moves, as a review moves it',
       course,

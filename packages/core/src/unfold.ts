@@ -12,7 +12,7 @@
  * and the goal before it.
  */
 import { BALANCE } from './balance';
-import type { CourseData } from './course';
+import type { Course } from './course';
 import { isDue } from './memory';
 import { Num } from './num';
 import { goalMet, runUnderstanding } from './sail';
@@ -53,7 +53,7 @@ function cultureShown(state: GameState): boolean {
 }
 
 /** The reveal flags for `state` (AC6). */
-export function unfold(course: CourseData, state: GameState): Unfold {
+export function unfold(course: Course, state: GameState): Unfold {
   const review = reviewShown(state);
   const culture = cultureShown(state);
   return {

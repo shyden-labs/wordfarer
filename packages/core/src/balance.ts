@@ -57,6 +57,10 @@ export interface Balance {
     readonly milestoneMultiplier: number;
     /** Understanding at which the first Encounter appears (parent §4.1). */
     readonly firstAtUnderstanding: number;
+    /** Region 0's price and output by tier, 1 first (#35 AC8). */
+    readonly ladder: readonly { readonly c0: number; readonly p0: number }[];
+    /** Each region's ladder is region 0's times its entry (#35 AC8). */
+    readonly regionScale: readonly number[];
   };
   readonly words: {
     /** b_w = rankBonus[rank] x (floorShare + (1 - floorShare) x R) (parent §3.3). */
@@ -173,6 +177,17 @@ export const BALANCE: Balance = deepFreeze({
     milestoneEvery: 100,
     milestoneMultiplier: 2,
     firstAtUnderstanding: 10,
+    // Each tier costs 12x and yields 8x the one before.
+    ladder: [
+      { c0: 10, p0: 0.5 },
+      { c0: 120, p0: 4 },
+      { c0: 1_440, p0: 32 },
+      { c0: 17_280, p0: 256 },
+      { c0: 207_360, p0: 2_048 },
+      { c0: 2_488_320, p0: 16_384 },
+    ],
+    // Each region's Encounters are 1000x the previous region's.
+    regionScale: [1, 1_000, 1_000_000],
   },
   words: {
     rankBonus: {

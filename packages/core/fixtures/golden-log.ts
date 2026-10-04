@@ -1,6 +1,6 @@
 import { automationUnlocked, bestPayback } from '../src/automation';
 import { wallMs, type WallMs } from '../src/clock';
-import type { CourseData } from '../src/course';
+import type { Course } from '../src/course';
 import { parseEvent, PROMPT_TYPES, type GameEvent } from '../src/events';
 import { stateHash } from '../src/hash';
 import { journeyDurationMs, journeyStatus } from '../src/journeys';
@@ -80,7 +80,7 @@ class Player {
   readonly events: GameEvent[] = [];
 
   constructor(
-    private readonly course: CourseData,
+    private readonly course: Course,
     initial: GameState,
     policySeed: number,
   ) {
@@ -357,7 +357,7 @@ class Player {
 
 /** Play the golden policy for `days` days on `course`. */
 export function playGolden(
-  course: CourseData,
+  course: Course,
   days: number = GOLDEN.days,
 ): GoldenRun {
   const initial = initialState(wallMs(BOT_EPOCH_WALL_MS), GOLDEN.stateSeed);
@@ -443,7 +443,7 @@ export function readGolden(text: string): {
 
 /** The course and first state a header names, to replay its log from. */
 export function goldenStart(header: GoldenHeader): {
-  readonly course: CourseData;
+  readonly course: Course;
   readonly initial: GameState;
 } {
   return {

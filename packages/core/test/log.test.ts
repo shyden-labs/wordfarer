@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { syntheticCourse } from '../fixtures/synthetic-course';
 import { HOUR_MS, wallMs, type WallMs } from '../src/clock';
-import type { CourseData } from '../src/course';
+import type { Course } from '../src/course';
 import type { GameEvent } from '../src/events';
 import { collectJourney, startJourney } from '../src/journeys';
 import { apply, replay } from '../src/log';
@@ -34,15 +34,15 @@ import { offlineCapMs } from '../src/upgrades';
 const START: WallMs = wallMs(Date.UTC(2027, 0, 4, 8));
 const MINUTE_MS = 60_000;
 
-let builtCourse: CourseData | undefined;
+let builtCourse: Course | undefined;
 /** The synthetic course, built on first use rather than at collection (#97). */
-function course(): CourseData {
+function course(): Course {
   builtCourse ??= syntheticCourse(1);
   return builtCourse;
 }
 
 /** The number of the first destination of region 2: grammar and Pemandu are open there. */
-function regionTwoStart(c: CourseData): number {
+function regionTwoStart(c: Course): number {
   return c.regions[0]?.destinations.length ?? 0;
 }
 
@@ -51,7 +51,7 @@ function regionTwoStart(c: CourseData): number {
  * every word of its lexicon but the last held and due, so each event type
  * has something it can do. Plain data, so it is built by spreading.
  */
-function rich(c: CourseData): GameState {
+function rich(c: Course): GameState {
   const number = regionTwoStart(c);
   const lexicon = c.regions[1]?.destinations[0]?.lexicon ?? [];
   const base = initialState(START, 34);
@@ -69,7 +69,7 @@ function rich(c: CourseData): GameState {
   };
 }
 
-function firstWord(c: CourseData): string {
+function firstWord(c: Course): string {
   return c.regions[1]?.destinations[0]?.lexicon[0]?.id ?? '';
 }
 
@@ -77,7 +77,7 @@ function firstWord(c: CourseData): string {
  * One event of each type, in an order where each is accepted: resume first,
  * Set Sail last, since a sail resets Encounters and Understanding.
  */
-function scenario(c: CourseData): readonly GameEvent[] {
+function scenario(c: Course): readonly GameEvent[] {
   const at = (minutes: number): WallMs => wallMs(START + minutes * MINUTE_MS);
   const encounter = c.regions[0]?.encounters[0]?.id ?? '';
   const node = c.regions[0]?.grammarNodes[0]?.id ?? '';
@@ -115,7 +115,7 @@ function scenario(c: CourseData): readonly GameEvent[] {
  * The action an event names, called directly: the reference `apply` is
  * checked against. Written out here rather than shared with `log.ts`.
  */
-function direct(c: CourseData, state: GameState, event: GameEvent): Result {
+function direct(c: Course, state: GameState, event: GameEvent): Result {
   const at = advance(c, state, event.wallMs).state;
   switch (event.type) {
     case 'resume':
@@ -145,14 +145,14 @@ function direct(c: CourseData, state: GameState, event: GameEvent): Result {
   }
 }
 
-const befores = new WeakMap<CourseData, GameState[]>();
+const befores = new WeakMap<Course, GameState[]>();
 
 /**
  * The state before scenario event `index`, every earlier one accepted,
  * memoised per course: states are immutable, and the property below asks
  * for them hundreds of times.
  */
-function before(c: CourseData, index: number): GameState {
+function before(c: Course, index: number): GameState {
   const states = befores.get(c) ?? [rich(c)];
   befores.set(c, states);
   const events = scenario(c);
@@ -547,7 +547,7 @@ describe('apply and advance commute within the offline cap (design §7)', () => 
  * Any event of any type, its seq and wall time set by the caller: ids from the course and
  * some it does not have, slots and counts in and out of range.
  */
-function anyEvent(c: CourseData): fc.Arbitrary<GameEvent> {
+function anyEvent(c: Course): fc.Arbitrary<GameEvent> {
   // An offset from the state's wall clock, back by up to an hour (clamped)
   // or on by up to three: the caller adds the state's wall time.
   const wall = fc.integer({ min: -HOUR_MS, max: 3 * HOUR_MS });
