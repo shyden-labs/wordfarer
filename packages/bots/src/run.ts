@@ -95,6 +95,11 @@ function holdsMastered(state: GameState): boolean {
   return Object.values(state.words).some((w) => w.rank === 'mastered');
 }
 
+export interface RunOptions {
+  /** End the run after the open in which this many sails have landed (the calibration tool's early exit). */
+  readonly stopAfterSails?: number;
+}
+
 /**
  * Play `persona` on `course` from the wall time `epochMs` for at most
  * `maxDays`, stopping at the finale.
@@ -104,6 +109,7 @@ export function runPersona(
   persona: Persona,
   epochMs: number,
   maxDays: number,
+  options: RunOptions = {},
 ): PersonaRun {
   const cpu = process.cpuUsage();
   const firstOpenMs = epochMs + WAKE_MS;
@@ -142,7 +148,10 @@ export function runPersona(
   let opens = 0;
   const undecided: number[] = [];
   // A call, not a property read: the finale changes inside `player.open`.
-  const finished = (): boolean => player.state.finale;
+  const finished = (): boolean =>
+    player.state.finale ||
+    (options.stopAfterSails !== undefined &&
+      sails.length >= options.stopAfterSails);
   for (let day = 0; day < maxDays && !finished(); day += 1) {
     const today = dayOpens(persona, epochMs, day, streams);
     const tomorrow = epochMs + (day + 1) * DAY_MS + WAKE_MS;

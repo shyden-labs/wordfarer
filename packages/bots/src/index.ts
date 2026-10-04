@@ -17,7 +17,22 @@ export {
   type Action,
   type Watcher,
 } from './player';
-export { insaneValues, runPersona, type PersonaRun, type Sail } from './run';
+export {
+  insaneValues,
+  runPersona,
+  type PersonaRun,
+  type RunOptions,
+  type Sail,
+} from './run';
+export {
+  CALIBRATE_DEFAULTS,
+  calibrateGoals,
+  threeFiguresDown,
+  UNREACHABLE,
+  type CalibratedGoal,
+  type CalibrateOptions,
+  type Measure,
+} from './calibrate';
 export {
   DAY_MS,
   dayOpens,

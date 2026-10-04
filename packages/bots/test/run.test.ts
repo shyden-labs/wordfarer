@@ -107,6 +107,31 @@ describe('runPersona', () => {
     },
   );
 
+  it(
+    'ends after the open in which the asked-for sails landed',
+    { timeout: 300_000 },
+    () => {
+      const full = runPersona(
+        course(),
+        persona('casual'),
+        BOT_EPOCH_WALL_MS,
+        3,
+      );
+      const stopped = runPersona(
+        course(),
+        persona('casual'),
+        BOT_EPOCH_WALL_MS,
+        3,
+        {
+          stopAfterSails: 2,
+        },
+      );
+      expect(stopped.sails.length).toBeGreaterThanOrEqual(2);
+      expect(stopped.sails).toEqual(full.sails.slice(0, stopped.sails.length));
+      expect(stopped.opens).toBeLessThan(full.opens);
+    },
+  );
+
   it('records no finale when the run ends first', { timeout: 120_000 }, () => {
     expect(
       runPersona(course(), persona('idler'), BOT_EPOCH_WALL_MS, 1).finaleDay,

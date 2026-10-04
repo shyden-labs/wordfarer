@@ -13,6 +13,9 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "noEmit": true,
+    // Node runs scripts/*.ts by stripping types, which needs the .ts
+    // extension on a relative import (scripts/pacing-calibrate.ts).
+    "allowImportingTsExtensions": true,
     "types": ["node"]
   },
   "include": [
