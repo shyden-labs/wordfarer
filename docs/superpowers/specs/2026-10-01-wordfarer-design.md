@@ -76,9 +76,9 @@ Everyday situations in which you hear the language. Examples for `en-id`: Warung
 
 - Spending Understanding **picks up** a word or phrase: a collectible card drawn from the current destination's lexicon, in curriculum order (CEFR A1 first).
 - Each word carries tags and boosts every Encounter that shares a tag, so words from earlier destinations keep paying on later ones.
-- Word bonus: `b_w = rankBonus[rank] · (0.5 + 0.5·R)`, where `R` is FSRS retrievability (0 to 1), taken as the word's mean over the current clock hour ([M1 design §2.2](2026-10-01-m1-core-simulation-design.md)). Per-Encounter `M_words = 1 + Σ b_w` over tagged words.
-- `rankBonus`: Heard 0.02 · Recognised 0.05 · Recalled 0.12 · Fluent 0.25 · Mastered 0.40, so Mastered is worth 20× Heard.
-- **Floor:** as `R` falls towards 0, a word that is never reviewed decays towards `0.5 · rankBonus[rank]`, half of its current rank's bonus, and never below it. Ranks drop only on a wrong answer, never through absence, so idlers lose nothing they earned (DN16).
+- Word bonus: `b_w = rankBonus[rank] · (0.8 + 0.2·R)`, where `R` is FSRS retrievability (0 to 1), taken as the word's mean over the current clock hour ([M1 design §2.2](2026-10-01-m1-core-simulation-design.md)). Per-Encounter `M_words = 1 + Σ b_w` over tagged words.
+- `rankBonus`: Heard 0.04 · Recognised 0.06 · Recalled 0.09 · Fluent 0.12 · Mastered 0.16, so Mastered is worth 4× Heard. Amended in M1 #35 (operator, 2026-10-04): the first ladder (0.02 to 0.40, 20×) with a floor at half a rank's bonus left a player who never reviews at 9 of 12 destinations after 12 weeks while the Casual Learner finished in about 25 days, so the Idler could not finish; measured with this ladder and floor, learning still pays 1.7× (Non-learner day 43 against Casual day 25) and the Idler finishes on day 48.
+- **Floor:** as `R` falls towards 0, a word that is never reviewed decays towards `0.8 · rankBonus[rank]`, four fifths of its current rank's bonus, and never below it (half until #35). Ranks drop only on a wrong answer, never through absence, so idlers lose nothing they earned (DN16).
 
 ### 3.4 Review and memory (FSRS)
 
