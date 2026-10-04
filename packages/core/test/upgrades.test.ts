@@ -5,17 +5,12 @@ import {
   type StampUpgradeId,
 } from '../src/balance';
 import { simMs, wallMs, type WallMs } from '../src/clock';
-import type { CourseData, Encounter } from '../src/course';
+import type { Course, Encounter } from '../src/course';
 import { purchaseCost } from '../src/encounters';
 import { Num } from '../src/num';
 import { understandingNow, type EncounterRate } from '../src/production';
-import {
-  advance,
-  buyEncounter,
-  buyUpgrade,
-  view,
-  type Result,
-} from '../src/sim';
+import { advance, buyEncounter, buyUpgrade, type Result } from '../src/sim';
+import { view } from '../src/view';
 import { initialState, type GameState } from '../src/state';
 import {
   encounterCostFactor,
@@ -36,12 +31,12 @@ import {
  * catalogues, their effects, and `buyUpgrade`.
  *
  * The course is declared here rather than imported, so it is checked against
- * the `CourseData` contract instead of sharing it.
+ * the `Course` contract instead of sharing it.
  */
 
 const HOUR_MS = 3_600_000;
 
-const course: CourseData = {
+const course: Course = {
   id: 'upgrades-course',
   tags: ['food', 'market', 'family'],
   regions: [
@@ -134,9 +129,9 @@ describe('the Insight catalogue (AC1)', () => {
     ['journeySlot2', [25], undefined],
     ['journeySlot3', [100], 'journeySlot2'],
     ['offlineCap', [40, 120], undefined],
-    ['phrasebook:food', [20], undefined],
-    ['phrasebook:market', [20], undefined],
-    ['phrasebook:family', [20], undefined],
+    ['phrasebook:food', [5], undefined],
+    ['phrasebook:market', [5], undefined],
+    ['phrasebook:family', [5], undefined],
     ['pemanduFaster1', [30], undefined],
     ['pemanduFaster2', [90], 'pemanduFaster1'],
     ['pemanduFaster3', [250], 'pemanduFaster2'],
@@ -484,7 +479,7 @@ describe('buyUpgrade (AC3)', () => {
   it('spends Insight and leaves stamps, Understanding and Encounters alone', () => {
     const before = holding({ insight: 50, stamps: 4, owned: { tea: 3 } });
     const after = ok(buyUpgrade(course, before, 'phrasebook:food'));
-    expect(after.insight).toEqual(Num.toTuple(Num.from(30)));
+    expect(after.insight).toEqual(Num.toTuple(Num.from(45)));
     expect(after.stamps).toBe(4);
     expect(after.stampsEarned).toBe(4);
     expect(after.owned).toEqual({ tea: 3 });
@@ -538,7 +533,7 @@ const stall: Encounter = {
 };
 const bus: Encounter = { id: 'bus', tags: ['family'], c0: 100, p0: 1 };
 
-const economy: CourseData = {
+const economy: Course = {
   ...course,
   id: 'economy-course',
   regions: [

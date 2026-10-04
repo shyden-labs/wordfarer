@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { nextGridTick, simMs, wallMs, type WallMs } from '../src/clock';
-import type { CourseData, Destination, Encounter, Region } from '../src/course';
+import type { Course, Destination, Encounter, Region } from '../src/course';
 import {
   automationOpensAt,
   automationUnlocked,
@@ -26,7 +26,7 @@ import { encounterPrice } from '../src/upgrades';
  * Pemandu automation (#33): the unlock and the setting (AC1), the choice
  * and the purchases `integrate` makes (AC2).
  *
- * The course is declared here, so it is checked against the `CourseData`
+ * The course is declared here, so it is checked against the `Course`
  * contract rather than sharing it. Its route numbers destinations 0 to 3 in
  * region 1, 4 to 7 in region 2 and 8 to 11 in region 3, so Pemandu opens at
  * destination 4, or 3 with the stamp upgrade. The opening region and the
@@ -62,17 +62,17 @@ function region(r: number): Region {
   };
 }
 
-const course: CourseData = {
+const course: Course = {
   id: 'automation-course',
   tags: ['food'],
   regions: [region(0), region(1), region(2)],
 };
 
 /** Region 1 only: Pemandu never opens on it. */
-const oneRegion: CourseData = { ...course, regions: [region(0)] };
+const oneRegion: Course = { ...course, regions: [region(0)] };
 
 /** Region 2 has no destinations, so the first one past region 1 is region 3's. */
-const hollow: CourseData = {
+const hollow: Course = {
   ...course,
   regions: [region(0), { ...region(1), destinations: [] }, region(2)],
 };
@@ -136,7 +136,7 @@ describe('the automation setting in state (AC1)', () => {
   });
 
   it('a sail keeps the setting', () => {
-    // Destination 4's goal: 1e4 x 10^4 Understanding and 8 + 2 x 4 words.
+    // Destination 4's goal: 4.81e17 Understanding (#35's table) and 8 + 2 x 4 words.
     const words = Object.fromEntries(
       Array.from({ length: 16 }, (_, k) => [
         `r1-d0-w${String(k)}`,
@@ -144,7 +144,7 @@ describe('the automation setting in state (AC1)', () => {
       ]),
     );
     const on = ok(
-      setAutomation(course, at(4, { held: 1e8, words }), true, 10_000),
+      setAutomation(course, at(4, { held: 4.81e17, words }), true, 10_000),
     );
     const sailed = ok(setSail(course, on));
     expect(sailed.destination).toBe(5);
@@ -308,14 +308,14 @@ function shopRegion(r: number): Region {
   return { ...region(r), encounters };
 }
 
-const shop: CourseData = {
+const shop: Course = {
   id: 'shop-course',
   tags: ['food', 'travel'],
   regions: [shopRegion(0), shopRegion(1), shopRegion(2)],
 };
 
 /** Two Encounters alike in all but id: 'Zed' sorts before 'apple' by code unit. */
-const twins: CourseData = {
+const twins: Course = {
   ...shop,
   regions: [
     {
@@ -430,7 +430,7 @@ function unitsOwned(state: GameState): number {
 }
 
 /** The reference: every tick in (anchor, sim + elapsed], one at a time. */
-function tickByTick(c: CourseData, s: GameState, elapsed: number): GameState {
+function tickByTick(c: Course, s: GameState, elapsed: number): GameState {
   const until = s.sim + elapsed;
   const every = s.automation.intervalMs;
   let x = s;

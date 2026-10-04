@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DAY_MS, simMs, wallMs, type WallMs } from '../src/clock';
 import type {
-  CourseData,
+  Course,
   CultureCard,
   Destination,
   Encounter,
@@ -31,7 +31,7 @@ import { pickUpCost, pickUpPool } from '../src/words';
  * destination, Encounters from every region reached, and the Understanding a
  * run spends.
  *
- * The course is declared here, so it is checked against the `CourseData`
+ * The course is declared here, so it is checked against the `Course`
  * contract rather than sharing it.
  */
 
@@ -73,7 +73,7 @@ function region(r: number): Region {
   };
 }
 
-const course: CourseData = {
+const course: Course = {
   id: 'route-course',
   tags: ['food'],
   regions: [region(0), region(1), region(2)],
@@ -119,7 +119,7 @@ describe('route', () => {
   });
 
   it('skips a region with no destinations', () => {
-    const gappy: CourseData = {
+    const gappy: Course = {
       ...course,
       regions: [region(0), { ...region(1), destinations: [] }, region(2)],
     };
@@ -142,7 +142,7 @@ describe('the current destination and region', () => {
   });
 
   it('a new game is in the first region even when the course gives it no destinations', () => {
-    const bare: CourseData = {
+    const bare: Course = {
       ...course,
       regions: [{ ...region(0), destinations: [] }],
     };

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HOUR_MS, wallMs, type WallMs } from '../src/clock';
 import type {
-  CourseData,
+  Course,
   Destination,
   GrammarNode,
   LexiconItem,
@@ -19,10 +19,10 @@ import {
   buyGrammarNode,
   integrate,
   pickUpWord,
-  view,
   type Rejection,
   type Result,
 } from '../src/sim';
+import { view } from '../src/view';
 import { initialState, type GameState } from '../src/state';
 import { lexiconItem, pickUpPool } from '../src/words';
 
@@ -30,7 +30,7 @@ import { lexiconItem, pickUpPool } from '../src/words';
  * Grammar nodes (#32 AC1 to AC4): buying one, the words it multiplies, the
  * derived words it teaches, its breakdown line, and that a sail keeps it.
  *
- * The course is declared here, so it is checked against the `CourseData`
+ * The course is declared here, so it is checked against the `Course`
  * contract rather than sharing it. The cost curve is written out as literals
  * (50 x 1.5^n Insight, open from region 2), so a change to `BALANCE.grammar`
  * fails here as well as in its own pin.
@@ -114,7 +114,7 @@ function region(r: number): Region {
   };
 }
 
-const course: CourseData = {
+const course: Course = {
   id: 'grammar-course',
   tags: ['food', 'travel'],
   regions: [region(0), region(1), region(2)],
@@ -295,9 +295,10 @@ describe('buyGrammarNode (#32 AC1)', () => {
 
 /**
  * Every word below is held unreviewed, so its mean R is 0 and its bonus is
- * heard's 0.02 x the floor share 0.5 = 0.01 (parent §3.3). Region 1's first
- * destination holds ajar, makan and teh on food and jalan on travel, so a
- * food Encounter's words line is 1 + 3 x 0.01 = 1.03 and travel's is 1.01.
+ * heard's 0.04 x the floor share 0.8 = 0.032 (parent §3.3, as tuned in #35).
+ * Region 1's first destination holds ajar, makan and teh on food and jalan on
+ * travel, so a food Encounter's words line is 1 + 3 x 0.032 = 1.096 and
+ * travel's is 1.032.
  */
 function holding(grammar: readonly string[]): GameState {
   const s = stateAt(4, 0, grammar);
@@ -322,14 +323,14 @@ function line(s: GameState, id: string, name: string): number | undefined {
 
 describe('the grammar multiplier (#32 AC2)', () => {
   it.each<[string, readonly string[], number]>([
-    // ajar x 1.5: (1 + 0.015 + 0.01 + 0.01) / 1.03
-    ['ber- multiplies ajar alone', ['ber-'], 1.035 / 1.03],
-    // ajar and makan x 1.5: (1 + 0.015 + 0.015 + 0.01) / 1.03
-    ['me- multiplies ajar and makan', ['me-'], 1.04 / 1.03],
+    // ajar x 1.5: (1 + 0.048 + 0.032 + 0.032) / 1.096
+    ['ber- multiplies ajar alone', ['ber-'], 1.112 / 1.096],
+    // ajar and makan x 1.5: (1 + 0.048 + 0.048 + 0.032) / 1.096
+    ['me- multiplies ajar and makan', ['me-'], 1.128 / 1.096],
     // makan x 1.5, from a region-2 node
-    ['di- multiplies makan alone', ['di-'], 1.035 / 1.03],
-    // ajar x 1.5 x 1.5 and makan x 1.5: (1 + 0.0225 + 0.015 + 0.01) / 1.03
-    ['ber- and me- compound on ajar', ['ber-', 'me-'], 1.0475 / 1.03],
+    ['di- multiplies makan alone', ['di-'], 1.112 / 1.096],
+    // ajar x 1.5 x 1.5 and makan x 1.5: (1 + 0.072 + 0.048 + 0.032) / 1.096
+    ['ber- and me- compound on ajar', ['ber-', 'me-'], 1.152 / 1.096],
   ])('%s on a food Encounter', (_, grammar, want) => {
     expect(line(holding(grammar), 'food0', 'grammar')).toBeCloseTo(want, 12);
   });
@@ -338,22 +339,22 @@ describe('the grammar multiplier (#32 AC2)', () => {
     ['nothing owned', []],
     ['ber-', ['ber-']],
     ['ber- and me-', ['ber-', 'me-']],
-  ])('leaves the words line at 1.03 with %s', (_, grammar) => {
-    expect(line(holding(grammar), 'food0', 'words')).toBeCloseTo(1.03, 12);
+  ])('leaves the words line at 1.096 with %s', (_, grammar) => {
+    expect(line(holding(grammar), 'food0', 'words')).toBeCloseTo(1.096, 12);
   });
 
   it('leaves an Encounter whose words no owned node covers unchanged: no grammar line', () => {
     // jalan, travel's only word, has no node at region 2.
     const s = holding(['ber-', 'me-', 'di-']);
     expect(line(s, 'travel0', 'grammar')).toBeUndefined();
-    expect(line(s, 'travel0', 'words')).toBeCloseTo(1.01, 12);
+    expect(line(s, 'travel0', 'words')).toBeCloseTo(1.032, 12);
     // Liveness: the travel Encounter is in the breakdown.
     expect(linesOf(s, 'travel0').length).toBeGreaterThan(2);
   });
 
   it('shows no grammar line before a node is owned', () => {
     expect(line(holding([]), 'food0', 'grammar')).toBeUndefined();
-    expect(line(holding([]), 'food0', 'words')).toBeCloseTo(1.03, 12);
+    expect(line(holding([]), 'food0', 'words')).toBeCloseTo(1.096, 12);
   });
 
   it('pays the multiplied rate: words x grammar is 1 + the multiplied bonuses', () => {
@@ -362,8 +363,8 @@ describe('the grammar multiplier (#32 AC2)', () => {
     const product = lines.reduce((p, [, v]) => p * v, 1);
     const rate = rateBreakdown(course, s, s.sim).find((e) => e.id === 'food0');
     expect(Num.toNumber(rate?.rate ?? Num.from(0))).toBeCloseTo(product, 12);
-    // 1 food0 at p0 = 1, no milestone, no stamps: the rate is 1.0475.
-    expect(Num.toNumber(rate?.rate ?? Num.from(0))).toBeCloseTo(1.0475, 12);
+    // 1 food0 at p0 = 1, no milestone, no stamps: the rate is 1.152.
+    expect(Num.toNumber(rate?.rate ?? Num.from(0))).toBeCloseTo(1.152, 12);
   });
 });
 
@@ -507,12 +508,12 @@ describe('derived words (#32 AC3)', () => {
   });
 
   it('pays a held derived word on its tags, multiplied by its node', () => {
-    // dimakan alone on travel, root makan, with di- owned: 1 + 0.01 x 1.5.
+    // dimakan alone on travel, root makan, with di- owned: 1 + 0.032 x 1.5.
     const s = {
       ...stateAt(4, 0, ['di-']),
       words: { dimakan: newWordMemory(START) },
     };
-    expect(line(s, 'travel0', 'words')).toBeCloseTo(1.01, 12);
-    expect(line(s, 'travel0', 'grammar')).toBeCloseTo(1.015 / 1.01, 12);
+    expect(line(s, 'travel0', 'words')).toBeCloseTo(1.032, 12);
+    expect(line(s, 'travel0', 'grammar')).toBeCloseTo(1.048 / 1.032, 12);
   });
 });

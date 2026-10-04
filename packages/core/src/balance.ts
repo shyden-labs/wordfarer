@@ -57,6 +57,10 @@ export interface Balance {
     readonly milestoneMultiplier: number;
     /** Understanding at which the first Encounter appears (parent §4.1). */
     readonly firstAtUnderstanding: number;
+    /** Region 0's price and output by tier, 1 first (#35 AC8). */
+    readonly ladder: readonly { readonly c0: number; readonly p0: number }[];
+    /** Each region's ladder is region 0's times its entry (#35 AC8). */
+    readonly regionScale: readonly number[];
   };
   readonly words: {
     /** b_w = rankBonus[rank] x (floorShare + (1 - floorShare) x R) (parent §3.3). */
@@ -136,9 +140,8 @@ export interface Balance {
     readonly opensAtRegion: number;
   };
   readonly sail: {
-    /** Destination i needs U_goal(i) = goalU0 x goalGrowth^i earned this run (design §5, #31). */
-    readonly goalU0: number;
-    readonly goalGrowth: number;
+    /** Destination i needs U_goal(i) = goals[i] earned this run, one per destination tuned by the pacing bots (design §5, #35). */
+    readonly goals: readonly number[];
     /** ...and words(i) = wordsBase + wordsStep x i of its own lexicon held. */
     readonly wordsBase: number;
     readonly wordsStep: number;
@@ -166,23 +169,34 @@ function deepFreeze<T>(value: T): T {
 }
 
 export const BALANCE: Balance = deepFreeze({
-  listen: { understandingPerTap: 1 },
+  listen: { understandingPerTap: 0.25 },
   encounters: {
     costGrowth: 1.15,
     milestones: [10, 25, 50, 100],
     milestoneEvery: 100,
     milestoneMultiplier: 2,
     firstAtUnderstanding: 10,
+    // Each tier costs 12x and yields 8x the one before.
+    ladder: [
+      { c0: 10, p0: 0.5 },
+      { c0: 120, p0: 4 },
+      { c0: 1_440, p0: 32 },
+      { c0: 17_280, p0: 256 },
+      { c0: 207_360, p0: 2_048 },
+      { c0: 2_488_320, p0: 16_384 },
+    ],
+    // Each region's Encounters are 1000x the previous region's.
+    regionScale: [1, 1_000, 1_000_000],
   },
   words: {
     rankBonus: {
-      heard: 0.02,
-      recognised: 0.05,
-      recalled: 0.12,
-      fluent: 0.25,
-      mastered: 0.4,
+      heard: 0.04,
+      recognised: 0.06,
+      recalled: 0.09,
+      fluent: 0.12,
+      mastered: 0.16,
     },
-    floorShare: 0.5,
+    floorShare: 0.8,
     pickUpC0: 20,
     pickUpGrowth: 1.15,
   },
@@ -201,7 +215,7 @@ export const BALANCE: Balance = deepFreeze({
       8 * HOUR_MS,
       24 * HOUR_MS,
     ],
-    duplicateInsight: [1, 2, 3, 5, 10],
+    duplicateInsight: [40, 80, 120, 200, 400],
     // A quarter of each duration, a starting value with nothing measured yet.
     duplicateUnderstandingMs: [
       7.5 * MINUTE_MS,
@@ -233,7 +247,7 @@ export const BALANCE: Balance = deepFreeze({
       journeySlot2: [25],
       journeySlot3: [100],
       offlineCap: [40, 120],
-      phrasebook: [20],
+      phrasebook: [5],
       pemanduFaster1: [30],
       pemanduFaster2: [90],
       pemanduFaster3: [250],
@@ -246,10 +260,13 @@ export const BALANCE: Balance = deepFreeze({
   },
   grammar: { rootGain: 0.5, costC0: 50, costGrowth: 1.5, opensAtRegion: 2 },
   automation: { intervalsMs: [10_000, 5_000, 2_000, 1_000], opensAtRegion: 2 },
-  // Starting values with nothing measured yet; the pacing bots tune them (#35).
+  // Goals fitted by `npm run pacing:calibrate` on the Casual Learner (#35, M1 design §5).
   sail: {
-    goalU0: 10_000,
-    goalGrowth: 10,
+    goals: [
+      2120000000, 20700000000000, 142000000000000, 473000000000000,
+      481000000000000000, 1130000000000000000, 2490000000000000000,
+      2980000000000000000, 3.18e21, 5.65e21, 8.02e21, 1.35e22,
+    ],
     wordsBase: 8,
     wordsStep: 2,
     stampK: 3,

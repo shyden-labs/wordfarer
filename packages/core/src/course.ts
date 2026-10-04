@@ -1,5 +1,6 @@
 /**
- * CourseData: the typed shape a course must produce for core (M1 design §3).
+ * CourseData: the typed shape a course must produce for core (M1 design §3),
+ * and `Course`, the shape core plays once `resolveCourse` has priced it.
  *
  * A course is data, not code (parent §5.1): core never branches on a language.
  * This type holds only what moves a number; text, translations, audio and the
@@ -11,7 +12,14 @@
  * cards and their sets, and grammar nodes. Tags are shared across the whole
  * course, so words from an earlier region keep paying on later Encounters
  * (parent §3.3).
+ *
+ * Content places each Encounter on a tier of the ladder; it never prices one.
+ * `resolveCourse` gives each its cost and output from `BALANCE.encounters`
+ * by tier and region, so every course, synthetic or real, plays on the
+ * ladder the pacing bots tuned (#35 AC8, operator 2026-10-04).
  */
+
+import { BALANCE } from './balance';
 
 export type Cefr = 'A1' | 'A2' | 'B1';
 
@@ -24,7 +32,20 @@ export interface LexiconItem {
   readonly root?: string;
 }
 
-/** A generator (parent §3.2): the n-th purchase costs c0 x growth^n, output scales with p0. */
+/** An Encounter's rung on `BALANCE.encounters.ladder`. */
+export type Tier = 1 | 2 | 3 | 4 | 5 | 6;
+
+/** An Encounter as content gives it: its place on the ladder, no price. */
+export interface EncounterData {
+  readonly id: string;
+  readonly tags: readonly string[];
+  readonly tier: Tier;
+}
+
+/**
+ * An Encounter as core plays it, priced by `resolveCourse` (parent §3.2): the
+ * n-th purchase costs c0 x growth^n, output scales with p0.
+ */
 export interface Encounter {
   readonly id: string;
   readonly tags: readonly string[];
@@ -73,18 +94,76 @@ export interface Destination {
   readonly lexicon: readonly LexiconItem[];
 }
 
-export interface Region {
+/** A region, its Encounters as content gives them (`E = EncounterData`) or priced. */
+export interface RegionOf<E> {
   readonly id: string;
   readonly destinations: readonly Destination[];
-  readonly encounters: readonly Encounter[];
+  readonly encounters: readonly E[];
   readonly cardSets: readonly CardSet[];
   readonly cultureCards: readonly CultureCard[];
   readonly grammarNodes: readonly GrammarNode[];
 }
 
-export interface CourseData {
+export interface CourseOf<E> {
   readonly id: string;
   /** Every tag used anywhere in the course. */
   readonly tags: readonly string[];
-  readonly regions: readonly Region[];
+  readonly regions: readonly RegionOf<E>[];
+}
+
+export type RegionData = RegionOf<EncounterData>;
+export type Region = RegionOf<Encounter>;
+/** A course as content gives it: what M2's schema targets. */
+export type CourseData = CourseOf<EncounterData>;
+/** A course as core plays it. */
+export type Course = CourseOf<Encounter>;
+
+function scaleOf(region: RegionData, index: number): number {
+  const scale = BALANCE.encounters.regionScale[index];
+  if (scale === undefined) {
+    throw new RangeError(
+      `region ${region.id} (${String(index)}) has no step in BALANCE.encounters.regionScale`,
+    );
+  }
+  return scale;
+}
+
+function rungOf(encounter: EncounterData): { c0: number; p0: number } {
+  const tier: number = encounter.tier;
+  const rung = Number.isInteger(tier)
+    ? BALANCE.encounters.ladder[tier - 1]
+    : undefined;
+  if (rung === undefined) {
+    throw new RangeError(
+      `Encounter ${encounter.id} has tier ${String(tier)}, not 1 to 6`,
+    );
+  }
+  return rung;
+}
+
+/**
+ * Price every Encounter of a course from `BALANCE.encounters`: tier `t` of
+ * region `r` costs `ladder[t - 1].c0 x regionScale[r]` and yields
+ * `ladder[t - 1].p0 x regionScale[r]`. Everything else is kept as given. A
+ * tier off the ladder, or a region with no step, is refused by name.
+ */
+export function resolveCourse(data: CourseData): Course {
+  return {
+    ...data,
+    regions: data.regions.map((region, index) => {
+      const scale = scaleOf(region, index);
+      return {
+        ...region,
+        encounters: region.encounters.map((encounter) => {
+          const { c0, p0 } = rungOf(encounter);
+          return {
+            id: encounter.id,
+            tags: encounter.tags,
+            c0: c0 * scale,
+            p0: p0 * scale,
+          };
+        }),
+      };
+    }),
+  };
 }

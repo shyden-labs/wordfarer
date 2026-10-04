@@ -4,8 +4,8 @@
  * `integrate` is the pure, uncapped primitive: it moves both clocks by the
  * same amount and touches nothing else, because every stored quantity is
  * held at the anchor. `advance` is what a returning player gets: elapsed wall
- * time clamped to `[0, offline cap]`. `view` derives "now" values without
- * changing state. Actions act at the state's own simulated time; a caller
+ * time clamped to `[0, offline cap]`; `view` (in `view.ts`) derives "now"
+ * values from it without changing state. Actions act at the state's own simulated time; a caller
  * advances to the event's wall time first. Every action that changes a
  * stored quantity re-anchors first, so production up to the action is banked
  * at the rates that held before it.
@@ -19,27 +19,13 @@ import {
 import { BALANCE } from './balance';
 import { heldCards } from './cards';
 import { simMs, wallMs, type WallMs } from './clock';
-import type { CourseData, Encounter } from './course';
+import type { Course, Encounter } from './course';
 import { findGrammarNode, grammarNodeCost, ownedGrammarNodes } from './grammar';
-import {
-  insightFor,
-  isDue,
-  newWordMemory,
-  review,
-  reviewQueue,
-  type QueueItem,
-} from './memory';
+import { insightFor, isDue, newWordMemory, review } from './memory';
 import { Num, type NumTuple } from './num';
-import {
-  rateBreakdown,
-  totalRate,
-  understandingNow,
-  type EncounterRate,
-} from './production';
+import { understandingNow } from './production';
 import { currentDestination, regionsReached } from './route';
-import { sailPreview, type SailPreview } from './sail';
 import { ownedCount, pickedWord, type GameState } from './state';
-import { unfold, type Unfold } from './unfold';
 import {
   encounterPrice,
   findUpgrade,
@@ -152,23 +138,8 @@ export interface AdvanceSummary {
   readonly journeysReturned: number;
 }
 
-export interface View {
-  readonly understanding: Num;
-  /** Understanding per second, every multiplier included: the breakdown's rates, added. */
-  readonly rate: Num;
-  /** Each owned Encounter's rate as the product of its named multipliers (DN6). */
-  readonly breakdown: readonly EncounterRate[];
-  readonly insight: Num;
-  /** At most 10 due items; how many more are due is never shown (DN23). */
-  readonly queue: readonly QueueItem[];
-  /** The run's goal and exactly what Set Sail would reset, keep and pay (DN3, #31). */
-  readonly sail: SailPreview;
-  /** Which features have unfolded (parent §4.1, DN7, #31). */
-  readonly unfold: Unfold;
-}
-
 /** Move the anchor to the state's simulated time, holding the same values. */
-export function reanchor(course: CourseData, state: GameState): GameState {
+export function reanchor(course: Course, state: GameState): GameState {
   return {
     ...state,
     anchor: {
@@ -186,7 +157,7 @@ export function reanchor(course: CourseData, state: GameState): GameState {
  * purchases at the same ticks, and stored arithmetic still cannot tell.
  */
 export function integrate(
-  course: CourseData,
+  course: Course,
   state: GameState,
   elapsedMs: number,
 ): GameState {
@@ -213,7 +184,7 @@ export function integrate(
  * two disagree, and that is thrown, never skipped.
  */
 function pemanduBuys(
-  course: CourseData,
+  course: Course,
   state: GameState,
   { tick, understanding }: PurchaseTick,
 ): GameState {
@@ -242,7 +213,7 @@ function pemanduBuys(
  * word's hour mean restarts there.
  */
 export function advance(
-  course: CourseData,
+  course: Course,
   state: GameState,
   now: WallMs,
 ): { readonly state: GameState; readonly summary: AdvanceSummary } {
@@ -273,23 +244,8 @@ export function advance(
   };
 }
 
-/** The values at wall time `now`, derived without changing `state`. */
-export function view(course: CourseData, state: GameState, now: WallMs): View {
-  const at = advance(course, state, now).state;
-  const breakdown = rateBreakdown(course, at, at.sim);
-  return {
-    understanding: understandingNow(course, at),
-    rate: totalRate(breakdown),
-    breakdown,
-    insight: Num.fromTuple(at.insight),
-    queue: reviewQueue(at.words, at.wall),
-    sail: sailPreview(course, at),
-    unfold: unfold(course, at),
-  };
-}
-
 /** One Listen tap: +1 Understanding (design §5). */
-export function listen(course: CourseData, state: GameState): GameState {
+export function listen(course: Course, state: GameState): GameState {
   const anchored = reanchor(course, state);
   const understanding = Num.add(
     Num.fromTuple(anchored.anchor.understanding),
@@ -302,7 +258,7 @@ export function listen(course: CourseData, state: GameState): GameState {
 }
 
 function findEncounter(
-  course: CourseData,
+  course: Course,
   id: string,
 ): { readonly encounter: Encounter; readonly region: number } | undefined {
   for (const [region, { encounters }] of course.regions.entries()) {
@@ -318,7 +274,7 @@ function findEncounter(
  * later region is refused. The cost counts towards this run's spend.
  */
 export function buyEncounter(
-  course: CourseData,
+  course: Course,
   state: GameState,
   id: string,
   count: number,
@@ -374,6 +330,40 @@ function spent(state: GameState, cost: Num): NumTuple {
   return Num.toTuple(Num.add(Num.fromTuple(state.runSpent), cost));
 }
 
+/** The next pick-up: what it costs and the words held once it is picked up. */
+export interface NextPickUp {
+  readonly cost: Num;
+  readonly words: GameState['words'];
+}
+
+/**
+ * The next word of the pick-up pool in curriculum order (see `pickUpWord`),
+ * priced, with the words held after picking it up; `undefined` once the pool
+ * is empty. Nothing is paid: `view`'s shop reads it too (#35 AC3).
+ */
+export function nextPickUp(
+  course: Course,
+  state: GameState,
+): NextPickUp | undefined {
+  const pool = pickUpPool(
+    currentDestination(course, state),
+    heldCards(course, state),
+    ownedGrammarNodes(course, state),
+  );
+  const next = pool.find((item) => pickedWord(state, item.id) === undefined);
+  if (next === undefined) return undefined;
+  const picked = pool.filter(
+    (item) => pickedWord(state, item.id) !== undefined,
+  );
+  return {
+    cost: pickUpCost(picked.length),
+    words: {
+      ...state.words,
+      [next.id]: newWordMemory(state.wall, tutorialDue(state)),
+    },
+  };
+}
+
 /**
  * Pick up the next word of the pick-up pool in curriculum order, paying for
  * it from Understanding (parent §3.3): the current destination's lexicon, the
@@ -383,20 +373,12 @@ function spent(state: GameState, cost: Num): NumTuple {
  * `tutorialDueMs` later, when Review unfolds (parent §4.1); every other word
  * is due at once.
  */
-export function pickUpWord(course: CourseData, state: GameState): Result {
-  const pool = pickUpPool(
-    currentDestination(course, state),
-    heldCards(course, state),
-    ownedGrammarNodes(course, state),
-  );
-  const next = pool.find((item) => pickedWord(state, item.id) === undefined);
+export function pickUpWord(course: Course, state: GameState): Result {
+  const next = nextPickUp(course, state);
   if (next === undefined) {
     return { ok: false, rejection: { kind: 'poolEmpty' } };
   }
-  const picked = pool.filter(
-    (item) => pickedWord(state, item.id) !== undefined,
-  );
-  const cost = pickUpCost(picked.length);
+  const { cost, words } = next;
   const anchored = reanchor(course, state);
   const understanding = Num.fromTuple(anchored.anchor.understanding);
   if (Num.cmp(understanding, cost) < 0) {
@@ -417,10 +399,7 @@ export function pickUpWord(course: CourseData, state: GameState): Result {
         ...anchored.anchor,
         understanding: Num.toTuple(Num.sub(understanding, cost)),
       },
-      words: {
-        ...anchored.words,
-        [next.id]: newWordMemory(state.wall, tutorialDue(state)),
-      },
+      words,
       runSpent: spent(anchored, cost),
     },
   };
@@ -433,7 +412,7 @@ export function pickUpWord(course: CourseData, state: GameState): Result {
  * hour mean restarts here.
  */
 export function answerReview(
-  course: CourseData,
+  course: Course,
   state: GameState,
   itemId: string,
   correct: boolean,
@@ -486,7 +465,7 @@ export function answerPractice(state: GameState, itemId: string): Result {
  * and so the global bonus, alone.
  */
 export function buyUpgrade(
-  course: CourseData,
+  course: Course,
   state: GameState,
   id: string,
 ): Result {
@@ -545,7 +524,7 @@ export function buyUpgrade(
  * is banked first.
  */
 export function buyGrammarNode(
-  course: CourseData,
+  course: Course,
   state: GameState,
   id: string,
 ): Result {
@@ -600,7 +579,7 @@ export function buyGrammarNode(
  * ticks of the new setting start after it.
  */
 export function setAutomation(
-  course: CourseData,
+  course: Course,
   state: GameState,
   enabled: boolean,
   intervalMs: number,

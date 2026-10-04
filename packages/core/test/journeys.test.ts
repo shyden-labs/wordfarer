@@ -4,7 +4,7 @@ import { JOURNEY_DURATION_IDS } from '../src/balance';
 import { heldCards } from '../src/cards';
 import { DAY_MS, HOUR_MS, simMs, wallMs, type WallMs } from '../src/clock';
 import type {
-  CourseData,
+  Course,
   CultureCard,
   Encounter,
   LexiconItem,
@@ -29,7 +29,7 @@ import { pickUpPool } from '../src/words';
  * seeded draw with repeats, collection and the repeat reward.
  *
  * The courses are declared here, so they are checked against the
- * `CourseData` contract rather than sharing it.
+ * `Course` contract rather than sharing it.
  */
 
 const START: WallMs = wallMs(Date.UTC(2027, 0, 4));
@@ -60,7 +60,7 @@ const pool = [
   }),
 ];
 
-function courseWith(cards: readonly CultureCard[]): CourseData {
+function courseWith(cards: readonly CultureCard[]): Course {
   return {
     id: 'journeys-course',
     tags: ['food', 'transport'],
@@ -115,7 +115,7 @@ function cardIn(state: GameState, slot: number): string {
 }
 
 /** Start a 2 h Journey in slot 0, let it return, collect it. */
-function roundTrip(c: CourseData, state: GameState): GameState {
+function roundTrip(c: Course, state: GameState): GameState {
   const out = ok(startJourney(c, state, 0, '2h'));
   return ok(collectJourney(c, integrate(c, out, 2 * HOUR_MS), 0));
 }
@@ -416,11 +416,11 @@ describe('collecting (AC4, AC6)', () => {
 
 /** A repeat's reward, written out from design §5 (operator, 2026-10-03). */
 const REPEAT: Readonly<Record<string, readonly [number, number]>> = {
-  tutorial: [1, 450_000],
-  '2h': [2, 1_800_000],
-  '4h': [3, 3_600_000],
-  '8h': [5, 7_200_000],
-  '24h': [10, 21_600_000],
+  tutorial: [40, 450_000],
+  '2h': [80, 1_800_000],
+  '4h': [120, 3_600_000],
+  '8h': [200, 7_200_000],
+  '24h': [400, 21_600_000],
 };
 
 describe('a repeat card (AC7)', () => {
@@ -471,7 +471,7 @@ describe('a repeat card (AC7)', () => {
     expect(first.insight).toEqual(s.insight);
     const second = ok(collectJourney(solo, first, 0));
     expect(second.cards).toEqual(['solo']);
-    expect(Num.toNumber(Num.fromTuple(second.insight))).toBe(2);
+    expect(Num.toNumber(Num.fromTuple(second.insight))).toBe(80);
   });
 });
 
@@ -482,7 +482,7 @@ const word = (id: string, cefr: LexiconItem['cefr']): LexiconItem => ({
 });
 
 /** A destination of two words and one card whose pack holds two more. */
-const packCourse: CourseData = {
+const packCourse: Course = {
   ...solo,
   regions: [
     {

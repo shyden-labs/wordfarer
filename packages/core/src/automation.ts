@@ -11,7 +11,7 @@
  */
 import { BALANCE } from './balance';
 import { nextGridTick, simMs, type SimMs } from './clock';
-import type { CourseData, Encounter } from './course';
+import type { Course, Encounter } from './course';
 import { Num } from './num';
 import {
   rateGain,
@@ -29,7 +29,7 @@ import { encounterPrice, upgradeLevel } from './upgrades';
  * the course has no destination that far.
  */
 export function automationOpensAt(
-  course: CourseData,
+  course: Course,
   state: GameState,
 ): number | undefined {
   const first = route(course).findIndex(
@@ -40,10 +40,7 @@ export function automationOpensAt(
 }
 
 /** Whether the player has reached the destination Pemandu opens at. */
-export function automationUnlocked(
-  course: CourseData,
-  state: GameState,
-): boolean {
+export function automationUnlocked(course: Course, state: GameState): boolean {
   const opensAt = automationOpensAt(course, state);
   return opensAt !== undefined && state.reached >= opensAt;
 }
@@ -72,7 +69,7 @@ function before(a: Candidate, b: Candidate): boolean {
  * none is affordable.
  */
 export function bestPayback(
-  course: CourseData,
+  course: Course,
   state: GameState,
 ): string | undefined {
   const held = understandingNow(course, state);
@@ -156,7 +153,7 @@ export interface PurchaseTick {
  * purchase can anchor at the tick without walking the segments again.
  */
 export function nextPurchaseTick(
-  course: CourseData,
+  course: Course,
   state: GameState,
   until: SimMs,
 ): { readonly next: PurchaseTick | undefined; readonly checks: number } {

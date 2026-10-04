@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { HOUR_MS, simMs, wallMs, type WallMs } from '../src/clock';
-import type { CourseData, Encounter } from '../src/course';
+import type { Course, Encounter } from '../src/course';
 import { encounterOutput, purchaseCost } from '../src/encounters';
 import { Num, type NumTuple } from '../src/num';
 import { encounterRate, understandingNow } from '../src/production';
-import { advance, buyEncounter, integrate, listen, view } from '../src/sim';
+import { advance, buyEncounter, integrate, listen } from '../src/sim';
+import { view } from '../src/view';
 import { createStreams } from '../src/rng';
 import { initialState, ownedCount, type GameState } from '../src/state';
 
@@ -13,7 +14,7 @@ import { initialState, ownedCount, type GameState } from '../src/state';
  * The time model and the Encounter actions (#27 AC1, AC4 to AC9).
  *
  * The course is declared here rather than imported, so it is checked against
- * the `CourseData` contract instead of sharing it.
+ * the `Course` contract instead of sharing it.
  */
 
 const DAY_MS = 24 * HOUR_MS;
@@ -24,7 +25,7 @@ const market: Encounter = { id: 'market', tags: ['food'], c0: 100, p0: 1 };
 /** An id that is also an `Object.prototype` member. */
 const odd: Encounter = { id: 'toString', tags: ['food'], c0: 5, p0: 0.5 };
 
-const course: CourseData = {
+const course: Course = {
   id: 'test-course',
   tags: ['food'],
   regions: [
@@ -160,22 +161,22 @@ describe('initialState', () => {
 });
 
 describe('listen (AC1)', () => {
-  it('adds exactly 1 Understanding to a new game', () => {
-    expect(u(listen(course, initialState(START, 1)))).toEqual([1, 0]);
+  it('adds exactly 0.25 Understanding to a new game', () => {
+    expect(u(listen(course, initialState(START, 1)))).toEqual([2.5, -1]);
   });
 
-  it('adds exactly 1 to whatever is held, production included', () => {
+  it('adds exactly 0.25 to whatever is held, production included', () => {
     const s = stateWith({ tea: 10, market: 3 }, 123.456, 90_000);
     const before = understandingNow(course, s);
     const after = listen(course, s);
-    expect(u(after)).toEqual(Num.toTuple(Num.add(before, Num.from(1))));
+    expect(u(after)).toEqual(Num.toTuple(Num.add(before, Num.from(0.25))));
     expect(after.anchor.sim).toBe(s.sim);
   });
 
-  it('1,000 taps on a new game hold exactly 1,000', () => {
+  it('1,000 taps on a new game hold exactly 250', () => {
     let s = initialState(START, 1);
     for (let i = 0; i < 1000; i++) s = listen(course, s);
-    expect(u(s)).toEqual(Num.toTuple(Num.from(1000)));
+    expect(u(s)).toEqual(Num.toTuple(Num.from(250)));
   });
 });
 

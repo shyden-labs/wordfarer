@@ -10,7 +10,7 @@ import {
   wallMs,
   type WallMs,
 } from '../src/clock';
-import type { CourseData, Encounter, LexiconItem } from '../src/course';
+import type { Course, Encounter, LexiconItem } from '../src/course';
 import { encounterOutput } from '../src/encounters';
 import {
   insightFor,
@@ -36,9 +36,9 @@ import {
   integrate,
   listen,
   pickUpWord,
-  view,
   type Result,
 } from '../src/sim';
+import { view } from '../src/view';
 import { initialState, pickedWord, type GameState } from '../src/state';
 import { pickUpCost, wordBonus } from '../src/words';
 import { exactMean, exactR } from './fsrs-reference';
@@ -46,7 +46,7 @@ import { exactMean, exactR } from './fsrs-reference';
 /**
  * Words, ranks and FSRS review in the game (#28 AC1, AC2, AC4 to AC9).
  *
- * The course is declared here, so it is checked against the `CourseData`
+ * The course is declared here, so it is checked against the `Course`
  * contract rather than sharing it. Its first destination lists its lexicon
  * out of CEFR order on purpose, and holds an id that is an
  * `Object.prototype` member.
@@ -71,7 +71,7 @@ const lexicon: readonly LexiconItem[] = [
 ];
 const CURRICULUM = ['a1-food', 'a1-bus', 'both', 'toString', 'b1-food'];
 
-const course: CourseData = {
+const course: Course = {
   id: 'words-course',
   tags: ['food', 'transport', 'market'],
   regions: [
@@ -157,12 +157,18 @@ function exactWordR(word: WordMemory, wall: Decimal): Decimal {
 }
 
 /**
+ * The floor share, written out from spec §3.3 (four fifths since #35) rather
+ * than read from `BALANCE`, so the model and the engine cannot move together.
+ */
+const FLOOR = 0.8;
+
+/**
  * The continuous model's Understanding over sim [from, to), in decimal:
- * for each owned Encounter, output x (1 + sum of rankBonus x (0.5 + 0.5 R))
- * over the words sharing a tag, R taken on the wall clock (sim + skew).
- * The rate is linear in each word's R, so the integral is exact: each
- * Encounter's output times the span, plus, per word sharing a tag, its bonus
- * times half the span and half R's integral, which is closed form.
+ * for each owned Encounter, output x (1 + sum of rankBonus x (F + (1 - F) R))
+ * over the words sharing a tag, R taken on the wall clock (sim + skew), F the
+ * floor share. The rate is linear in each word's R, so the integral is exact:
+ * each Encounter's output times the span, plus, per word sharing a tag, its
+ * bonus times F of the span and 1 - F of R's integral, which is closed form.
  *
  * Measured for #76: the 60-digit result agrees with a 120-digit run in all
  * 45 digits compared, and the Simpson's rule over 2,000 panels it replaces
@@ -187,7 +193,7 @@ function continuous(state: GameState, from: number, to: number): Decimal {
     return {
       tags: lexicon.find((x) => x.id === id)?.tags ?? [],
       value: new D(BALANCE.words.rankBonus[word.rank]).mul(
-        span.plus(integralOfR).mul(0.5),
+        span.mul(FLOOR).plus(integralOfR.mul(new D(1).minus(FLOOR))),
       ),
     };
   });
@@ -319,13 +325,13 @@ describe('picking up a word (AC1)', () => {
 });
 
 describe('the word bonus (AC2)', () => {
-  // rankBonus × (0.5 + 0.5 R̄), one row per rank.
+  // rankBonus × (0.8 + 0.2 R̄), one row per rank, worked by hand.
   const bonuses: readonly (readonly [Rank, number, number])[] = [
-    ['heard', 0, 0.01],
-    ['recognised', 1, 0.05],
-    ['recalled', 0.5, 0.09],
-    ['fluent', 0.5, 0.1875],
-    ['mastered', 1, 0.4],
+    ['heard', 0, 0.032],
+    ['recognised', 1, 0.06],
+    ['recalled', 0.5, 0.081],
+    ['fluent', 0.5, 0.108],
+    ['mastered', 1, 0.16],
   ];
   for (const [rank, r, bonus] of bonuses)
     it(`is ${String(bonus)} for ${rank} at R̄ = ${String(r)}`, () => {
@@ -439,21 +445,21 @@ describe('the word bonus (AC2)', () => {
 });
 
 describe('the floor (AC4)', () => {
-  it('a never-reviewed word gives exactly half its rank bonus', () => {
+  it('a never-reviewed word gives exactly four fifths of its rank bonus', () => {
     let s = rich(1e6, { tea: 1 });
     s = ok(pickUpWord(course, s));
     expect(wordMultiplier(course, s, tea, s.sim)).toBe(
-      1 + 0.5 * BALANCE.words.rankBonus.heard,
+      1 + FLOOR * BALANCE.words.rankBonus.heard,
     );
   });
 
   for (const rank of RANKS)
-    it(`gives ${rank} exactly half its rank bonus at R̄ = 0`, () => {
-      expect(wordBonus(rank, 0)).toBe(0.5 * BALANCE.words.rankBonus[rank]);
+    it(`gives ${rank} exactly four fifths of its rank bonus at R̄ = 0`, () => {
+      expect(wordBonus(rank, 0)).toBe(FLOOR * BALANCE.words.rankBonus[rank]);
     });
 
   // A word reviewed once, by tea, and the multiplier its floor allows.
-  const reviewedFloor = 1 + 0.5 * BALANCE.words.rankBonus.recognised;
+  const reviewedFloor = 1 + FLOOR * BALANCE.words.rankBonus.recognised;
   function reviewedTeaAfter(days: number): number {
     let s = rich(1e6, { tea: 1 });
     s = ok(pickUpWord(course, s));
@@ -609,7 +615,7 @@ describe('practice (AC8)', () => {
 });
 
 describe('the view (AC6, DN23)', () => {
-  it('holds Understanding, the rate and its breakdown (#29), Insight, the queue, the sail preview and the unfold flags (#31), and nothing else', () => {
+  it('holds Understanding, the rate and its breakdown (#29), Insight, the queue, the sail preview and the unfold flags (#31), the shop (#35), and nothing else', () => {
     const v = view(course, played(), wallMs(START + 9 * DAY_MS));
     expect(Object.keys(v).sort()).toEqual([
       'breakdown',
@@ -617,13 +623,43 @@ describe('the view (AC6, DN23)', () => {
       'queue',
       'rate',
       'sail',
+      'shop',
       'understanding',
       'unfold',
     ]);
   });
 
   it('shows the same 10 whether 11 or 50 items are due', () => {
-    // Fifty due words beyond the course, all newer than the ten oldest.
+    // Fifty due words, all newer than the ten oldest, in a course that
+    // holds them: the view's shop prices every held word (#35).
+    const ids = Array.from(
+      { length: 50 },
+      (_, i) => `x${String(i).padStart(2, '0')}`,
+    );
+    const region = course.regions[0];
+    if (region === undefined) throw new Error('the course has no region');
+    const crowded: Course = {
+      ...course,
+      regions: [
+        {
+          ...region,
+          destinations: [
+            {
+              id: 'd0',
+              lexicon: [
+                ...lexicon,
+                ...ids.map((id) => ({
+                  id,
+                  tags: ['market'],
+                  cefr: 'A1' as const,
+                })),
+              ],
+            },
+            ...region.destinations.slice(1),
+          ],
+        },
+      ],
+    };
     const words = (n: number): Record<string, WordMemory> => {
       const out: Record<string, WordMemory> = {};
       for (let i = 0; i < n; i++) {
@@ -644,7 +680,7 @@ describe('the view (AC6, DN23)', () => {
     };
     // Through the view, so the wiring is tested; review.test.ts owns the cap.
     const queueOf = (n: number) =>
-      view(course, { ...rich(0), words: words(n) }, START).queue;
+      view(crowded, { ...rich(0), words: words(n) }, START).queue;
     expect(queueOf(50)).toHaveLength(10);
     expect(queueOf(11)).toEqual(queueOf(50));
   });

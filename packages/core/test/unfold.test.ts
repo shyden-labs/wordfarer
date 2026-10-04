@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { DAY_MS, simMs, wallMs, type WallMs } from '../src/clock';
-import type { CourseData, Destination } from '../src/course';
+import type { Course, Destination } from '../src/course';
 import { collectJourney, startJourney } from '../src/journeys';
 import { isDue } from '../src/memory';
 import { Num } from '../src/num';
@@ -13,9 +13,9 @@ import {
   integrate,
   listen,
   pickUpWord,
-  view,
   type Result,
 } from '../src/sim';
+import { view } from '../src/view';
 import { initialState, type GameState } from '../src/state';
 import { UNFOLD_FLAGS, unfold, type UnfoldFlag } from '../src/unfold';
 
@@ -25,7 +25,7 @@ import { UNFOLD_FLAGS, unfold, type UnfoldFlag } from '../src/unfold';
  * state just after. Journeys unfold with Review, and the goal with Culture
  * or once it can be met (operator, 2026-10-03).
  *
- * The course is declared here, so it is checked against the `CourseData`
+ * The course is declared here, so it is checked against the `Course`
  * contract rather than sharing it.
  */
 
@@ -33,7 +33,7 @@ const START: WallMs = wallMs(Date.UTC(2027, 0, 4));
 /** The tutorial word falls due this long after pick-up (parent §4.1). */
 const TUTORIAL_MS = 240_000;
 /** Destination 0's goal: 10,000 Understanding and 8 words (design §5). */
-const GOAL_U = 10_000;
+const GOAL_U = 2_120_000_000;
 const GOAL_WORDS = 8;
 
 function destination(d: number): Destination {
@@ -47,7 +47,7 @@ function destination(d: number): Destination {
   };
 }
 
-const course: CourseData = {
+const course: Course = {
   id: 'unfold-course',
   tags: ['food'],
   regions: [
@@ -320,7 +320,7 @@ describe('no flag ever turns off', () => {
   const step: fc.Arbitrary<Step> = fc.oneof(
     fc.record({
       kind: fc.constant('listen'),
-      taps: fc.integer({ min: 1, max: 20 }),
+      taps: fc.integer({ min: 1, max: 80 }),
     }),
     fc.record({
       kind: fc.constant('wait'),
@@ -370,25 +370,40 @@ describe('no flag ever turns off', () => {
   }
 
   /**
-   * Walks in which each flag turned on, measured at seed 31 over 300 walks
-   * (1,886 steps); Listen is on from the first state. Lower one only when
-   * the walk is changed on purpose.
+   * Walks in which each flag turned on, and steps that began with it on (the
+   * steps the check judges), measured at seed 31 over 300 walks (1,886
+   * steps); Listen is on from the first state. Re-measured in #35, when a tap
+   * became 0.5 Understanding and the walk's taps per step doubled to 40, and
+   * again when it became 0.25 and they doubled to 80, to keep its
+   * Understanding per step. Lower one only when the walk is changed
+   * on purpose.
    */
   const TURNED_ON: Readonly<Record<UnfoldFlag, number>> = {
     listen: 0,
-    encounters: 51,
-    words: 8,
+    encounters: 55,
+    words: 6,
     review: 2,
     upgrades: 60,
     journeys: 2,
     culture: 46,
     goal: 60,
   };
+  const JUDGED: Readonly<Record<UnfoldFlag, number>> = {
+    listen: 1886,
+    encounters: 1054,
+    words: 852,
+    review: 843,
+    upgrades: 253,
+    journeys: 843,
+    culture: 136,
+    goal: 189,
+  };
 
   for (const flag of UNFOLD_FLAGS)
     it(`${flag} never turns off over seeded walks from a new game and from one near its goal`, () => {
       let turnedOn = 0;
       let stepsChecked = 0;
+      let judged = 0;
       fc.assert(
         fc.property(
           fc.boolean(),
@@ -401,7 +416,10 @@ describe('no flag ever turns off', () => {
               s = act(s, a);
               const after = unfold(course, s)[flag];
               stepsChecked += 1;
-              if (before) expect(after).toBe(true);
+              if (before) {
+                judged += 1;
+                expect(after).toBe(true);
+              }
               if (!before && after) turnedOn += 1;
             }
           },
@@ -410,6 +428,7 @@ describe('no flag ever turns off', () => {
       );
       expect(stepsChecked).toBeGreaterThan(1885);
       expect(turnedOn).toBeGreaterThan(TURNED_ON[flag] - 1);
+      expect(judged).toBeGreaterThan(JUDGED[flag] - 1);
     });
 });
 

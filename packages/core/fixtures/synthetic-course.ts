@@ -1,12 +1,15 @@
-import type {
-  Cefr,
-  CourseData,
-  CultureCard,
-  Destination,
-  Encounter,
-  GrammarNode,
-  LexiconItem,
-  Region,
+import {
+  resolveCourse,
+  type Cefr,
+  type Course,
+  type CourseData,
+  type CultureCard,
+  type Destination,
+  type EncounterData,
+  type GrammarNode,
+  type LexiconItem,
+  type RegionData,
+  type Tier,
 } from '../src/course';
 import { createStreams, nextInt, type RngStreams } from '../src/rng';
 
@@ -21,8 +24,8 @@ import { createStreams, nextInt, type RngStreams } from '../src/rng';
  * each region cover every tag, and every root has items. The seed varies the
  * rest (second tags, card tags, derived words' tags).
  *
- * The Encounter cost and output ladder is a placeholder for the bots to tune
- * in #35. Festival windows hang off the bots' wall-clock start, 2027-01-04
+ * Each region's Encounters stand on tiers 1 to 6 of the ladder in
+ * `balance.ts`, which prices them (#35 AC8). Festival windows hang off the bots' wall-clock start, 2027-01-04
  * 00:00 UTC (M1 design §2.3), so they fall on the same simulated days in
  * every run.
  */
@@ -54,11 +57,8 @@ const DERIVED_PER_NODE = 3;
 /** A card's phrase pack: one word at each CEFR level, on the card's tags. */
 const PACK_CEFR: readonly Cefr[] = ['A1', 'A2', 'B1'];
 
-/** Placeholder ladder: each Encounter costs 12x and yields 8x the one before. */
-const C0 = [10, 120, 1_440, 17_280, 207_360, 2_488_320] as const;
-const P0 = [0.5, 4, 32, 256, 2_048, 16_384] as const;
-/** Each region's Encounters are 1000x the previous region's. */
-const REGION_SCALE = [1, 1_000, 1_000_000] as const;
+/** Each region's Encounters, one on each tier of the ladder. */
+const TIERS: readonly Tier[] = [1, 2, 3, 4, 5, 6];
 
 const STREAMS = ['second-tags', 'card-tags', 'derived-tags'];
 
@@ -89,7 +89,7 @@ function cefrAt(position: number, size: number): Cefr {
 function region(
   r: number,
   draw: (stream: string, n: number) => number,
-): Region {
+): RegionData {
   const roots = Array.from(
     { length: ROOTS_PER_REGION },
     (_, k) => `r${String(r)}-root-${String(k)}`,
@@ -115,12 +115,10 @@ function region(
     return { id: `r${String(r)}-d${String(d)}`, lexicon };
   });
 
-  const scale = REGION_SCALE[r] ?? 1;
-  const encounters: Encounter[] = C0.map((c0, k) => ({
+  const encounters: EncounterData[] = TIERS.map((tier, k) => ({
     id: `r${String(r)}-e${String(k)}`,
     tags: [tag(2 * k + r), tag(2 * k + 1 + r)],
-    c0: c0 * scale,
-    p0: (P0[k] ?? 0) * scale,
+    tier,
   }));
 
   const cardSets = Array.from({ length: SETS }, (_, s) => ({
@@ -199,12 +197,17 @@ function region(
   };
 }
 
-/** The synthetic course for a seed. The same seed always gives a deep-equal course. */
-export function syntheticCourse(seed: number): CourseData {
+/** The synthetic course for a seed, as content. The same seed always gives a deep-equal course. */
+export function syntheticCourseData(seed: number): CourseData {
   const draw = drawer(seed);
   return {
     id: `synthetic-${String(seed)}`,
     tags: [...TAGS],
     regions: Array.from({ length: REGIONS }, (_, r) => region(r, draw)),
   };
+}
+
+/** The synthetic course for a seed, priced by the ladder: what the bots play. */
+export function syntheticCourse(seed: number): Course {
+  return resolveCourse(syntheticCourseData(seed));
 }

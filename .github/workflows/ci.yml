@@ -18,8 +18,9 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    # GitHub's default is 360 minutes. A normal run is under 2 (#44).
-    timeout-minutes: 15
+    # GitHub's default is 360 minutes (#44). The pacing step alone may take
+    # up to 5 (#35 AC7), so the job allows 20.
+    timeout-minutes: 20
     # The browsers and their system libraries come baked into Playwright's own
     # image, so no step downloads from an apt mirror. `--with-deps` did, and a
     # starved mirror held four runs for up to 35 minutes on 2026-10-01 (#44).
@@ -45,6 +46,18 @@ jobs:
         run: npm run typecheck
       - name: Unit tests
         run: npm run test:unit
+      # The personas play the real core and the spec's pacing targets are
+      # checked (#35); AC7 holds the suite under 5 minutes on the runner.
+      - name: Pacing bots (under 5 minutes)
+        timeout-minutes: 5
+        run: npm run test:pacing
+      - name: Upload the pacing report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pacing-report
+          path: pacing-report.json
+          if-no-files-found: error
       - name: Worker tests (sync in workerd + local D1, web gate through the asset router)
         run: npm run test:worker
       - name: Cross-engine determinism (Node, Chromium, Firefox, WebKit)

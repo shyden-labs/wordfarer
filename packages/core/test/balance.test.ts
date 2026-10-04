@@ -76,20 +76,20 @@ describe('BALANCE', () => {
       10,
     ],
     [
-      'parent §3.3: rank bonuses',
+      'parent §3.3 (#35): rank bonuses, Mastered 4x Heard',
       (b) => b.words.rankBonus,
       {
-        heard: 0.02,
-        recognised: 0.05,
-        recalled: 0.12,
-        fluent: 0.25,
-        mastered: 0.4,
+        heard: 0.04,
+        recognised: 0.06,
+        recalled: 0.09,
+        fluent: 0.12,
+        mastered: 0.16,
       },
     ],
     [
-      'parent §3.3: the floor is half the rank bonus',
+      'parent §3.3 (#35): the floor is four fifths of the rank bonus',
       (b) => b.words.floorShare,
-      0.5,
+      0.8,
     ],
     [
       'design §5: the n-th pick-up in a destination costs 20 x 1.15^n',
@@ -118,9 +118,9 @@ describe('BALANCE', () => {
       [1_800_000, 7_200_000, 14_400_000, 28_800_000, 86_400_000],
     ],
     [
-      'design §5 (#30): a repeat card pays 1, 2, 3, 5 and 10 Insight',
+      'design §5 (#30, #35): a repeat card pays 40, 80, 120, 200 and 400 Insight',
       (b) => b.journeys.duplicateInsight,
-      [1, 2, 3, 5, 10],
+      [40, 80, 120, 200, 400],
     ],
     [
       'design §5 (#30): a repeat card pays a quarter of its duration in Understanding',
@@ -147,7 +147,11 @@ describe('BALANCE', () => {
       (b) => [b.stamps.journeyCutPerLevel, b.stamps.journeyCutCap],
       [0.1, 0.3],
     ],
-    ['design §5: Listen gives 1', (b) => b.listen.understandingPerTap, 1],
+    [
+      'design §5 (#35): a tap gives 0.25',
+      (b) => b.listen.understandingPerTap,
+      0.25,
+    ],
     [
       'design §5: Phrasebook x2 for one tag',
       (b) => b.insightUpgrades.phrasebookMultiplier,
@@ -181,7 +185,7 @@ describe('BALANCE', () => {
         journeySlot2: [25],
         journeySlot3: [100],
         offlineCap: [40, 120],
-        phrasebook: [20],
+        phrasebook: [5],
         pemanduFaster1: [30],
         pemanduFaster2: [90],
         pemanduFaster3: [250],
@@ -203,9 +207,12 @@ describe('BALANCE', () => {
       100,
     ],
     [
-      'design §5 (#31): U_goal(i) = 10,000 x 10^i',
-      (b) => [b.sail.goalU0, b.sail.goalGrowth],
-      [10_000, 10],
+      'design §5 (#35): U_goal is a table, one goal per destination',
+      (b) => b.sail.goals,
+      [
+        2.12e9, 2.07e13, 1.42e14, 4.73e14, 4.81e17, 1.13e18, 2.49e18, 2.98e18,
+        3.18e21, 5.65e21, 8.02e21, 1.35e22,
+      ],
     ],
     [
       'design §5 (#31): words(i) = 8 + 2i',

@@ -27,35 +27,38 @@ const FIXTURE = 'packages/core/fixtures/golden-log.jsonl';
 const REGENERATE = 'regenerate with `npm run golden-log`';
 
 /**
- * Accepted events by type in the fixture, measured when #34 wrote it; each
- * floor is the measured figure less one. Regenerating the log may move
- * them, deliberately.
+ * Accepted events by type in the fixture, measured when #35's tuned balance
+ * regenerated it (2026-10-04); each floor is the measured figure less one and
+ * the count must exceed it, so it may not fall below the measurement and a
+ * type measured once cannot vanish. Regenerating the log may move them,
+ * deliberately. On this balance Insight comes early, so Pemandu opens with
+ * its fastest interval already owned and `setAutomation` is sent once.
  */
 const ACCEPTED_FLOORS: Readonly<Record<GameEvent['type'], number>> = {
   resume: 174, // 175
-  listen: 60, // 61
-  buyEncounter: 112, // 113
-  pickUpWord: 294, // 295
-  answerReview: 2071, // 2072
-  answerPractice: 145, // 146
-  buyUpgrade: 33, // 34
-  startJourney: 321, // 322
-  collectJourney: 318, // 319
-  setSail: 10, // 11
-  buyGrammarNode: 6, // 7
-  setAutomation: 3, // 4
+  listen: 114, // 115
+  buyEncounter: 1664, // 1665
+  pickUpWord: 282, // 283
+  answerReview: 2011, // 2012
+  answerPractice: 123, // 124
+  buyUpgrade: 27, // 28
+  startJourney: 315, // 316
+  collectJourney: 312, // 313
+  setSail: 7, // 8
+  buyGrammarNode: 11, // 12
+  setAutomation: 0, // 1
 };
 
 /** Refused events by kind in the fixture, measured likewise, less one. */
 const REFUSED_FLOORS: Readonly<Record<string, number>> = {
-  staleSeq: 30, // 31
-  notDue: 25, // 26
-  unknownWord: 27, // 28
-  unknownEncounter: 20, // 21
-  slotEmpty: 10, // 11
-  unknownSlot: 18, // 19
-  sailGoalUnmet: 32, // 33
-  unknownUpgrade: 32, // 33
+  staleSeq: 29, // 30
+  notDue: 30, // 31
+  unknownWord: 34, // 35
+  unknownEncounter: 27, // 28
+  slotEmpty: 11, // 12
+  unknownSlot: 10, // 11
+  sailGoalUnmet: 28, // 29
+  unknownUpgrade: 31, // 32
 };
 
 interface Walked {
@@ -158,14 +161,14 @@ describe('the golden log fixture (AC5)', { timeout: 600_000 }, () => {
   it.each(Object.entries(ACCEPTED_FLOORS))(
     'accepts %s events, at least the floor',
     (type, floor) => {
-      expect(golden().walked.accepted[type] ?? 0).toBeGreaterThanOrEqual(floor);
+      expect(golden().walked.accepted[type] ?? 0).toBeGreaterThan(floor);
     },
   );
 
   it.each(Object.entries(REFUSED_FLOORS))(
     'refuses %s events, at least the floor',
     (kind, floor) => {
-      expect(golden().walked.refused[kind] ?? 0).toBeGreaterThanOrEqual(floor);
+      expect(golden().walked.refused[kind] ?? 0).toBeGreaterThan(floor);
     },
   );
 

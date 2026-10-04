@@ -1,6 +1,6 @@
 import { automationUnlocked, bestPayback } from '../src/automation';
 import { wallMs, type WallMs } from '../src/clock';
-import type { CourseData } from '../src/course';
+import type { Course } from '../src/course';
 import { parseEvent, PROMPT_TYPES, type GameEvent } from '../src/events';
 import { stateHash } from '../src/hash';
 import { journeyDurationMs, journeyStatus } from '../src/journeys';
@@ -37,7 +37,10 @@ import { BOT_EPOCH_WALL_MS, syntheticCourse } from './synthetic-course';
  * So the replay exercises refusals too, each open also sends one event the
  * rules refuse (a stale `seq`, a review not due, an unknown Encounter, an
  * empty slot, an unmet sail, an unknown upgrade), and once a day the device
- * clock steps back 5 minutes, which `apply` clamps.
+ * clock steps back 5 minutes, which `apply` clamps. The refusal goes after
+ * collecting and reviewing and before Journeys restart, so a slot that has
+ * just been collected is empty when an empty-slot refusal is drawn (on #35's
+ * balance every slot was busy by the end of the open, and none was sent).
  */
 
 export const GOLDEN = {
@@ -80,7 +83,7 @@ class Player {
   readonly events: GameEvent[] = [];
 
   constructor(
-    private readonly course: CourseData,
+    private readonly course: Course,
     initial: GameState,
     policySeed: number,
   ) {
@@ -159,11 +162,11 @@ class Player {
     this.try((s) => ({ type: 'resume', ...s }));
     this.collect();
     this.review();
+    this.refusal();
     this.journeys(nextOpen);
     this.upgrades();
     this.grammar();
     this.automation();
-    this.refusal();
     let pass = 0;
     while (this.t < end) {
       if (clockBack && pass === 1) {
@@ -357,7 +360,7 @@ class Player {
 
 /** Play the golden policy for `days` days on `course`. */
 export function playGolden(
-  course: CourseData,
+  course: Course,
   days: number = GOLDEN.days,
 ): GoldenRun {
   const initial = initialState(wallMs(BOT_EPOCH_WALL_MS), GOLDEN.stateSeed);
@@ -443,7 +446,7 @@ export function readGolden(text: string): {
 
 /** The course and first state a header names, to replay its log from. */
 export function goldenStart(header: GoldenHeader): {
-  readonly course: CourseData;
+  readonly course: Course;
   readonly initial: GameState;
 } {
   return {

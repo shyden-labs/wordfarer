@@ -40,7 +40,7 @@ The operator's choices from brainstorming, recorded so no later session re-litig
 | D7  | Art direction                 | **B, "Batik night"**: a dark modern UI with batik and songket motifs generated as SVG                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | D8  | Stack                         | Pure TypeScript core, **Svelte 5** UI, Vite, PWA, Electron + steamworks.js, Capacitor                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | D9  | Backend                       | **Cloudflare Workers + D1**, matching shyden.co.uk's stack. The web app is a Worker serving static assets (amended 2026-10-01: wrangler 4.145 creates new Pages projects as Workers, and the operator chose Workers static assets over legacy Pages)                                                                                                                                                                                                                                                                                                                                           |
-| D10 | Leaderboards                  | **Learning-based** (Words Mastered), per course; extra boards may be added later                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| D10 | Leaderboards                  | **Learning-based** and endless (Mastery reviews, §10.1; amended 2026-10-04 from Words Mastered), per course; extra boards may be added later                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | D11 | Ranked participation          | **Mandatory, no opt-out** (operator: no personal information is displayed and players cannot contact each other). See §14 for the pre-launch privacy check                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | D12 | Names                         | **Free text**, filtered, **unique**, **romanised characters only**, **one free change**, then each change costs earned in-game currency. Players can **report** names and cheating                                                                                                                                                                                                                                                                                                                                                                                                             |
 | D13 | Staff tooling                 | Admin, moderator and support roles with a console, a reports queue and an audit log. **MVP scope**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -76,9 +76,9 @@ Everyday situations in which you hear the language. Examples for `en-id`: Warung
 
 - Spending Understanding **picks up** a word or phrase: a collectible card drawn from the current destination's lexicon, in curriculum order (CEFR A1 first).
 - Each word carries tags and boosts every Encounter that shares a tag, so words from earlier destinations keep paying on later ones.
-- Word bonus: `b_w = rankBonus[rank] · (0.5 + 0.5·R)`, where `R` is FSRS retrievability (0 to 1), taken as the word's mean over the current clock hour ([M1 design §2.2](2026-10-01-m1-core-simulation-design.md)). Per-Encounter `M_words = 1 + Σ b_w` over tagged words.
-- `rankBonus`: Heard 0.02 · Recognised 0.05 · Recalled 0.12 · Fluent 0.25 · Mastered 0.40, so Mastered is worth 20× Heard.
-- **Floor:** as `R` falls towards 0, a word that is never reviewed decays towards `0.5 · rankBonus[rank]`, half of its current rank's bonus, and never below it. Ranks drop only on a wrong answer, never through absence, so idlers lose nothing they earned (DN16).
+- Word bonus: `b_w = rankBonus[rank] · (0.8 + 0.2·R)`, where `R` is FSRS retrievability (0 to 1), taken as the word's mean over the current clock hour ([M1 design §2.2](2026-10-01-m1-core-simulation-design.md)). Per-Encounter `M_words = 1 + Σ b_w` over tagged words.
+- `rankBonus`: Heard 0.04 · Recognised 0.06 · Recalled 0.09 · Fluent 0.12 · Mastered 0.16, so Mastered is worth 4× Heard. Amended in M1 #35 (operator, 2026-10-04): the first ladder (0.02 to 0.40, 20×) with a floor at half a rank's bonus left a player who never reviews at 9 of 12 destinations after 12 weeks while the Casual Learner finished in about 25 days, so the Idler could not finish; measured with this ladder and floor, learning still pays 1.7× (Non-learner day 42.0 against Casual day 24.2) and the Idler finishes on day 47.2, measured with #35's final balance (`npm run test:pacing`, 2026-10-04).
+- **Floor:** as `R` falls towards 0, a word that is never reviewed decays towards `0.8 · rankBonus[rank]`, four fifths of its current rank's bonus, and never below it (half until #35). Ranks drop only on a wrong answer, never through absence, so idlers lose nothing they earned (DN16).
 
 ### 3.4 Review and memory (FSRS)
 
@@ -87,7 +87,7 @@ Everyday situations in which you hear the language. Examples for `en-id`: Warung
 - The **review queue shows at most 10 due items**, most-forgotten first, and never shows a backlog count (DN23). Returning after a month gives the same 10.
 - Prompt types, unlocked progressively: multiple choice → type the answer (lenient on case, diacritics and whitespace; typo tolerance of Damerau distance 1 for words of 5+ letters) → build the sentence (tile order).
 - Each correct due answer gives `1 + 0.5 · rankIndex` Insight, where `rankIndex` runs from Heard 0 to Mastered 4. A wrong answer costs nothing and the word is simply rescheduled (DN16).
-- **Practice mode** (any word, any time) is always available, earns **no** currency (DN24, H26), and leaves FSRS memory state and ranks untouched. Only due reviews move a word towards Mastered, so practice cannot be ground into leaderboard score (§10).
+- **Practice mode** (any word, any time) is always available, earns **no** currency (DN24, H26), and leaves FSRS memory state and ranks untouched. Only due reviews move a word towards Mastered, so practice cannot be ground into leaderboard score (§10). It is the game's always-on option, one step from every screen (operator, 2026-10-04: _"there should be always something to do"_), so a player who comes back before anything new has arrived still has something to do (DN1).
 
 ### 3.5 Clocks
 
@@ -275,34 +275,34 @@ A single `Platform` interface: `storage`, `notifications`, `achievements`, `enti
 
 Each item below becomes at least one automated test or CI guard.
 
-| DN  | Requirement in Wordfarer                                                                                                                                |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Every time the game opens there is a decision to make (a buy, a review, a journey, a sail); asserted by the pacing bots                                 |
-| 2   | Every goal names its route past it; nothing is ever sold                                                                                                |
-| 3   | Set Sail previews what is kept and gained; learning is never reset                                                                                      |
-| 4   | Target run lengths are written into the pacing tests (§12.2)                                                                                            |
-| 5   | A real ending (Mudik), Mastery mode, and a post-launch content cadence                                                                                  |
-| 6   | Every rate has a multiplier breakdown                                                                                                                   |
-| 7   | Unfolding UI: nothing is shown before it can be used                                                                                                    |
-| 8   | At most 3 currencies visible per layer                                                                                                                  |
-| 9   | Notation setting, contrast, screen-reader support                                                                                                       |
-| 10  | Clicking never beats idling; automation in region 2; no autoclicker detection                                                                           |
-| 11  | No energy or stamina                                                                                                                                    |
-| 12  | No sold progress, skips or boosts. Paid builds add **content**, never speed                                                                             |
-| 13  | No expiring content, battle passes or false scarcity                                                                                                    |
-| 14  | **No ads of any kind**                                                                                                                                  |
-| 15  | Seasonal content is never permanently missable                                                                                                          |
-| 16  | No punishment for missed days. An optional "rhythm" counter pauses rather than resets                                                                   |
-| 17  | Notifications are opt-in, at most 1 a day, factual, never guilt-tripping or fake-social                                                                 |
-| 18  | Layered saves plus pairing sync                                                                                                                         |
-| 19  | Offline progress is capped, summarised, and tested at 1 h, 1 day and 30 days                                                                            |
-| 20  | No retroactive nerfs to earned progress. Balance changes apply only going forward and are announced                                                     |
-| 21  | Clock changes are clamped (§10.3), never punished or banned                                                                                             |
-| 22  | No rendering or polling while hidden; no keep-awake                                                                                                     |
-| 23  | Review queue capped at 10, no backlog count                                                                                                             |
-| 24  | Currency comes only from correct due reviews; practice earns nothing                                                                                    |
-| 25  | No forced _league_ competition: no relegation or promotion pressure. The ranked board (D11) has no penalties, demotions or rewards that change gameplay |
-| 26  | Numbers carry real-world meaning (words known, places visited)                                                                                          |
+| DN  | Requirement in Wordfarer                                                                                                                                                                                           |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Every time the game opens there is a decision to make (a buy, a review, a journey, a sail), and coming back 15 minutes later finds one too; asserted by the pacing bots. Practice is always on offer sooner (§3.4) |
+| 2   | Every goal names its route past it; nothing is ever sold                                                                                                                                                           |
+| 3   | Set Sail previews what is kept and gained; learning is never reset                                                                                                                                                 |
+| 4   | Target run lengths are written into the pacing tests (§12.2)                                                                                                                                                       |
+| 5   | A real ending (Mudik), Mastery mode, and a post-launch content cadence                                                                                                                                             |
+| 6   | Every rate has a multiplier breakdown                                                                                                                                                                              |
+| 7   | Unfolding UI: nothing is shown before it can be used                                                                                                                                                               |
+| 8   | At most 3 currencies visible per layer                                                                                                                                                                             |
+| 9   | Notation setting, contrast, screen-reader support                                                                                                                                                                  |
+| 10  | Clicking never beats idling; automation in region 2; no autoclicker detection                                                                                                                                      |
+| 11  | No energy or stamina                                                                                                                                                                                               |
+| 12  | No sold progress, skips or boosts. Paid builds add **content**, never speed                                                                                                                                        |
+| 13  | No expiring content, battle passes or false scarcity                                                                                                                                                               |
+| 14  | **No ads of any kind**                                                                                                                                                                                             |
+| 15  | Seasonal content is never permanently missable                                                                                                                                                                     |
+| 16  | No punishment for missed days. An optional "rhythm" counter pauses rather than resets                                                                                                                              |
+| 17  | Notifications are opt-in, at most 1 a day, factual, never guilt-tripping or fake-social                                                                                                                            |
+| 18  | Layered saves plus pairing sync                                                                                                                                                                                    |
+| 19  | Offline progress is capped, summarised, and tested at 1 h, 1 day and 30 days                                                                                                                                       |
+| 20  | No retroactive nerfs to earned progress. Balance changes apply only going forward and are announced                                                                                                                |
+| 21  | Clock changes are clamped (§10.3), never punished or banned                                                                                                                                                        |
+| 22  | No rendering or polling while hidden; no keep-awake                                                                                                                                                                |
+| 23  | Review queue capped at 10, no backlog count                                                                                                                                                                        |
+| 24  | Currency comes only from correct due reviews; practice earns nothing                                                                                                                                               |
+| 25  | No forced _league_ competition: no relegation or promotion pressure. The ranked board (D11) has no penalties, demotions or rewards that change gameplay                                                            |
+| 26  | Numbers carry real-world meaning (words known, places visited)                                                                                                                                                     |
 
 **Privacy at launch:** no analytics and no advertising IDs. Server data is limited to §6.6, §6.7 and §10. Balancing uses the pacing bots instead of player tracking.
 
@@ -310,7 +310,7 @@ Each item below becomes at least one automated test or CI guard.
 
 ### 10.1 Boards
 
-- Per course: **all-time Words Mastered**, and **monthly "mastered this month"**. Ties are broken by culture cards collected, then destinations completed.
+- Per course: **all-time Mastery reviews**, and **monthly "Mastery reviews this month"** (UTC). The score is endless (operator, 2026-10-04: _"the leaderboards should be endless"_): every correct due review that leaves its word Mastered adds 1, the review that first masters a word included, so the score keeps rising after every word in the course is Mastered. Practice answers and reviews that were not due score nothing (DN24). Each entry also shows the player's Words Mastered. Ties are broken by culture cards collected, then destinations completed.
 - Early on, before anyone has mastered a word (Mastered needs FSRS stability of 30 days, so an estimated 4–5 weeks at the earliest; the pacing bots measure the real figure), the tiebreakers order the board. This is expected behaviour and the UI explains it.
 - The board system is generic over a `score` definition, so the progress and collection boards can be added later without redesign.
 - **Ranked is mandatory** (D11). Every player has a ranked identity and an action log. Offline play is uploaded when the device is next online.
@@ -402,7 +402,7 @@ TDD throughout: write the failing test first. Zero warnings policy across lint, 
    - each later destination in **1–3 days**;
    - the v1 ending in **3–5 weeks** of casual play;
    - the Idler can finish;
-   - every simulated open has at least one meaningful decision (DN1).
+   - every simulated open, and a return 15 minutes after each one ends, has at least one meaningful decision (DN1).
 3. **Content guards:** §5.5, each one mutation-verified with comments left in place (house rule).
 4. **Worker:** Vitest with `@cloudflare/vitest-pool-workers` against **real local D1** (Miniflare). Covers:
    - pairing (QR and code, expiry, attempt limits);

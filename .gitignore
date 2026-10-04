@@ -9,6 +9,8 @@ reports/mutation/
 # Test output
 playwright-report/
 test-results/
+# Written by `npm run test:pacing`; CI uploads it as an artifact (#35)
+pacing-report.json
 
 # Cloudflare local state
 .wrangler/
