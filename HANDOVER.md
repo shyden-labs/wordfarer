@@ -1,33 +1,33 @@
 # Handover: Wordfarer
 
-**Written:** 2026-10-03 20:13 UTC.
+**Written:** 2026-10-04 12:30 UTC.
 **Next session:** launch Claude from `~/Developer/Repos/wordfarer`. The session names itself "Wordfarer" by hook; type `/color green` once.
 
-## Progress (global rule since 2026-10-03: every close-out states this)
+## Progress (global rule: every close-out states both estimates)
 
-- **% complete: about 14% by story count** (32 of 233 stories closed, #34 included; #297 was filed today). By effort it's nearer 11–13%: what remains includes UI, real-device and content work, which runs slower than M1's pure logic.
-- **ETA to release-ready: about 8–10 weeks** (late November to mid-December 2026). Confidence is low to medium; unchanged from the last close-out.
-  - **Measured:** stories closed per day were 10, 14 and 8 on 2026-10-01 to 03. #34 took about 2.5 hours as a full-process story (TDD, 64 mutations, a plan reviewed to zero). 201 stories are open.
-  - **Assumed:** 6 stories a day gives about 34 working days, roughly 7 weeks. On top come outside waits: Apple and Google review, Steam's store page, and operator setup (Access, store accounts, trademark search, the support mailbox). 22 stories are operator steps.
-  - **To tighten it:** time the first region-1 lexicon story (#112) and the first M3 UI story (#123), since content and UI pace are the biggest unknowns. #35 (pacing bots and tuning) is the next long pole in M1.
+From `node ~/Developer/Repos/repo-template/scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Wordfarer Stories"` at 12:28 UTC:
+
+- **By tickets: 12% complete** (32 of 273 in-scope stories closed). Measured pace 8.0 a day over 4 days (10, 14, 8, 0). ETA at that pace 2026-11-04. **ETA to release-ready: 2026-12-02 to 2027-01-01** (low to medium confidence; 241 open plus about 30 unfiled stories at an assumed 4–6 a day, plus 2–3 weeks of waits).
+- **By effort: 13% complete** (160 of 1,213 points). Measured pace 40 points a day. ETA at that pace 2026-10-31. **ETA to release-ready: 2026-11-26 to 2026-12-26** (low to medium confidence; 1,053 open plus 130–180 unfiled points at an assumed 20–30 a day, plus 2–3 weeks of waits).
+- **Measured:** the counts and paces above, and the 63 new website points (#332–#345) filed today.
+- **Assumed:** the measured pace is front-loaded with quick M0 setup tickets, and M4/M5 run slower, so the ranges assume 20–30 points a day. On top of that: about 130–180 points of prestige launch work not yet filed (#328, #329), and 2–3 weeks of outside waits (trademark decision, operator admin for the website's App, webhooks and newsletter provider, the production Cloudflare account, store reviews).
+- **Website live (epic #331):** it is behind #35 and 61 pulled-forward stories (259 points) plus its own 63 points, 335 points at 20–30 a day: roughly 2026-10-15 to 2026-10-21, before the operator waits (low confidence).
 
 ## State
 
-- **#34 is done.** PR #298 merged at `c27cdb1`; CI green step by step on `7726a47`. The event log, refusals and state hash are in:
-  - `events.ts`: the `GameEvent` union (design §4's eleven types plus `resume`) and `parseEvent`, the validator for untrusted logs.
-  - `log.ts`: `apply` (staleSeq first, then advance, then dispatch; a refusal returns no state) and `replay`. They sit above `sim.ts` because `journeys.ts` imports a value from `sim.ts`.
-  - `hash.ts`: `stateHash`, SHA-256 (`@noble/hashes` 2.4.0) of a canonical form whose numbers are their IEEE-754 bits. A new game's hash is pinned in `hash.test.ts`, so a change to the form or to a new game's state is deliberate.
-  - **The golden log:** `packages/core/fixtures/golden-log.jsonl`, regenerated with `npm run golden-log`. Any change to a rule or a dependency that moves a bit turns `tests/unit/golden-log.test.ts` red ("is exactly what the golden policy writes", "replays in Node to the live hash"); regenerate, check the floors in that test, and commit the fixture with the change. The engines suite replays it in all three browsers.
-  - The plan is `docs/superpowers/plans/2026-10-03-m1-34-event-log.md`.
-- **Operator decision 2026-10-03:** the `resume` event, recorded whenever the game opens, banks a visit's offline time (design §4, §9). #143 (the welcome-back card) now carries it: AC1 records a `resume` through `apply` and never stores an `advance`, and AC6 tests a visit with no action.
-- **#297 filed** (M1): Pemandu's per-purchase cost in a production-heavy late game. Its first text tied the golden log to a probe's slow replay; that was corrected the same day (comment on #297 and #182).
-- **Board:** project 4, `PVT_kwDOEOcG584BlRWb`, "Wordfarer Stories". New issues are not auto-added; add by node id. Status field `PVTSSF_lADOEOcG584BlRWbzhj-3Hc`: Todo `f75ad846`, In Progress `47fc9ee4`, Done `98236657`.
-- **Tooling** (git-ignored): `.superpowers/sdd/m1-34/` is the newest plan pipeline: `rebuild_floors.sh` re-measures the import-graph floors per stage and amends each task, `red_stages.sh` runs the red stages in `wordfarer-34-red`, `mutate.py` + `mutations.py` + `peek.py`, `build_plan.sh`.
-- Open Dependabot PRs #23 (vitest 5.0.2) and #24 (@types/node 26) are untouched.
+- **Operator, 2026-10-04 11:50 UTC: build the Wordfarer website before more game work.** Brainstormed and approved question by question, 11:54–12:23 UTC. Spec: `docs/superpowers/specs/2026-10-04-website-design.md` (merged in #330, delivery section updated in #346), reviewed to zero.
+- **Board:** epic **#331** with website stories **#332–#345** (63 points), each Todo with an Estimate, read back. The operator pulled the shared game stories forward **with their whole dependency chains**: tokens #125, motifs #126, PWA #152, privacy notice #246, production pipeline #252 and infrastructure #253, plus everything under them, 61 open stories and 259 points as measured. #331 lists them in dependency order. Those six carry a "website epic #331" amendment; #252 was re-scored to 13 and #253 to 5.
+- **Order (operator):** **#35 first** (12:23 UTC), then #157 (trademark search, gates production), then the chain in #331's order with the website stories as their dependencies land.
+- **Knowledge passed on (operator 12:03 UTC):** `~/.claude/global-rules/reference-live-roadmap.md` plus a "Live Public Roadmaps" section in the global CLAUDE.md. ShyTalk's own next session adopts it; #342 updates it with what the build measures.
+- **#35** is unchanged from this morning: branch `m1/35-t1`, worktree `~/Developer/Repos/wordfarer-35-t1`, remote head 3f48497. Its handover is `~/Developer/Repos/wordfarer-35/.superpowers/sdd/m1-35/HANDOVER.next.md`.
+- **Prestige design** (#328, #329): decisions are recorded in #328; the spec (#329) is not written yet.
+- **Worktree `~/Developer/Repos/wordfarer-site`** holds the spec branches; remove it once #346 and this handover are merged.
+- claude-mem's observer allowance was exhausted this session, so nothing went to claude-mem. The repo memory files are unaffected.
 
 ## Resume steps
 
-1. `git fetch origin`; check `develop` is at the handover merge or later. Remove the `wordfarer-34` and `wordfarer-34-red` worktrees if they remain.
-2. Take **#35** (pacing bots and balance tuning), the next M1 story in design §8's order. It will move the balance, so it regenerates the golden log (`npm run golden-log`) in the same commit as the change.
-3. Build as before: one commit per task, red runs on the parent stage, commit before gating, mutations with predictions written first and `TOTAL` set, every stage gated on a clean `npm ci`, the plan generated from the stage commits and reviewed to zero.
-4. At close-out, recompute progress from the board and state % complete and ETA.
+1. `git fetch origin`; check that `develop` includes #346 and this handover. In the main checkout, `HANDOVER.md` carries an older uncommitted two-line pointer; this file supersedes it. Read this one with `git show origin/develop:HANDOVER.md` and leave the local edit for Shyden.
+2. **Finish #35** from `HANDOVER.next.md` (path above), through its PR, merge and dev deploy.
+3. Then **#157**: the desk search (UK IPO, EUIPO, USPTO), recorded in `docs/compliance/trademark-search.md`, with a recommendation; the operator decides.
+4. Then work **#331's list in order**. Each story gets its own branch and plan, built as before: one commit per task, red runs, mutations with predictions written first, the plan generated from the stage commits and reviewed to zero. Research items R1–R7 (spec §10) are answered inside the story that needs them, never assumed.
+5. At close-out, run board-progress and state both estimates.
