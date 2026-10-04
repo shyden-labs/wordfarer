@@ -140,9 +140,8 @@ export interface Balance {
     readonly opensAtRegion: number;
   };
   readonly sail: {
-    /** Destination i needs U_goal(i) = goalU0 x goalGrowth^i earned this run (design §5, #31). */
-    readonly goalU0: number;
-    readonly goalGrowth: number;
+    /** Destination i needs U_goal(i) = goals[i] earned this run, one per destination tuned by the pacing bots (design §5, #35). */
+    readonly goals: readonly number[];
     /** ...and words(i) = wordsBase + wordsStep x i of its own lexicon held. */
     readonly wordsBase: number;
     readonly wordsStep: number;
@@ -263,8 +262,7 @@ export const BALANCE: Balance = deepFreeze({
   automation: { intervalsMs: [10_000, 5_000, 2_000, 1_000], opensAtRegion: 2 },
   // Starting values with nothing measured yet; the pacing bots tune them (#35).
   sail: {
-    goalU0: 10_000,
-    goalGrowth: 10,
+    goals: [1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15],
     wordsBase: 8,
     wordsStep: 2,
     stampK: 3,

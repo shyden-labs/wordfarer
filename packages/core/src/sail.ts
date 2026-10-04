@@ -3,8 +3,8 @@
  * stamps a sail pays, the order destinations unlock in, the finale and
  * Mastery mode, and the preview the player sees before confirming (DN3).
  *
- * Destination `i` (its number on the route) needs `U_goal(i) = U₀ · g_U^i`,
- * times `1.5^replays` in Mastery mode, earned this run, and `words(i)` of
+ * Destination `i` (its number on the route) needs `U_goal(i)`, the `i`-th
+ * entry of `BALANCE.sail.goals` (#35), times `1.5^replays` in Mastery mode, earned this run, and `words(i)` of
  * its own lexicon held. `U_run` is what is held plus what this run spent, so
  * buying never moves the goal away. A sail pays
  * `floor(k · sqrt(U_run / goal))` stamps; `Math.sqrt` is correctly rounded on
@@ -78,9 +78,15 @@ export function sailGoal(course: Course, state: GameState): SailGoal {
   const i = state.destination;
   const here = currentDestination(course, state)?.id;
   const replays = here === undefined ? 0 : replayCount(state, here);
-  const { goalU0, goalGrowth, wordsBase, wordsStep } = BALANCE.sail;
+  const { goals, wordsBase, wordsStep } = BALANCE.sail;
+  const base = goals[i];
+  if (base === undefined) {
+    throw new RangeError(
+      `destination ${String(i)} (${here ?? 'none'}) has no goal in BALANCE.sail.goals`,
+    );
+  }
   const understanding = Num.mul(
-    Num.mul(Num.from(goalU0), Num.pow(Num.from(goalGrowth), i)),
+    Num.from(base),
     Num.pow(Num.from(BALANCE.mastery.goalGrowthPerReplay), replays),
   );
   return { understanding, words: wordsBase + wordsStep * i };

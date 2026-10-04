@@ -203,9 +203,9 @@ describe('BALANCE', () => {
       100,
     ],
     [
-      'design §5 (#31): U_goal(i) = 10,000 x 10^i',
-      (b) => [b.sail.goalU0, b.sail.goalGrowth],
-      [10_000, 10],
+      'design §5 (#35): U_goal is a table, one goal per destination',
+      (b) => b.sail.goals,
+      [1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15],
     ],
     [
       'design §5 (#31): words(i) = 8 + 2i',

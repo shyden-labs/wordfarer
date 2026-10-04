@@ -162,6 +162,19 @@ function refused(result: Result): Rejection {
 }
 
 describe('the goal (AC1)', () => {
+  it('refuses a destination beyond the goal table, naming it', () => {
+    const long: Course = {
+      ...course,
+      regions: [
+        ...course.regions,
+        { ...region(3), destinations: [destination(3, 0)] },
+      ],
+    };
+    expect(() => sailGoal(long, { ...at(0), destination: 12 })).toThrow(
+      /destination 12 \(r3-d0\) has no goal in BALANCE\.sail\.goals/,
+    );
+  });
+
   for (const i of IDS.keys())
     it(`destination ${String(i)} needs 10,000 x 10^${String(i)} Understanding and ${String(goalWords(i))} words`, () => {
       const goal = sailGoal(course, at(i));
