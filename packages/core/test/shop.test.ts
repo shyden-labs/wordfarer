@@ -8,6 +8,7 @@ import type { Course } from '../src/course';
 import { startJourney } from '../src/journeys';
 import { Num } from '../src/num';
 import {
+  answerPractice,
   buyEncounter,
   buyGrammarNode,
   buyUpgrade,
@@ -451,6 +452,41 @@ describe('the shop shows Pemandu', () => {
       intervalMs: 5_000,
       owned: [10_000, 5_000],
     });
+  });
+});
+
+describe('the Practice offer matches practising a word', () => {
+  /** The first word of the course, which a new game does not hold. */
+  function firstWord(): string {
+    const id = course().regions[0]?.destinations[0]?.lexicon[0]?.id;
+    if (id === undefined) throw new Error('the course has no first word');
+    return id;
+  }
+
+  it('is not on offer on a new game, as practising is refused', () => {
+    expect(shopOf(fresh()).practice).toEqual({ available: false });
+    expect(answerPractice(fresh(), firstWord()).ok).toBe(false);
+  });
+
+  it('is on offer once a word is held, as practising it is accepted', () => {
+    const state = accepted(
+      pickUpWord(course(), holding(fresh(), Num.from(1e6))),
+    );
+    const [held] = Object.keys(state.words);
+    expect(held).toBeDefined();
+    expect(answerPractice(state, held ?? '').ok).toBe(true);
+    expect(shopOf(state).practice).toEqual({ available: true });
+  });
+
+  it('stays on offer with nothing else affordable, as Practice costs nothing', () => {
+    const state = holding(
+      accepted(pickUpWord(course(), holding(fresh(), Num.from(1e6)))),
+      Num.from(0),
+    );
+    const shop = shopOf(state);
+    expect(shop.encounters.some((o) => o.affordable)).toBe(false);
+    expect(shop.pickUp?.affordable).toBe(false);
+    expect(shop.practice).toEqual({ available: true });
   });
 });
 

@@ -51,3 +51,19 @@ export {
   Streams,
   type StreamName,
 } from './streams';
+export { pacingReport, type PacingReport, type PersonaReport } from './report';
+export {
+  CI_BOUNDS,
+  clickingNeverWins,
+  decisions,
+  DESTINATIONS,
+  finale,
+  firstSail,
+  gaps,
+  idlerFinishes,
+  learnersOrder,
+  learningPays,
+  sanity,
+  TUNING_TARGETS,
+  type Bounds,
+} from './targets';

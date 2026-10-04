@@ -22,6 +22,13 @@ export const FIRST_SESSION_MS = 60 * MINUTE_MS;
 /** The least time between the starts of two opens. */
 export const MIN_OPEN_GAP_MS = HOUR_MS;
 
+/**
+ * How soon after an open ends a player may come back and still find a
+ * meaningful decision (DN1; operator, 2026-10-04: "there should be always
+ * something to do"). Sooner than this, Practice mode is what is on offer.
+ */
+export const QUICK_RETURN_MS = 15 * MINUTE_MS;
+
 export interface Open {
   readonly startMs: number;
   readonly lengthMs: number;

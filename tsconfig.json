@@ -22,6 +22,7 @@
     "tests/**/*.ts",
     "scripts/**/*.ts",
     "vitest.config.ts",
+    "vitest.pacing.config.ts",
     "playwright.engines.config.ts"
   ]
 }

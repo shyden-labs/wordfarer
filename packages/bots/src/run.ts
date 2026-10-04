@@ -17,7 +17,7 @@ import {
 } from '@wordfarer/core';
 import { Player } from './player';
 import type { Persona } from './personas';
-import { dayOpens, DAY_MS, WAKE_MS } from './schedule';
+import { dayOpens, DAY_MS, QUICK_RETURN_MS, WAKE_MS } from './schedule';
 import { Streams } from './streams';
 
 export interface Sail {
@@ -37,6 +37,10 @@ export interface PersonaRun {
   readonly opens: number;
   /** The days of the opens that offered no meaningful decision (DN1). */
   readonly undecided: readonly number[];
+  readonly returnsJudged: number;
+  readonly returnsUndecided: readonly number[];
+  /** The days of the 15-minute returns where only Practice was on offer. */
+  readonly returnsPracticeOnly: readonly number[];
   /** The first values on the path that were NaN, negative or infinite. */
   readonly insane: readonly string[];
   readonly events: number;
@@ -147,6 +151,9 @@ export function runPersona(
   });
   let opens = 0;
   const undecided: number[] = [];
+  let returnsJudged = 0;
+  const returnsUndecided: number[] = [];
+  const returnsPracticeOnly: number[] = [];
   // A call, not a property read: the finale changes inside `player.open`.
   const finished = (): boolean =>
     player.state.finale ||
@@ -164,6 +171,14 @@ export function runPersona(
         today[i + 1]?.startMs ?? tomorrow,
       );
       if (!decided) undecided.push(dayOf(startMs));
+      // After the finale comes Mastery mode, which the pacing does not judge.
+      if (!player.state.finale) {
+        returnsJudged += 1;
+        const offered = player.returnAfter(QUICK_RETURN_MS);
+        const day = dayOf(player.now + QUICK_RETURN_MS);
+        if (offered === 'nothing') returnsUndecided.push(day);
+        if (offered === 'practice') returnsPracticeOnly.push(day);
+      }
     }
   }
   const used = process.cpuUsage(cpu);
@@ -174,6 +189,9 @@ export function runPersona(
     firstMasteredDay,
     opens,
     undecided,
+    returnsJudged,
+    returnsUndecided,
+    returnsPracticeOnly,
     insane,
     events,
     cpuMs: (used.user + used.system) / 1_000,

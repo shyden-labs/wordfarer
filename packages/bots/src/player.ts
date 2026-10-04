@@ -122,6 +122,9 @@ export function offersDecision(v: View): boolean {
   );
 }
 
+/** What a return offers: a decision, only Practice, or nothing at all. */
+export type QuickReturn = 'decision' | 'practice' | 'nothing';
+
 export class Player {
   private current: GameState;
   private seq = 0;
@@ -180,6 +183,28 @@ export class Player {
         `the view offered ${JSON.stringify(action)} and apply refused it`,
       );
     }
+  }
+
+  /**
+   * What coming back `ms` from now would offer (DN1), judged as a UI would
+   * see it, on a copy: the game and the clock stay as they are. Practice
+   * counts only when nothing else is on offer (operator, 2026-10-04).
+   */
+  returnAfter(ms: number): QuickReturn {
+    const at = wallMs(this.t + ms);
+    const result = apply(this.course, this.current, {
+      type: 'resume',
+      seq: this.seq + 1,
+      wallMs: at,
+    });
+    if (!result.ok) {
+      throw new Error(
+        `a return after ${String(ms)} ms was refused: ${JSON.stringify(result.rejection)}`,
+      );
+    }
+    const v = view(this.course, result.state, at);
+    if (offersDecision(v)) return 'decision';
+    return v.shop.practice.available ? 'practice' : 'nothing';
   }
 
   /**

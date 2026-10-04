@@ -13,6 +13,7 @@ import {
 } from '@wordfarer/core/fixtures/synthetic-course';
 import { persona } from '../src/personas';
 import { insaneValues, runPersona } from '../src/run';
+import { QUICK_RETURN_MS } from '../src/schedule';
 
 /** A run, measured (#35 AC4 (h), AC6). */
 
@@ -131,6 +132,21 @@ describe('runPersona', () => {
       expect(stopped.opens).toBeLessThan(full.opens);
     },
   );
+
+  it(
+    'judges a return 15 minutes after each of the first day’s 3 opens',
+    { timeout: 120_000 },
+    () => {
+      const run = runPersona(course(), persona('casual'), BOT_EPOCH_WALL_MS, 1);
+      expect(run.returnsJudged).toBe(3);
+      expect(run.returnsUndecided).toEqual([]);
+      expect(run.returnsPracticeOnly).toEqual([]);
+    },
+  );
+
+  it('waits 15 minutes for a quick return (operator, 2026-10-04)', () => {
+    expect(QUICK_RETURN_MS).toBe(900_000);
+  });
 
   it('records no finale when the run ends first', { timeout: 120_000 }, () => {
     expect(

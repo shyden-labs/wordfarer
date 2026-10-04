@@ -19,6 +19,7 @@ import {
 } from '@wordfarer/core/fixtures/synthetic-course';
 import { Player, STEP_MS } from '../src/player';
 import { persona } from '../src/personas';
+import { QUICK_RETURN_MS } from '../src/schedule';
 import { Streams } from '../src/streams';
 
 /**
@@ -83,6 +84,21 @@ function play(
   return { events, player, decision };
 }
 
+/** An Idler's player on a state with nothing affordable, due, free or available. */
+function idlePlayer(
+  change: (idle: GameState) => Partial<GameState> = () => ({}),
+): Player {
+  const away = play('casual', fresh(), ONE_CHECK).player.state;
+  const base: GameState = {
+    ...holding(away, 0),
+    owned: {},
+    wall: wallMs(away.wall + 60_000),
+  };
+  const idle: GameState = { ...base, ...change(base) };
+  const p = persona('idler');
+  return new Player(course(), p, idle, new Streams(p.seed));
+}
+
 /** What the shop offered just after the open's last action, before the clock moved on. */
 function shopAfter(player: Player, events: readonly GameEvent[]) {
   const last = events.at(-1);
@@ -135,7 +151,7 @@ describe('the player reads nothing but view (AC3)', () => {
     expect(valueImports('packages/bots/src/run.ts')).toEqual({
       '@wordfarer/core': ['Num', 'initialState', 'wallMs'],
       './player': ['Player'],
-      './schedule': ['DAY_MS', 'WAKE_MS', 'dayOpens'],
+      './schedule': ['DAY_MS', 'QUICK_RETURN_MS', 'WAKE_MS', 'dayOpens'],
       './streams': ['Streams'],
     });
   });
@@ -312,5 +328,30 @@ describe('an open', () => {
     expect(queue).toEqual([]);
     expect(sail.available).toBe(false);
     expect(play('idler', idle, ONE_CHECK).decision).toBe(false);
+  });
+
+  it('judges a later return on a copy, changing nothing', () => {
+    const { player } = play('casual', fresh(), ONE_CHECK);
+    const before = player.state;
+    const now = player.now;
+    expect(player.returnAfter(QUICK_RETURN_MS)).toBe('decision');
+    expect(player.state).toBe(before);
+    expect(player.now).toBe(now);
+  });
+
+  it('finds only Practice on a return before anything arrives, holding a word not yet due', () => {
+    // The word is picked up now, so it falls due minutes after the return.
+    const player = idlePlayer((idle) => ({ words: withWords(idle, 1).words }));
+    expect(Object.keys(player.state.words)).toHaveLength(1);
+    expect(player.returnAfter(1_000)).toBe('practice');
+  });
+
+  it('finds nothing on a return before anything arrives, holding no word', () => {
+    const player = idlePlayer(() => ({ words: {} }));
+    expect(player.returnAfter(1_000)).toBe('nothing');
+  });
+
+  it('finds the returned Journey on a return a day later', () => {
+    expect(idlePlayer().returnAfter(25 * HOUR_MS)).toBe('decision');
   });
 });

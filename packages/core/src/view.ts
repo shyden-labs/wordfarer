@@ -36,6 +36,7 @@ import { regionsReached } from './route';
 import { sailPreview, type SailPreview } from './sail';
 import {
   advance,
+  answerPractice,
   buyEncounter,
   buyGrammarNode,
   buyUpgrade,
@@ -116,7 +117,8 @@ export interface Shop {
     readonly intervalMs: number;
     /** The intervals the player may choose. */
     readonly owned: readonly number[];
-  };
+  }; /** Practice mode (parent §3.4), open once a word is held; it costs nothing. */
+  readonly practice: { readonly available: boolean };
 }
 
 export interface View {
@@ -236,6 +238,15 @@ function shop(course: Course, state: GameState): Shop {
       intervalMs: state.automation.intervalMs,
       owned: pemanduIntervalsMs(state),
     },
+    practice: practiceOffer(state),
+  };
+}
+
+/** Practice is on offer when practising a held word would be accepted. */
+function practiceOffer(state: GameState): Shop['practice'] {
+  const [held] = Object.keys(state.words);
+  return {
+    available: held !== undefined && answerPractice(state, held).ok,
   };
 }
 

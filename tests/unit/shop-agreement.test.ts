@@ -31,6 +31,7 @@ const KINDS = [
   'grammar',
   'journeys',
   'pemandu',
+  'practice',
 ] as const;
 type Kind = (typeof KINDS)[number];
 
@@ -63,6 +64,7 @@ const FLOORS: Readonly<Record<Kind, { accepted: number; refused: number }>> = {
   grammar: { accepted: 237, refused: 27023 },
   journeys: { accepted: 1461, refused: 11312 },
   pemandu: { accepted: 1631, refused: 8587 },
+  practice: { accepted: 2547, refused: 6 },
 };
 
 type Action = GameEvent extends infer E
@@ -131,6 +133,13 @@ function judgeShop(
       shop.pemandu.opened && shop.pemandu.owned.includes(intervalMs);
     at('pemandu', { type: 'setAutomation', enabled: true, intervalMs }, shown);
   }
+  // A word the player holds, or one no course has when nothing is held.
+  const [held] = Object.keys(state.words);
+  at(
+    'practice',
+    { type: 'answerPractice', itemId: held ?? 'no-word-held' },
+    shop.practice.available,
+  );
 }
 
 let walked: Record<Kind, Tally> | undefined;
@@ -148,6 +157,7 @@ function walk(): Record<Kind, Tally> {
       grammar: tally(),
       journeys: tally(),
       pemandu: tally(),
+      practice: tally(),
     };
     let state = initial;
     for (const event of events) {
