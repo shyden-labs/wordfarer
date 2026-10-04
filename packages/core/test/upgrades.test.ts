@@ -129,9 +129,9 @@ describe('the Insight catalogue (AC1)', () => {
     ['journeySlot2', [25], undefined],
     ['journeySlot3', [100], 'journeySlot2'],
     ['offlineCap', [40, 120], undefined],
-    ['phrasebook:food', [20], undefined],
-    ['phrasebook:market', [20], undefined],
-    ['phrasebook:family', [20], undefined],
+    ['phrasebook:food', [5], undefined],
+    ['phrasebook:market', [5], undefined],
+    ['phrasebook:family', [5], undefined],
     ['pemanduFaster1', [30], undefined],
     ['pemanduFaster2', [90], 'pemanduFaster1'],
     ['pemanduFaster3', [250], 'pemanduFaster2'],
@@ -479,7 +479,7 @@ describe('buyUpgrade (AC3)', () => {
   it('spends Insight and leaves stamps, Understanding and Encounters alone', () => {
     const before = holding({ insight: 50, stamps: 4, owned: { tea: 3 } });
     const after = ok(buyUpgrade(course, before, 'phrasebook:food'));
-    expect(after.insight).toEqual(Num.toTuple(Num.from(30)));
+    expect(after.insight).toEqual(Num.toTuple(Num.from(45)));
     expect(after.stamps).toBe(4);
     expect(after.stampsEarned).toBe(4);
     expect(after.owned).toEqual({ tea: 3 });

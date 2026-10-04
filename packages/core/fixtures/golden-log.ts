@@ -37,7 +37,10 @@ import { BOT_EPOCH_WALL_MS, syntheticCourse } from './synthetic-course';
  * So the replay exercises refusals too, each open also sends one event the
  * rules refuse (a stale `seq`, a review not due, an unknown Encounter, an
  * empty slot, an unmet sail, an unknown upgrade), and once a day the device
- * clock steps back 5 minutes, which `apply` clamps.
+ * clock steps back 5 minutes, which `apply` clamps. The refusal goes after
+ * collecting and reviewing and before Journeys restart, so a slot that has
+ * just been collected is empty when an empty-slot refusal is drawn (on #35's
+ * balance every slot was busy by the end of the open, and none was sent).
  */
 
 export const GOLDEN = {
@@ -159,11 +162,11 @@ class Player {
     this.try((s) => ({ type: 'resume', ...s }));
     this.collect();
     this.review();
+    this.refusal();
     this.journeys(nextOpen);
     this.upgrades();
     this.grammar();
     this.automation();
-    this.refusal();
     let pass = 0;
     while (this.t < end) {
       if (clockBack && pass === 1) {

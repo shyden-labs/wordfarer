@@ -129,8 +129,9 @@ describe('a 72 h return with Pemandu at 1 s (AC5)', () => {
     );
     expect(summary.creditedMs).toBe(72 * HOUR_MS);
     expect(summary.clipped).toBe(false);
-    // Measured 1,683 units (#33), less one: the return really buys.
-    expect(bought).toBeGreaterThan(1_682);
+    // Measured 1,638 units on #35's tuned balance (1,683 on #33's), less
+    // one: the return really buys.
+    expect(bought).toBeGreaterThan(1_637);
     expect(ms).toBeLessThan(1_000);
   });
 });

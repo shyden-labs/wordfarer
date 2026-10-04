@@ -157,12 +157,18 @@ function exactWordR(word: WordMemory, wall: Decimal): Decimal {
 }
 
 /**
+ * The floor share, written out from spec §3.3 (four fifths since #35) rather
+ * than read from `BALANCE`, so the model and the engine cannot move together.
+ */
+const FLOOR = 0.8;
+
+/**
  * The continuous model's Understanding over sim [from, to), in decimal:
- * for each owned Encounter, output x (1 + sum of rankBonus x (0.5 + 0.5 R))
- * over the words sharing a tag, R taken on the wall clock (sim + skew).
- * The rate is linear in each word's R, so the integral is exact: each
- * Encounter's output times the span, plus, per word sharing a tag, its bonus
- * times half the span and half R's integral, which is closed form.
+ * for each owned Encounter, output x (1 + sum of rankBonus x (F + (1 - F) R))
+ * over the words sharing a tag, R taken on the wall clock (sim + skew), F the
+ * floor share. The rate is linear in each word's R, so the integral is exact:
+ * each Encounter's output times the span, plus, per word sharing a tag, its
+ * bonus times F of the span and 1 - F of R's integral, which is closed form.
  *
  * Measured for #76: the 60-digit result agrees with a 120-digit run in all
  * 45 digits compared, and the Simpson's rule over 2,000 panels it replaces
@@ -187,7 +193,7 @@ function continuous(state: GameState, from: number, to: number): Decimal {
     return {
       tags: lexicon.find((x) => x.id === id)?.tags ?? [],
       value: new D(BALANCE.words.rankBonus[word.rank]).mul(
-        span.plus(integralOfR).mul(0.5),
+        span.mul(FLOOR).plus(integralOfR.mul(new D(1).minus(FLOOR))),
       ),
     };
   });
@@ -319,13 +325,13 @@ describe('picking up a word (AC1)', () => {
 });
 
 describe('the word bonus (AC2)', () => {
-  // rankBonus × (0.5 + 0.5 R̄), one row per rank.
+  // rankBonus × (0.8 + 0.2 R̄), one row per rank, worked by hand.
   const bonuses: readonly (readonly [Rank, number, number])[] = [
-    ['heard', 0, 0.01],
-    ['recognised', 1, 0.05],
-    ['recalled', 0.5, 0.09],
-    ['fluent', 0.5, 0.1875],
-    ['mastered', 1, 0.4],
+    ['heard', 0, 0.032],
+    ['recognised', 1, 0.06],
+    ['recalled', 0.5, 0.081],
+    ['fluent', 0.5, 0.108],
+    ['mastered', 1, 0.16],
   ];
   for (const [rank, r, bonus] of bonuses)
     it(`is ${String(bonus)} for ${rank} at R̄ = ${String(r)}`, () => {
@@ -439,21 +445,21 @@ describe('the word bonus (AC2)', () => {
 });
 
 describe('the floor (AC4)', () => {
-  it('a never-reviewed word gives exactly half its rank bonus', () => {
+  it('a never-reviewed word gives exactly four fifths of its rank bonus', () => {
     let s = rich(1e6, { tea: 1 });
     s = ok(pickUpWord(course, s));
     expect(wordMultiplier(course, s, tea, s.sim)).toBe(
-      1 + 0.5 * BALANCE.words.rankBonus.heard,
+      1 + FLOOR * BALANCE.words.rankBonus.heard,
     );
   });
 
   for (const rank of RANKS)
-    it(`gives ${rank} exactly half its rank bonus at R̄ = 0`, () => {
-      expect(wordBonus(rank, 0)).toBe(0.5 * BALANCE.words.rankBonus[rank]);
+    it(`gives ${rank} exactly four fifths of its rank bonus at R̄ = 0`, () => {
+      expect(wordBonus(rank, 0)).toBe(FLOOR * BALANCE.words.rankBonus[rank]);
     });
 
   // A word reviewed once, by tea, and the multiplier its floor allows.
-  const reviewedFloor = 1 + 0.5 * BALANCE.words.rankBonus.recognised;
+  const reviewedFloor = 1 + FLOOR * BALANCE.words.rankBonus.recognised;
   function reviewedTeaAfter(days: number): number {
     let s = rich(1e6, { tea: 1 });
     s = ok(pickUpWord(course, s));

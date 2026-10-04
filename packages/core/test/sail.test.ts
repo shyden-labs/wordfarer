@@ -98,8 +98,28 @@ const IDS = [
 ] as const;
 const LAST = 11;
 
-/** U_goal(i) = 10,000 x 10^i, written out. */
-const goalU = (i: number): number => 10_000 * 10 ** i;
+/**
+ * U_goal(i), written out from the #35 calibration (bots-cal2, each goal
+ * rounded down to 3 s.f.) rather than read from `BALANCE`, so a change to
+ * the table is a deliberate edit here too.
+ */
+const GOAL_U = [
+  2.12e9, 2.07e13, 1.42e14, 4.73e14, 4.81e17, 1.13e18, 2.49e18, 2.98e18,
+  3.18e21, 5.65e21, 8.02e21, 1.35e22,
+] as const;
+const goalU = (i: number): number => {
+  const goal = GOAL_U[i];
+  if (goal === undefined)
+    throw new Error(`no goal written out for destination ${String(i)}`);
+  return goal;
+};
+/**
+ * Comfortably above destination 6's goal and its first replay's (x 1.5), for
+ * tests whose subject is something other than the Understanding check. A
+ * product such as `goalU(6) * 1.5` can land one rounding step under the
+ * goal the engine computes in `Num`, so it is not used as 'exactly enough'.
+ */
+const PLENTY_AT_6 = goalU(6) * 2;
 /** words(i) = 8 + 2i, written out. */
 const goalWords = (i: number): number => 8 + 2 * i;
 
@@ -176,9 +196,9 @@ describe('the goal (AC1)', () => {
   });
 
   for (const i of IDS.keys())
-    it(`destination ${String(i)} needs 10,000 x 10^${String(i)} Understanding and ${String(goalWords(i))} words`, () => {
+    it(`destination ${String(i)} needs ${goalU(i).toExponential(2)} Understanding and ${String(goalWords(i))} words`, () => {
       const goal = sailGoal(course, at(i));
-      expect(n(goal.understanding)).toBe(goalU(i));
+      expect(Num.toTuple(goal.understanding)).toEqual(tuple(goalU(i)));
       expect(goal.words).toBe(goalWords(i));
     });
 
@@ -196,7 +216,7 @@ describe('the goal (AC1)', () => {
 
   it('counts Understanding this run has spent, so buying never delays it', () => {
     const s = at(3, { held: 0, spent: goalU(3) });
-    expect(n(runUnderstanding(course, s))).toBe(goalU(3));
+    expect(Num.toTuple(runUnderstanding(course, s))).toEqual(tuple(goalU(3)));
     expect(goalMet(course, s)).toBe(true);
   });
 
@@ -305,7 +325,7 @@ describe('the preview (AC2, DN3)', () => {
   });
 
   it('shows the goal and the progress towards it', () => {
-    expect(n(preview().goal.understanding)).toBe(goalU(2));
+    expect(Num.toTuple(preview().goal.understanding)).toEqual(tuple(goalU(2)));
     expect(preview().goal.words).toBe(goalWords(2));
     expect(n(preview().progress.understanding)).toBe(
       n(runUnderstanding(course, before())),
@@ -349,7 +369,7 @@ describe('the preview (AC2, DN3)', () => {
     const short = at(2, { held: 10 });
     const p = view(course, short, short.wall).sail;
     expect(p.available).toBe(false);
-    expect(n(p.goal.understanding)).toBe(goalU(2));
+    expect(Num.toTuple(p.goal.understanding)).toEqual(tuple(goalU(2)));
     expect(n(p.progress.understanding)).toBe(10);
   });
 
@@ -538,7 +558,7 @@ describe('the finale and Mastery mode (AC5)', () => {
   });
 
   it('replaying the furthest destination counts as a replay too', () => {
-    const s = at(6, { reached: LAST, finale: true, held: 1e13 });
+    const s = at(6, { reached: LAST, finale: true, held: PLENTY_AT_6 });
     expect(ok(setSail(course, s, 'r2-d3')).replays).toEqual({ 'r2-d3': 1 });
   });
 
@@ -547,7 +567,7 @@ describe('the finale and Mastery mode (AC5)', () => {
       reached: LAST,
       finale: true,
       replays: { 'r1-d2': 1 },
-      held: 1e13,
+      held: PLENTY_AT_6,
     });
     const after = ok(setSail(course, s, 'r1-d2'));
     expect(after.replays).toEqual({ 'r1-d2': 2 });
@@ -578,19 +598,19 @@ describe('the finale and Mastery mode (AC5)', () => {
       reached: LAST,
       finale: true,
       replays: { 'r1-d2': 1 },
-      held: goalU(6) * 1.5,
+      held: PLENTY_AT_6,
     });
     expect(goalMet(course, s)).toBe(true);
   });
 
   it('Mastery mode replays any visited destination', () => {
-    const s = at(6, { reached: LAST, finale: true, held: 1e13 });
+    const s = at(6, { reached: LAST, finale: true, held: PLENTY_AT_6 });
     expect(ok(setSail(course, s, 'r0-d0')).destination).toBe(0);
     expect(ok(setSail(course, s, 'r2-d3')).destination).toBe(LAST);
   });
 
   it('Mastery mode refuses a destination the course does not have', () => {
-    const s = at(6, { reached: LAST, finale: true, held: 1e13 });
+    const s = at(6, { reached: LAST, finale: true, held: PLENTY_AT_6 });
     expect(refused(setSail(course, s, 'atlantis'))).toEqual({
       kind: 'sailTargetInvalid',
       to: 'atlantis',

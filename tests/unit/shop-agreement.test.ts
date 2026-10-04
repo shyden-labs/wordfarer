@@ -52,16 +52,17 @@ interface Tally {
 }
 
 /**
- * Judgements measured when #35 wrote this test, each floor the measured figure
- * less one. Regenerating the golden log moves them, deliberately.
+ * Judgements measured on #35's tuned golden log (2026-10-04), each floor the
+ * measured figure less one, which the count must exceed. Regenerating the
+ * golden log moves them, deliberately.
  */
 const FLOORS: Readonly<Record<Kind, { accepted: number; refused: number }>> = {
-  encounters: { accepted: 2136, refused: 11038 },
-  pickUp: { accepted: 998, refused: 4 },
-  upgrades: { accepted: 218, refused: 19860 },
-  grammar: { accepted: 228, refused: 8987 },
-  journeys: { accepted: 1313, refused: 3705 },
-  pemandu: { accepted: 2540, refused: 1474 },
+  encounters: { accepted: 13082, refused: 5252 },
+  pickUp: { accepted: 1052, refused: 1501 },
+  upgrades: { accepted: 324, refused: 50774 },
+  grammar: { accepted: 237, refused: 27023 },
+  journeys: { accepted: 1461, refused: 11312 },
+  pemandu: { accepted: 1631, refused: 8587 },
 };
 
 type Action = GameEvent extends infer E
@@ -174,18 +175,14 @@ describe(
     it.each(KINDS)(
       'judged %s offers apply accepted, at least the floor',
       (kind) => {
-        expect(walk()[kind].accepted).toBeGreaterThanOrEqual(
-          FLOORS[kind].accepted,
-        );
+        expect(walk()[kind].accepted).toBeGreaterThan(FLOORS[kind].accepted);
       },
     );
 
     it.each(KINDS)(
       'judged %s offers apply refused, at least the floor',
       (kind) => {
-        expect(walk()[kind].refused).toBeGreaterThanOrEqual(
-          FLOORS[kind].refused,
-        );
+        expect(walk()[kind].refused).toBeGreaterThan(FLOORS[kind].refused);
       },
     );
   },

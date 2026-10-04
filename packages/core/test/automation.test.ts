@@ -136,7 +136,7 @@ describe('the automation setting in state (AC1)', () => {
   });
 
   it('a sail keeps the setting', () => {
-    // Destination 4's goal: 1e4 x 10^4 Understanding and 8 + 2 x 4 words.
+    // Destination 4's goal: 4.81e17 Understanding (#35's table) and 8 + 2 x 4 words.
     const words = Object.fromEntries(
       Array.from({ length: 16 }, (_, k) => [
         `r1-d0-w${String(k)}`,
@@ -144,7 +144,7 @@ describe('the automation setting in state (AC1)', () => {
       ]),
     );
     const on = ok(
-      setAutomation(course, at(4, { held: 1e8, words }), true, 10_000),
+      setAutomation(course, at(4, { held: 4.81e17, words }), true, 10_000),
     );
     const sailed = ok(setSail(course, on));
     expect(sailed.destination).toBe(5);

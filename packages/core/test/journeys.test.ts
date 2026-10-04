@@ -416,11 +416,11 @@ describe('collecting (AC4, AC6)', () => {
 
 /** A repeat's reward, written out from design §5 (operator, 2026-10-03). */
 const REPEAT: Readonly<Record<string, readonly [number, number]>> = {
-  tutorial: [1, 450_000],
-  '2h': [2, 1_800_000],
-  '4h': [3, 3_600_000],
-  '8h': [5, 7_200_000],
-  '24h': [10, 21_600_000],
+  tutorial: [40, 450_000],
+  '2h': [80, 1_800_000],
+  '4h': [120, 3_600_000],
+  '8h': [200, 7_200_000],
+  '24h': [400, 21_600_000],
 };
 
 describe('a repeat card (AC7)', () => {
@@ -471,7 +471,7 @@ describe('a repeat card (AC7)', () => {
     expect(first.insight).toEqual(s.insight);
     const second = ok(collectJourney(solo, first, 0));
     expect(second.cards).toEqual(['solo']);
-    expect(Num.toNumber(Num.fromTuple(second.insight))).toBe(2);
+    expect(Num.toNumber(Num.fromTuple(second.insight))).toBe(80);
   });
 });
 

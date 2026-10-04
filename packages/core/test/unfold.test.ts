@@ -33,7 +33,7 @@ const START: WallMs = wallMs(Date.UTC(2027, 0, 4));
 /** The tutorial word falls due this long after pick-up (parent §4.1). */
 const TUTORIAL_MS = 240_000;
 /** Destination 0's goal: 10,000 Understanding and 8 words (design §5). */
-const GOAL_U = 10_000;
+const GOAL_U = 2_120_000_000;
 const GOAL_WORDS = 8;
 
 function destination(d: number): Destination {
@@ -320,7 +320,7 @@ describe('no flag ever turns off', () => {
   const step: fc.Arbitrary<Step> = fc.oneof(
     fc.record({
       kind: fc.constant('listen'),
-      taps: fc.integer({ min: 1, max: 20 }),
+      taps: fc.integer({ min: 1, max: 40 }),
     }),
     fc.record({
       kind: fc.constant('wait'),
@@ -370,25 +370,39 @@ describe('no flag ever turns off', () => {
   }
 
   /**
-   * Walks in which each flag turned on, measured at seed 31 over 300 walks
-   * (1,886 steps); Listen is on from the first state. Lower one only when
-   * the walk is changed on purpose.
+   * Walks in which each flag turned on, and steps that began with it on (the
+   * steps the check judges), measured at seed 31 over 300 walks (1,886
+   * steps); Listen is on from the first state. Re-measured in #35, when a tap
+   * became 0.5 Understanding and the walk's taps per step doubled to 40 to
+   * keep its Understanding per step. Lower one only when the walk is changed
+   * on purpose.
    */
   const TURNED_ON: Readonly<Record<UnfoldFlag, number>> = {
     listen: 0,
-    encounters: 51,
-    words: 8,
-    review: 2,
+    encounters: 55,
+    words: 7,
+    review: 3,
     upgrades: 60,
-    journeys: 2,
+    journeys: 3,
     culture: 46,
     goal: 60,
+  };
+  const JUDGED: Readonly<Record<UnfoldFlag, number>> = {
+    listen: 1886,
+    encounters: 1048,
+    words: 851,
+    review: 842,
+    upgrades: 253,
+    journeys: 842,
+    culture: 136,
+    goal: 189,
   };
 
   for (const flag of UNFOLD_FLAGS)
     it(`${flag} never turns off over seeded walks from a new game and from one near its goal`, () => {
       let turnedOn = 0;
       let stepsChecked = 0;
+      let judged = 0;
       fc.assert(
         fc.property(
           fc.boolean(),
@@ -401,7 +415,10 @@ describe('no flag ever turns off', () => {
               s = act(s, a);
               const after = unfold(course, s)[flag];
               stepsChecked += 1;
-              if (before) expect(after).toBe(true);
+              if (before) {
+                judged += 1;
+                expect(after).toBe(true);
+              }
               if (!before && after) turnedOn += 1;
             }
           },
@@ -410,6 +427,7 @@ describe('no flag ever turns off', () => {
       );
       expect(stepsChecked).toBeGreaterThan(1885);
       expect(turnedOn).toBeGreaterThan(TURNED_ON[flag] - 1);
+      expect(judged).toBeGreaterThan(JUDGED[flag] - 1);
     });
 });
 

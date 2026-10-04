@@ -169,7 +169,7 @@ function deepFreeze<T>(value: T): T {
 }
 
 export const BALANCE: Balance = deepFreeze({
-  listen: { understandingPerTap: 1 },
+  listen: { understandingPerTap: 0.5 },
   encounters: {
     costGrowth: 1.15,
     milestones: [10, 25, 50, 100],
@@ -190,13 +190,13 @@ export const BALANCE: Balance = deepFreeze({
   },
   words: {
     rankBonus: {
-      heard: 0.02,
-      recognised: 0.05,
-      recalled: 0.12,
-      fluent: 0.25,
-      mastered: 0.4,
+      heard: 0.04,
+      recognised: 0.06,
+      recalled: 0.09,
+      fluent: 0.12,
+      mastered: 0.16,
     },
-    floorShare: 0.5,
+    floorShare: 0.8,
     pickUpC0: 20,
     pickUpGrowth: 1.15,
   },
@@ -215,7 +215,7 @@ export const BALANCE: Balance = deepFreeze({
       8 * HOUR_MS,
       24 * HOUR_MS,
     ],
-    duplicateInsight: [1, 2, 3, 5, 10],
+    duplicateInsight: [40, 80, 120, 200, 400],
     // A quarter of each duration, a starting value with nothing measured yet.
     duplicateUnderstandingMs: [
       7.5 * MINUTE_MS,
@@ -247,7 +247,7 @@ export const BALANCE: Balance = deepFreeze({
       journeySlot2: [25],
       journeySlot3: [100],
       offlineCap: [40, 120],
-      phrasebook: [20],
+      phrasebook: [5],
       pemanduFaster1: [30],
       pemanduFaster2: [90],
       pemanduFaster3: [250],
@@ -260,9 +260,13 @@ export const BALANCE: Balance = deepFreeze({
   },
   grammar: { rootGain: 0.5, costC0: 50, costGrowth: 1.5, opensAtRegion: 2 },
   automation: { intervalsMs: [10_000, 5_000, 2_000, 1_000], opensAtRegion: 2 },
-  // Starting values with nothing measured yet; the pacing bots tune them (#35).
+  // Goals fitted by `npm run pacing:calibrate` on the Casual Learner (#35, M1 design §5).
   sail: {
-    goals: [1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15],
+    goals: [
+      2120000000, 20700000000000, 142000000000000, 473000000000000,
+      481000000000000000, 1130000000000000000, 2490000000000000000,
+      2980000000000000000, 3.18e21, 5.65e21, 8.02e21, 1.35e22,
+    ],
     wordsBase: 8,
     wordsStep: 2,
     stampK: 3,

@@ -506,15 +506,16 @@ describe('nextPurchaseTick (AC3)', () => {
         }),
         { numRuns: 10_000, seed: 33 },
       );
-      // Seeded, so these are exact; measured 2026-10-03 (#33) at 993 with no
-      // purchase in the horizon, 4,886 at the first tick, 3,821 solved past
-      // a segment's first tick and 3,070 past the first segment. Each floor
-      // is that figure less one: a generator that stops reaching a case
+      // Seeded, so these are exact; re-measured 2026-10-04 on #35's tuned
+      // balance at 993 with no purchase in the horizon, 4,887 at the first
+      // tick, 3,819 solved past a segment's first tick and 3,069 past the
+      // first segment (#33's figures were 993, 4,886, 3,821 and 3,070). Each
+      // floor is that figure less one: a generator that stops reaching a case
       // fails here rather than passing on fewer.
       expect(seen.none).toBeGreaterThan(992);
-      expect(seen.firstTick).toBeGreaterThan(4885);
-      expect(seen.midSegment).toBeGreaterThan(3820);
-      expect(seen.laterSegment).toBeGreaterThan(3069);
+      expect(seen.firstTick).toBeGreaterThan(4886);
+      expect(seen.midSegment).toBeGreaterThan(3818);
+      expect(seen.laterSegment).toBeGreaterThan(3068);
     },
   );
 });
