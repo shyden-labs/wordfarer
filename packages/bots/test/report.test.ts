@@ -7,8 +7,8 @@ import type { PersonaRun } from '../src/run';
 const run: PersonaRun = {
   persona: 'casual',
   sails: [
-    { destination: 1, day: 0.031250004 },
-    { destination: 2, day: 2.18749 },
+    { destination: 1, day: 0.031250004, reachedDay: 0.0302 },
+    { destination: 2, day: 2.18749, reachedDay: 2.04161 },
   ],
   finaleDay: undefined,
   firstMasteredDay: 17.33333,
@@ -23,7 +23,7 @@ const run: PersonaRun = {
 };
 
 describe('pacingReport', () => {
-  it('records each persona’s sails, finale, first Mastered word, opens, 15-minute returns (Practice-only ones apart) and CPU time', () => {
+  it('records each persona’s sails and when each goal was reached, finale, first Mastered word, opens, 15-minute returns (Practice-only ones apart) and CPU time', () => {
     expect(pacingReport([{ run, asserted: true }])).toEqual({
       format: 1,
       personas: [
@@ -31,8 +31,8 @@ describe('pacingReport', () => {
           persona: 'casual',
           asserted: true,
           sails: [
-            { destination: 1, day: 0.031 },
-            { destination: 2, day: 2.187 },
+            { destination: 1, day: 0.031, reachedDay: 0.03 },
+            { destination: 2, day: 2.187, reachedDay: 2.042 },
           ],
           finaleDay: null,
           firstMasteredDay: 17.333,

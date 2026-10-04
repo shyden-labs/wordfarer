@@ -20,7 +20,10 @@ import {
  * shows.
  */
 
-/** A run sailing first at `firstDay`, then every `gap` days to the finale. */
+/**
+ * A run sailing first at `firstDay`, then every `gap` days to the finale,
+ * each goal reached at the moment of its sail.
+ */
 function run(
   persona: string,
   firstDay: number,
@@ -30,6 +33,7 @@ function run(
   const sails = Array.from({ length: 12 }, (_, i) => ({
     destination: i + 1,
     day: firstDay + i * gap,
+    reachedDay: firstDay + i * gap,
   }));
   return {
     persona,
@@ -275,11 +279,39 @@ describe('(g) clickingNeverWins', () => {
     ).toEqual([]);
   });
 
-  it('names a sail reached sooner than 95%', () => {
+  it('names a goal reached sooner than 95%', () => {
     const casual = run('casual', 1, 2);
     const clicker = run('clicker', 0.94, 2);
     expect(clickingNeverWins(clicker, casual, CI_BOUNDS)).toEqual([
-      "the Clicker reached destination 1 at 94.0% of the Casual Learner's time",
+      "the Clicker reached destination 1's goal at 94.0% of the Casual Learner's time",
+    ]);
+  });
+
+  it('judges when each goal was reached, not the open the sail waited for (operator, 2026-10-04)', () => {
+    const casual = run('casual', 1, 2);
+    const sailedSooner = run('clicker', 0.9, 1.8);
+    const clicker = {
+      ...sailedSooner,
+      sails: casual.sails.map((s, i) => ({
+        ...s,
+        day: sailedSooner.sails[i]?.day ?? s.day,
+        reachedDay: 0.96 * s.reachedDay,
+      })),
+    };
+    expect(clickingNeverWins(clicker, casual, CI_BOUNDS)).toEqual([]);
+  });
+
+  it('breaks on a goal reached sooner than 95% though both sail on the same open', () => {
+    const casual = run('casual', 1, 2);
+    const clicker = {
+      ...casual,
+      persona: 'clicker',
+      sails: casual.sails.map((s, i) =>
+        i === 3 ? { ...s, reachedDay: 0.94 * s.reachedDay } : s,
+      ),
+    };
+    expect(clickingNeverWins(clicker, casual, CI_BOUNDS)).toEqual([
+      "the Clicker reached destination 4's goal at 94.0% of the Casual Learner's time",
     ]);
   });
 

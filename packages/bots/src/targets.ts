@@ -154,7 +154,13 @@ export function learnersOrder(
     : [`finales: Diligent ${days(d)}, Casual ${days(c)}, Idler ${days(i)}`];
 }
 
-/** (g) The Clicker takes at least `clickerShare` of the Casual Learner's time to each sail (DN10). */
+/**
+ * (g) The Clicker takes at least `clickerShare` of the Casual Learner's time
+ * to reach each sail's goal (DN10). Timed by when the goal was reached, not
+ * by the sail: both play the same opens, and a sliver of tapping could let
+ * the Clicker sail on one open while the Casual Learner waits for the next
+ * (operator, 2026-10-04: "Compare production").
+ */
 export function clickingNeverWins(
   clicker: PersonaRun,
   casual: PersonaRun,
@@ -167,10 +173,10 @@ export function clickingNeverWins(
     return ['a run did not reach every destination'];
   }
   return clicker.sails.flatMap((sail, i) => {
-    const theirs = casual.sails[i]?.day ?? Infinity;
-    return sail.day < b.clickerShare * theirs
+    const theirs = casual.sails[i]?.reachedDay ?? Infinity;
+    return sail.reachedDay < b.clickerShare * theirs
       ? [
-          `the Clicker reached destination ${String(sail.destination)} at ${((100 * sail.day) / theirs).toFixed(1)}% of the Casual Learner's time`,
+          `the Clicker reached destination ${String(sail.destination)}'s goal at ${((100 * sail.reachedDay) / theirs).toFixed(1)}% of the Casual Learner's time`,
         ]
       : [];
   });

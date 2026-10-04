@@ -10,10 +10,11 @@ export interface PersonaReport {
   readonly persona: string;
   /** Whether a CI assertion reads it; the less-efficient buyers are report only. */
   readonly asserted: boolean;
-  /** Days from the first open to each Set Sail, by destination sailed to. */
+  /** Days from the first open to each Set Sail and to its goal being reached, by destination sailed to. */
   readonly sails: readonly {
     readonly destination: number;
     readonly day: number;
+    readonly reachedDay: number;
   }[];
   readonly finaleDay: number | null;
   readonly firstMasteredDay: number | null;
@@ -48,6 +49,7 @@ export function pacingReport(
       sails: run.sails.map((s) => ({
         destination: s.destination,
         day: round(s.day, 3),
+        reachedDay: round(s.reachedDay, 3),
       })),
       finaleDay: run.finaleDay === undefined ? null : round(run.finaleDay, 3),
       firstMasteredDay:

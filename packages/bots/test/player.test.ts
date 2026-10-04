@@ -147,9 +147,9 @@ describe('the player reads nothing but view (AC3)', () => {
     });
   });
 
-  it('the run starts the game and reads the state only to measure', () => {
+  it('the run starts the game and reads the state only to measure, through view for when each goal was reached', () => {
     expect(valueImports('packages/bots/src/run.ts')).toEqual({
-      '@wordfarer/core': ['Num', 'initialState', 'wallMs'],
+      '@wordfarer/core': ['Num', 'initialState', 'view', 'wallMs'],
       './player': ['Player'],
       './schedule': ['DAY_MS', 'QUICK_RETURN_MS', 'WAKE_MS', 'dayOpens'],
       './streams': ['Streams'],

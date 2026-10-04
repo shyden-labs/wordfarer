@@ -14,6 +14,7 @@ import {
   type GameEvent,
   type GameState,
   type View,
+  view,
 } from '@wordfarer/core';
 import { Player } from './player';
 import type { Persona } from './personas';
@@ -25,6 +26,13 @@ export interface Sail {
   readonly destination: number;
   /** Days from the first open. */
   readonly day: number;
+  /**
+   * Days from the first open to the moment the Understanding earned that run
+   * first reached the goal, to the second. Production runs between opens, so
+   * this does not wait for one as the sail does: the Clicker check reads it
+   * (operator, 2026-10-04).
+   */
+  readonly reachedDay: number;
 }
 
 export interface PersonaRun {
@@ -104,6 +112,77 @@ export interface RunOptions {
   readonly stopAfterSails?: number;
 }
 
+/** Whether the Understanding earned this run meets the sail's goal at `atMs`, nothing done meanwhile. */
+function goalReached(course: Course, state: GameState, atMs: number): boolean {
+  const { progress, goal } = view(course, state, wallMs(atMs)).sail;
+  return Num.cmp(progress.understanding, goal.understanding) >= 0;
+}
+
+/** Whether `state`, left alone, meets its sail's goal at `atMs`. */
+type Meets<S> = (state: S, atMs: number) => boolean;
+
+/**
+ * The first second in (`fromMs`, `toMs`] at which `state`, left alone, meets
+ * its goal, or `undefined` if it does not by `toMs`. Production only grows
+ * while nothing is done, so a bisection finds it.
+ */
+function goalReachedBetween<S>(
+  state: S,
+  fromMs: number,
+  toMs: number,
+  meets: Meets<S>,
+): number | undefined {
+  if (!meets(state, toMs)) return undefined;
+  let lo = fromMs;
+  let hi = toMs;
+  while (hi - lo > 1_000) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (meets(state, mid)) hi = mid;
+    else lo = mid;
+  }
+  return hi;
+}
+
+/** A state the run passed through and the wall time it was reached at. */
+interface Seen<S> {
+  readonly state: S;
+  readonly wallMs: number;
+}
+
+/**
+ * When the Understanding earned this run first met the goal, to the second,
+ * from every state since the last sail (`leg`, oldest first) and this sail's
+ * moment. `U_run` counts Understanding spent as well as held, so within a
+ * run it never falls: the first state meeting the goal is found by bisection
+ * over the leg, then the second within the gap before it.
+ */
+export function reachedAt<S>(
+  leg: readonly Seen<S>[],
+  sailMs: number,
+  meets: Meets<S>,
+): number {
+  const seen = (i: number): Seen<S> => {
+    const s = leg[i];
+    if (s === undefined) {
+      throw new RangeError(`the run holds no state ${String(i)}`);
+    }
+    return s;
+  };
+  let lo = 0;
+  let hi = leg.length;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (meets(seen(mid).state, seen(mid).wallMs)) hi = mid;
+    else lo = mid + 1;
+  }
+  if (lo === 0) return seen(0).wallMs;
+  const previous = seen(lo - 1);
+  const endMs = lo === leg.length ? sailMs : seen(lo).wallMs;
+  return (
+    goalReachedBetween(previous.state, previous.wallMs, endMs, meets) ?? endMs
+  );
+}
+
 /**
  * Play `persona` on `course` from the wall time `epochMs` for at most
  * `maxDays`, stopping at the finale.
@@ -122,9 +201,11 @@ export function runPersona(
   const insane: string[] = [];
   let firstMasteredDay: number | undefined;
   let finaleDay: number | undefined;
+  let leg: Seen<GameState>[] = [];
   let events = 0;
   const streams = new Streams(persona.seed);
   const initial = initialState(wallMs(epochMs), persona.seed);
+  leg = [{ state: initial, wallMs: epochMs }];
   const player = new Player(course, persona, initial, streams, {
     saw: (v) => {
       if (insane.length < INSANE_KEPT) {
@@ -137,9 +218,14 @@ export function runPersona(
         sails.push({
           destination: state.destination,
           day: dayOf(event.wallMs),
+          reachedDay: dayOf(
+            reachedAt(leg, event.wallMs, (s, t) => goalReached(course, s, t)),
+          ),
         });
         if (state.finale) finaleDay = dayOf(event.wallMs);
+        leg = [];
       }
+      leg.push({ state, wallMs: event.wallMs });
       if (
         event.type === 'answerReview' &&
         firstMasteredDay === undefined &&

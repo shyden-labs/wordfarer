@@ -12,7 +12,7 @@ import {
   syntheticCourse,
 } from '@wordfarer/core/fixtures/synthetic-course';
 import { persona } from '../src/personas';
-import { insaneValues, runPersona } from '../src/run';
+import { insaneValues, reachedAt, runPersona } from '../src/run';
 import { QUICK_RETURN_MS } from '../src/schedule';
 
 /** A run, measured (#35 AC4 (h), AC6). */
@@ -144,6 +144,25 @@ describe('runPersona', () => {
     },
   );
 
+  it(
+    'times each goal from when the Understanding earned that run reached it: after the sail before, no later than its own sail, and for the Idler hours before an open lets it sail',
+    { timeout: 300_000 },
+    () => {
+      const run = runPersona(course(), persona('idler'), BOT_EPOCH_WALL_MS, 11);
+      expect(run.sails.length).toBeGreaterThan(2);
+      expect(run.sails.filter((s) => !Number.isFinite(s.reachedDay))).toEqual(
+        [],
+      );
+      const outOfOrder = run.sails.filter(
+        (s, i) =>
+          s.reachedDay > s.day || s.reachedDay <= (run.sails[i - 1]?.day ?? 0),
+      );
+      expect(outOfOrder).toEqual([]);
+      const waitedHours = run.sails.map((s) => (s.day - s.reachedDay) * 24);
+      expect(Math.max(...waitedHours)).toBeGreaterThan(1);
+    },
+  );
+
   it('waits 15 minutes for a quick return (operator, 2026-10-04)', () => {
     expect(QUICK_RETURN_MS).toBe(900_000);
   });
@@ -152,5 +171,54 @@ describe('runPersona', () => {
     expect(
       runPersona(course(), persona('idler'), BOT_EPOCH_WALL_MS, 1).finaleDay,
     ).toBeUndefined();
+  });
+});
+
+describe('reachedAt', () => {
+  /** A stand-in state: Understanding earned `u` at `wall`, growing 1 a second. */
+  interface Toy {
+    readonly u: number;
+    readonly wall: number;
+  }
+  const GOAL = 50;
+  const meets = (s: Toy, atMs: number) => s.u + (atMs - s.wall) / 1_000 >= GOAL;
+  const seen = (u: number, wall: number) => ({
+    state: { u, wall },
+    wallMs: wall,
+  });
+
+  it('finds the second production meets the goal between two actions', () => {
+    const at = reachedAt([seen(0, 0), seen(10, 100_000)], 500_000, meets);
+    expect(at).toBeGreaterThanOrEqual(140_000);
+    expect(at).toBeLessThan(141_000);
+  });
+
+  it('gives an action’s moment when the action itself meets the goal', () => {
+    expect(reachedAt([seen(0, 0), seen(60, 5_000)], 9_000, meets)).toBe(5_000);
+  });
+
+  it('gives the leg’s first moment when its first state already meets the goal', () => {
+    expect(reachedAt([seen(70, 2_000), seen(80, 3_000)], 9_000, meets)).toBe(
+      2_000,
+    );
+  });
+
+  it('looks between the last action and the sail when no action meets the goal', () => {
+    const at = reachedAt([seen(0, 0)], 80_000, meets);
+    expect(at).toBeGreaterThanOrEqual(50_000);
+    expect(at).toBeLessThan(51_000);
+  });
+
+  it('asks about few states: a 1,024-state leg in under 40 questions', () => {
+    let asked = 0;
+    // An action every second, each recording what production had earned.
+    const leg = Array.from({ length: 1_024 }, (_, k) => seen(k, k * 1_000));
+    const at = reachedAt(leg, 2_000_000, (s: Toy, t: number) => {
+      asked += 1;
+      return meets(s, t);
+    });
+    expect(at).toBe(50_000);
+    expect(asked).toBeGreaterThan(0);
+    expect(asked).toBeLessThan(40);
   });
 });

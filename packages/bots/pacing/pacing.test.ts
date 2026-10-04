@@ -139,7 +139,7 @@ describe(
       ).toEqual([]);
     });
 
-    it('(g) clicking never beats idling: the Clicker takes at least 95% of the Casual Learner’s time to each sail', async () => {
+    it('(g) clicking never beats idling: the Clicker takes at least 95% of the Casual Learner’s time to reach each sail’s goal', async () => {
       expect(
         clickingNeverWins(await run('clicker'), await run('casual'), CI_BOUNDS),
       ).toEqual([]);
