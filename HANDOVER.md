@@ -1,54 +1,33 @@
 # Handover: Wordfarer
 
-**Written:** 2026-10-04 03:45 UTC, mid-#35 (pacing bots, report and balance tuning).
-**Next session:** launch Claude from `~/Developer/Repos/wordfarer` (its `HANDOVER.md` points here), then work in the worktree `~/Developer/Repos/wordfarer-35` on branch `m1/35-pacing-bots`. The session names itself "Wordfarer" by hook; type `/color green` once.
+**Written:** 2026-10-04 12:30 UTC.
+**Next session:** launch Claude from `~/Developer/Repos/wordfarer`. The session names itself "Wordfarer" by hook; type `/color green` once.
 
-## Progress (global rule: every close-out states this)
+## Progress (global rule: every close-out states both estimates)
 
-- **% complete: about 14% by story count** (32 of 233 stories closed; none closed since the last close-out, because #35 is mid-flight).
-- **ETA to release-ready: late November to mid-December 2026** (2026-11-29 to 2026-12-13). Confidence is low to medium; unchanged.
-  - **Measured:** 10, 14 and 8 stories closed per day on 2026-10-01 to 03. #35 has taken one full session of discovery and is expected to need two to three more. Pacing balance is far more sensitive than the M1 design assumed.
-  - **Assumed:** about 6 stories a day once M2/M3 content and UI work starts, plus the outside waits (store reviews, operator setup).
-  - **To tighten it:** #35's remaining sessions, then the first M2 content story (#111) and the first M3 UI story.
+From `node ~/Developer/Repos/repo-template/scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Wordfarer Stories"` at 12:28 UTC:
+
+- **By tickets: 12% complete** (32 of 273 in-scope stories closed). Measured pace 8.0 a day over 4 days (10, 14, 8, 0). ETA at that pace 2026-11-04. **ETA to release-ready: 2026-12-02 to 2027-01-01** (low to medium confidence; 241 open plus about 30 unfiled stories at an assumed 4–6 a day, plus 2–3 weeks of waits).
+- **By effort: 13% complete** (160 of 1,213 points). Measured pace 40 points a day. ETA at that pace 2026-10-31. **ETA to release-ready: 2026-11-26 to 2026-12-26** (low to medium confidence; 1,053 open plus 130–180 unfiled points at an assumed 20–30 a day, plus 2–3 weeks of waits).
+- **Measured:** the counts and paces above, and the 63 new website points (#332–#345) filed today.
+- **Assumed:** the measured pace is front-loaded with quick M0 setup tickets, and M4/M5 run slower, so the ranges assume 20–30 points a day. On top of that: about 130–180 points of prestige launch work not yet filed (#328, #329), and 2–3 weeks of outside waits (trademark decision, operator admin for the website's App, webhooks and newsletter provider, the production Cloudflare account, store reviews).
+- **Website live (epic #331):** it is behind #35 and 61 pulled-forward stories (259 points) plus its own 63 points, 335 points at 20–30 a day: roughly 2026-10-15 to 2026-10-21, before the operator waits (low confidence).
 
 ## State
 
-- **Branch `m1/35-pacing-bots`** (worktree `../wordfarer-35`, cut from `develop` at `0f1147e`). It carries one commit, the spec amendments (Task 0, in progress). No code yet.
-- **Discovery is done.** Everything measured is in `.superpowers/sdd/m1-35/decisions.md` (git-ignored, on disk in the worktree). Read it first. In short:
-  - The buying style decides the pace: the same balance gave over 10 weeks with "at most 5 per pass" and 3.1 days with greedy payback buying. §6's policy is now pinned exactly (greedy by `price / gain`, bootstrap taps after each sail, 30-second checks).
-  - A geometric goal table cannot fit 45 minutes then about 2 days per destination; the goal is now a per-destination table, `BALANCE.sail.goals`.
-  - Learning's lead came from week-one Insight starvation (Phrasebooks) and, late, the word ladder.
-- **Operator decisions (all recorded in the specs and tickets, read back):**
-  1. Two less-efficient buyers, Capped and Random, appear in the report only (2026-10-03).
-  2. Rank ladder Heard 0.04 to Mastered 0.16 (4×), never-reviewed floor 80% (2026-10-04). Parent spec §3.3 amended.
-  3. Encounter prices and outputs move from content to `balance.ts` by tier (1 to 6) plus each region's step (2026-10-04). #35 AC8; #111 and #116 amended (#116 needs two more Encounters).
-  4. Real-content checks widen as content lands: #243 runs #35's whole suite on the real packs (2026-10-04).
-  5. Headroom and a re-tune tool: #35 AC9 sets tighter tuning targets plus a ±10% robustness sweep, and AC10 adds `npm run pacing:calibrate` and `packages/bots/README.md` (2026-10-04).
-- **Current best tuning:**
-  - Values: X2 (floorShare 0.8; rankBonus 0.04/0.06/0.09/0.12/0.16; duplicateInsight [40,80,120,200,400]; phrasebook [5]), Listen 0.5 per tap, and goals from `cal2.goals.json`.
-  - Measured: Casual first sail 46 min, finale day 24.1; Idler day 44.3; Non-learner day 41.1; Diligent day 21.6; Clicker worst sail 97.8%; Capped day 30.4; Random day 25.3.
-  - Still short of AC9's headroom: Casual gaps 1.23 and 3.08 days, and a finale at the 24-day edge. Assertions (e) and (h) are not measured by the probe yet.
-- **Tools** (all in `.superpowers/sdd/m1-35/`, on disk, none in `/tmp`):
-  - `probe.ts` plays the personas; env `GOALS`, `PASS_S`, `TRACE`, `CLICK_NOOP`.
-  - `tune.mjs '<patches>' <persona> [days]` patches `balance.ts`, `synthetic-course.ts` or `sail.ts` at bundle time and refuses a patch that does not apply exactly once.
-  - `sweep.mjs <variants.json> [days] [conc]` runs variants in parallel and writes `*.results.json`.
-  - `calibrate.mjs '<patches>' <firstMin> <gapDays>` bisects each goal in turn.
-- Open Dependabot PRs #23 (vitest 5.0.2) and #24 (@types/node 26) are untouched.
+- **Operator, 2026-10-04 11:50 UTC: build the Wordfarer website before more game work.** Brainstormed and approved question by question, 11:54–12:23 UTC. Spec: `docs/superpowers/specs/2026-10-04-website-design.md` (merged in #330, delivery section updated in #346), reviewed to zero.
+- **Board:** epic **#331** with website stories **#332–#345** (63 points), each Todo with an Estimate, read back. The operator pulled the shared game stories forward **with their whole dependency chains**: tokens #125, motifs #126, PWA #152, privacy notice #246, production pipeline #252 and infrastructure #253, plus everything under them, 61 open stories and 259 points as measured. #331 lists them in dependency order. Those six carry a "website epic #331" amendment; #252 was re-scored to 13 and #253 to 5.
+- **Order (operator):** **#35 first** (12:23 UTC), then #157 (trademark search, gates production), then the chain in #331's order with the website stories as their dependencies land.
+- **Knowledge passed on (operator 12:03 UTC):** `~/.claude/global-rules/reference-live-roadmap.md` plus a "Live Public Roadmaps" section in the global CLAUDE.md. ShyTalk's own next session adopts it; #342 updates it with what the build measures.
+- **#35** is unchanged from this morning: branch `m1/35-t1`, worktree `~/Developer/Repos/wordfarer-35-t1`, remote head 3f48497. Its handover is `~/Developer/Repos/wordfarer-35/.superpowers/sdd/m1-35/HANDOVER.next.md`.
+- **Prestige design** (#328, #329): decisions are recorded in #328; the spec (#329) is not written yet.
+- **Worktree `~/Developer/Repos/wordfarer-site`** holds the spec branches; remove it once #346 and this handover are merged.
+- claude-mem's observer allowance was exhausted this session, so nothing went to claude-mem. The repo memory files are unaffected.
 
 ## Resume steps
 
-1. `cd ~/Developer/Repos/wordfarer-35 && git fetch origin && git status`: the branch should show the Task 0 commit, a clean tree, and `node_modules` present. If `node_modules` is missing, run `npm ci`.
-2. Read `.superpowers/sdd/m1-35/decisions.md` and #35's ACs 1–10 (`gh issue view 35`).
-3. Recalibrate for headroom: write `x2tap.patches.json` (`x2.patches.json` plus `{"file":"balance","from":"listen: { understandingPerTap: 1 },","to":"listen: { understandingPerTap: 0.5 },"}`), then run `node calibrate.mjs "$(cat x2tap.patches.json)" 45 2.0` in the background (about 15 minutes). Round to 2 significant figures, re-run all seven personas with `sweep.mjs`, and check every AC9 target. If the finale lands under 24 days, raise the gap target.
-4. Finish Task 0: amend the M1 design §5 with the tuned values once final, and replace the parent §3.3 day figures with the final measured ones.
-5. Write the plan (house process: one commit per task, red runs on the parent stage, mutations with predictions written first and `TOTAL` set, plan generated from the stage commits and reviewed to zero). Suggested tasks:
-   - T1: `view.shop` (AC3).
-   - T2: the Encounter ladder in `balance.ts` by tier (AC8).
-   - T3: the goal table (`BALANCE.sail.goals`).
-   - T4: the `packages/bots` personas, scheduler and streams (AC1, AC2).
-   - T5: the CI assertions (a)–(h) plus `pacing-report.json` and the artifact upload (AC4–AC7).
-   - T6: the tuned values and the robustness sweep (AC9).
-   - T7: `pacing:calibrate` and the README (AC10).
-   - Last: regenerate the golden log, since the balance moves it.
-6. CPU budget (AC7): the laptop measured 10–45 s per persona (Random 45 s, Clicker 32 s). Run one test file per persona so vitest spreads them across workers.
-7. At close-out, recompute progress from the board and state % complete and ETA.
+1. `git fetch origin`; check that `develop` includes #346 and this handover. In the main checkout, `HANDOVER.md` carries an older uncommitted two-line pointer; this file supersedes it. Read this one with `git show origin/develop:HANDOVER.md` and leave the local edit for Shyden.
+2. **Finish #35** from `HANDOVER.next.md` (path above), through its PR, merge and dev deploy.
+3. Then **#157**: the desk search (UK IPO, EUIPO, USPTO), recorded in `docs/compliance/trademark-search.md`, with a recommendation; the operator decides.
+4. Then work **#331's list in order**. Each story gets its own branch and plan, built as before: one commit per task, red runs, mutations with predictions written first, the plan generated from the stage commits and reviewed to zero. Research items R1–R7 (spec §10) are answered inside the story that needs them, never assumed.
+5. At close-out, run board-progress and state both estimates.
