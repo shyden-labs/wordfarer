@@ -58,13 +58,13 @@ interface Tally {
  * golden log moves them, deliberately.
  */
 const FLOORS: Readonly<Record<Kind, { accepted: number; refused: number }>> = {
-  encounters: { accepted: 13082, refused: 5252 },
-  pickUp: { accepted: 1052, refused: 1501 },
-  upgrades: { accepted: 324, refused: 50774 },
-  grammar: { accepted: 237, refused: 27023 },
-  journeys: { accepted: 1461, refused: 11312 },
-  pemandu: { accepted: 1631, refused: 8587 },
-  practice: { accepted: 2547, refused: 6 },
+  encounters: { accepted: 13337, refused: 4481 },
+  pickUp: { accepted: 976, refused: 1562 },
+  upgrades: { accepted: 325, refused: 50473 },
+  grammar: { accepted: 217, refused: 27311 },
+  journeys: { accepted: 1545, refused: 11153 },
+  pemandu: { accepted: 1447, refused: 8711 },
+  practice: { accepted: 2524, refused: 14 },
 };
 
 type Action = GameEvent extends infer E

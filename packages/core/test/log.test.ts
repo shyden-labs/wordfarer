@@ -310,7 +310,7 @@ describe('the wall clock (AC3, DN21)', () => {
   it('an earlier wallMs is clamped, not refused: nothing is credited', () => {
     const c = course();
     const lived = before(c, 3);
-    // Five Understanding held at the anchor, so the tap's +0.5 shows: on the
+    // Five Understanding held at the anchor, so the tap's +0.25 shows: on the
     // scenario's 1e40 it would be lost to rounding.
     const state: GameState = {
       ...lived,
@@ -327,7 +327,7 @@ describe('the wall clock (AC3, DN21)', () => {
     expect(result.state.sim).toBe(state.sim);
     expect(result.state).toEqual({ ...listen(c, state), seq: 4 });
     expect(result.state.anchor.understanding).toEqual(
-      Num.toTuple(Num.from(5.5)),
+      Num.toTuple(Num.from(5.25)),
     );
   });
 

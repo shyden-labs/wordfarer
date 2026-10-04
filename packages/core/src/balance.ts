@@ -169,7 +169,7 @@ function deepFreeze<T>(value: T): T {
 }
 
 export const BALANCE: Balance = deepFreeze({
-  listen: { understandingPerTap: 0.5 },
+  listen: { understandingPerTap: 0.25 },
   encounters: {
     costGrowth: 1.15,
     milestones: [10, 25, 50, 100],

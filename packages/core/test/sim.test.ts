@@ -161,22 +161,22 @@ describe('initialState', () => {
 });
 
 describe('listen (AC1)', () => {
-  it('adds exactly 0.5 Understanding to a new game', () => {
-    expect(u(listen(course, initialState(START, 1)))).toEqual([5, -1]);
+  it('adds exactly 0.25 Understanding to a new game', () => {
+    expect(u(listen(course, initialState(START, 1)))).toEqual([2.5, -1]);
   });
 
-  it('adds exactly 0.5 to whatever is held, production included', () => {
+  it('adds exactly 0.25 to whatever is held, production included', () => {
     const s = stateWith({ tea: 10, market: 3 }, 123.456, 90_000);
     const before = understandingNow(course, s);
     const after = listen(course, s);
-    expect(u(after)).toEqual(Num.toTuple(Num.add(before, Num.from(0.5))));
+    expect(u(after)).toEqual(Num.toTuple(Num.add(before, Num.from(0.25))));
     expect(after.anchor.sim).toBe(s.sim);
   });
 
-  it('1,000 taps on a new game hold exactly 500', () => {
+  it('1,000 taps on a new game hold exactly 250', () => {
     let s = initialState(START, 1);
     for (let i = 0; i < 1000; i++) s = listen(course, s);
-    expect(u(s)).toEqual(Num.toTuple(Num.from(500)));
+    expect(u(s)).toEqual(Num.toTuple(Num.from(250)));
   });
 });
 

@@ -36,14 +36,14 @@ const REGENERATE = 'regenerate with `npm run golden-log`';
  */
 const ACCEPTED_FLOORS: Readonly<Record<GameEvent['type'], number>> = {
   resume: 174, // 175
-  listen: 74, // 75
-  buyEncounter: 1657, // 1658
-  pickUpWord: 292, // 293
-  answerReview: 2181, // 2182
-  answerPractice: 125, // 126
-  buyUpgrade: 28, // 29
-  startJourney: 319, // 320
-  collectJourney: 316, // 317
+  listen: 114, // 115
+  buyEncounter: 1664, // 1665
+  pickUpWord: 282, // 283
+  answerReview: 2011, // 2012
+  answerPractice: 123, // 124
+  buyUpgrade: 27, // 28
+  startJourney: 315, // 316
+  collectJourney: 312, // 313
   setSail: 7, // 8
   buyGrammarNode: 11, // 12
   setAutomation: 0, // 1
@@ -51,14 +51,14 @@ const ACCEPTED_FLOORS: Readonly<Record<GameEvent['type'], number>> = {
 
 /** Refused events by kind in the fixture, measured likewise, less one. */
 const REFUSED_FLOORS: Readonly<Record<string, number>> = {
-  staleSeq: 33, // 34
-  notDue: 20, // 21
-  unknownWord: 22, // 23
-  unknownEncounter: 32, // 33
-  slotEmpty: 20, // 21
-  unknownSlot: 8, // 9
-  sailGoalUnmet: 21, // 22
-  unknownUpgrade: 33, // 34
+  staleSeq: 29, // 30
+  notDue: 30, // 31
+  unknownWord: 34, // 35
+  unknownEncounter: 27, // 28
+  slotEmpty: 11, // 12
+  unknownSlot: 10, // 11
+  sailGoalUnmet: 28, // 29
+  unknownUpgrade: 31, // 32
 };
 
 interface Walked {

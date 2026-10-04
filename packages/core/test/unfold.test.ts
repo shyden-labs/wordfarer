@@ -320,7 +320,7 @@ describe('no flag ever turns off', () => {
   const step: fc.Arbitrary<Step> = fc.oneof(
     fc.record({
       kind: fc.constant('listen'),
-      taps: fc.integer({ min: 1, max: 40 }),
+      taps: fc.integer({ min: 1, max: 80 }),
     }),
     fc.record({
       kind: fc.constant('wait'),
@@ -373,27 +373,28 @@ describe('no flag ever turns off', () => {
    * Walks in which each flag turned on, and steps that began with it on (the
    * steps the check judges), measured at seed 31 over 300 walks (1,886
    * steps); Listen is on from the first state. Re-measured in #35, when a tap
-   * became 0.5 Understanding and the walk's taps per step doubled to 40 to
-   * keep its Understanding per step. Lower one only when the walk is changed
+   * became 0.5 Understanding and the walk's taps per step doubled to 40, and
+   * again when it became 0.25 and they doubled to 80, to keep its
+   * Understanding per step. Lower one only when the walk is changed
    * on purpose.
    */
   const TURNED_ON: Readonly<Record<UnfoldFlag, number>> = {
     listen: 0,
     encounters: 55,
-    words: 7,
-    review: 3,
+    words: 6,
+    review: 2,
     upgrades: 60,
-    journeys: 3,
+    journeys: 2,
     culture: 46,
     goal: 60,
   };
   const JUDGED: Readonly<Record<UnfoldFlag, number>> = {
     listen: 1886,
-    encounters: 1048,
-    words: 851,
-    review: 842,
+    encounters: 1054,
+    words: 852,
+    review: 843,
     upgrades: 253,
-    journeys: 842,
+    journeys: 843,
     culture: 136,
     goal: 189,
   };

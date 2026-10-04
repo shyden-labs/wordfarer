@@ -148,9 +148,9 @@ describe('BALANCE', () => {
       [0.1, 0.3],
     ],
     [
-      'design §5 (#35): a tap gives 0.5',
+      'design §5 (#35): a tap gives 0.25',
       (b) => b.listen.understandingPerTap,
-      0.5,
+      0.25,
     ],
     [
       'design §5: Phrasebook x2 for one tag',
