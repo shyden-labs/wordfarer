@@ -202,7 +202,7 @@ packages/sync        client for pairing, encrypted sync, ranked upload, grants
 packages/bots        pacing bots and the pacing report (§12.2)
 packages/ui          Svelte 5 components and screens, i18n catalogues (en, id)
 packages/motifs      seeded SVG motif generator, shared by the site and the game (website design §4)
-packages/progress    board snapshot -> % complete and ETA, shared by scripts/board-progress.ts and the site Worker
+packages/progress    board snapshot -> % complete and ETA, shared by a scripts/board-progress.ts wrapper (ported from repo-template) and the site Worker
 apps/site            Astro website with Svelte islands and its Worker (live roadmap, sign-up); serves / (website design §7)
 apps/web             Vite PWA shell (Worker static assets), served under /play through the site Worker
 apps/desktop         Electron shell + steamworks.js (main process)
