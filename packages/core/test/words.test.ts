@@ -36,9 +36,9 @@ import {
   integrate,
   listen,
   pickUpWord,
-  view,
   type Result,
 } from '../src/sim';
+import { view } from '../src/view';
 import { initialState, pickedWord, type GameState } from '../src/state';
 import { pickUpCost, wordBonus } from '../src/words';
 import { exactMean, exactR } from './fsrs-reference';
@@ -609,7 +609,7 @@ describe('practice (AC8)', () => {
 });
 
 describe('the view (AC6, DN23)', () => {
-  it('holds Understanding, the rate and its breakdown (#29), Insight, the queue, the sail preview and the unfold flags (#31), and nothing else', () => {
+  it('holds Understanding, the rate and its breakdown (#29), Insight, the queue, the sail preview and the unfold flags (#31), the shop (#35), and nothing else', () => {
     const v = view(course, played(), wallMs(START + 9 * DAY_MS));
     expect(Object.keys(v).sort()).toEqual([
       'breakdown',
@@ -617,13 +617,43 @@ describe('the view (AC6, DN23)', () => {
       'queue',
       'rate',
       'sail',
+      'shop',
       'understanding',
       'unfold',
     ]);
   });
 
   it('shows the same 10 whether 11 or 50 items are due', () => {
-    // Fifty due words beyond the course, all newer than the ten oldest.
+    // Fifty due words, all newer than the ten oldest, in a course that
+    // holds them: the view's shop prices every held word (#35).
+    const ids = Array.from(
+      { length: 50 },
+      (_, i) => `x${String(i).padStart(2, '0')}`,
+    );
+    const region = course.regions[0];
+    if (region === undefined) throw new Error('the course has no region');
+    const crowded: CourseData = {
+      ...course,
+      regions: [
+        {
+          ...region,
+          destinations: [
+            {
+              id: 'd0',
+              lexicon: [
+                ...lexicon,
+                ...ids.map((id) => ({
+                  id,
+                  tags: ['market'],
+                  cefr: 'A1' as const,
+                })),
+              ],
+            },
+            ...region.destinations.slice(1),
+          ],
+        },
+      ],
+    };
     const words = (n: number): Record<string, WordMemory> => {
       const out: Record<string, WordMemory> = {};
       for (let i = 0; i < n; i++) {
@@ -644,7 +674,7 @@ describe('the view (AC6, DN23)', () => {
     };
     // Through the view, so the wiring is tested; review.test.ts owns the cap.
     const queueOf = (n: number) =>
-      view(course, { ...rich(0), words: words(n) }, START).queue;
+      view(crowded, { ...rich(0), words: words(n) }, START).queue;
     expect(queueOf(50)).toHaveLength(10);
     expect(queueOf(11)).toEqual(queueOf(50));
   });

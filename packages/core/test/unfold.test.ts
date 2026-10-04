@@ -13,9 +13,9 @@ import {
   integrate,
   listen,
   pickUpWord,
-  view,
   type Result,
 } from '../src/sim';
+import { view } from '../src/view';
 import { initialState, type GameState } from '../src/state';
 import { UNFOLD_FLAGS, unfold, type UnfoldFlag } from '../src/unfold';
 

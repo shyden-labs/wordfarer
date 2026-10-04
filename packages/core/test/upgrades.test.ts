@@ -9,13 +9,8 @@ import type { CourseData, Encounter } from '../src/course';
 import { purchaseCost } from '../src/encounters';
 import { Num } from '../src/num';
 import { understandingNow, type EncounterRate } from '../src/production';
-import {
-  advance,
-  buyEncounter,
-  buyUpgrade,
-  view,
-  type Result,
-} from '../src/sim';
+import { advance, buyEncounter, buyUpgrade, type Result } from '../src/sim';
+import { view } from '../src/view';
 import { initialState, type GameState } from '../src/state';
 import {
   encounterCostFactor,

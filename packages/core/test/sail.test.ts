@@ -19,7 +19,8 @@ import {
   stampGain,
   wordsHeld,
 } from '../src/sail';
-import { integrate, view, type Rejection, type Result } from '../src/sim';
+import { integrate, type Rejection, type Result } from '../src/sim';
+import { view } from '../src/view';
 import { initialState, type GameState } from '../src/state';
 
 /**

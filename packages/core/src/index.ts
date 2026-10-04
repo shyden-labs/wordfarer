@@ -134,14 +134,24 @@ export {
   buyUpgrade,
   integrate,
   listen,
+  nextPickUp,
   pickUpWord,
   setAutomation,
-  view,
   type AdvanceSummary,
+  type NextPickUp,
   type Rejection,
   type Result,
-  type View,
 } from './sim';
+export {
+  view,
+  type EncounterOffer,
+  type GrammarOffer,
+  type JourneyOffer,
+  type PickUpOffer,
+  type Shop,
+  type UpgradeOffer,
+  type View,
+} from './view';
 export {
   initialState,
   ownedCount,

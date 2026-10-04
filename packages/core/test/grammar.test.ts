@@ -19,10 +19,10 @@ import {
   buyGrammarNode,
   integrate,
   pickUpWord,
-  view,
   type Rejection,
   type Result,
 } from '../src/sim';
+import { view } from '../src/view';
 import { initialState, type GameState } from '../src/state';
 import { lexiconItem, pickUpPool } from '../src/words';
 

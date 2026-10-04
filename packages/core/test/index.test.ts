@@ -3,7 +3,7 @@ import * as core from '../src/index';
 
 /**
  * The words and memory API (#28), the upgrades API (#29), the route (#31),
- * grammar (#32) and Pemandu (#33) are reachable
+ * grammar (#32), Pemandu (#33) and the view with its shop (#35) are reachable
  * from the package entry point, which is all the UI and the pacing bots
  * import.
  */
@@ -55,6 +55,8 @@ describe('the package entry point', () => {
     'nextPurchaseTick',
     'rateGain',
     'encounterPrice',
+    'view',
+    'nextPickUp',
   ] as const)
     it(`exports ${name}`, () => {
       expect(core[name]).toBeTypeOf('function');

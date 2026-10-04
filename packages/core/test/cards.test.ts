@@ -4,7 +4,7 @@ import { DAY_MS, HOUR_MS, simMs, wallMs, type WallMs } from '../src/clock';
 import type { CourseData, CultureCard, Encounter } from '../src/course';
 import { Num } from '../src/num';
 import { producedBetween, rateAt, type RateLine } from '../src/production';
-import { view } from '../src/sim';
+import { view } from '../src/view';
 import { initialState, type GameState } from '../src/state';
 
 /**
