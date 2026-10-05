@@ -140,7 +140,7 @@ export function readDiff(cwd: string): string {
 export function report(result: Classification): string[] {
   return [
     `scope: ${result.scope} (${result.reason})`,
-    `judged ${String(result.judged.length)} paths:`,
+    `judged ${String(result.judged.length)} ${result.judged.length === 1 ? 'path' : 'paths'}:`,
     ...result.judged.map(
       (path) => `  ${onAllowlist(path) ? 'docs ' : 'other'}  ${path}`,
     ),

@@ -227,6 +227,16 @@ describe('the printed report (AC1)', () => {
       '  other  x.ts',
     ]);
   });
+
+  it('counts one judged path in the singular', () => {
+    expect(report(classify([change('M', 'HANDOVER.md')]))[1]).toBe(
+      'judged 1 path:',
+    );
+  });
+
+  it('counts no judged paths in the plural', () => {
+    expect(report(classify([]))[1]).toBe('judged 0 paths:');
+  });
 });
 
 /** A throwaway repository, its git isolated from the user's config. */
