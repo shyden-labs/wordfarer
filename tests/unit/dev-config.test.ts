@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { unstable_readConfig } from 'wrangler';
 import { parse } from 'yaml';
 import { runOf } from './workflow-steps';
+import { floorBreach } from '../floors';
+import { searched } from '../searched';
 
 /**
  * The dev Workers' deploy configs, read the way `wrangler deploy` reads them
@@ -148,9 +150,15 @@ describe('the dev Workers’ deploy configs', () => {
       file: 'apps/sync-worker/wrangler.jsonc',
       name: 'COMMIT',
     });
+    const secrets = declared.filter(({ name }) =>
+      /PASSWORD|SECRET|TOKEN|KEY/i.test(name),
+    );
+    expect(searched(secrets, { of: declared, what: 'declared vars' })).toEqual(
+      [],
+    );
     expect(
-      declared.filter(({ name }) => /PASSWORD|SECRET|TOKEN|KEY/i.test(name)),
-    ).toEqual([]);
+      floorBreach('dev-config/declared-vars', declared.length),
+    ).toBeUndefined();
   });
 });
 

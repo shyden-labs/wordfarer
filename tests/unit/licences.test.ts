@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { committableFiles } from './tracked-files';
+import { floorBreach } from '../floors';
+import { searched } from '../searched';
 
 /**
  * The licence set promised by spec D17 is present and is the real text
@@ -111,9 +113,11 @@ describe('the rights holder is Shyden Labs (Refs #49)', () => {
     );
     // Measured 115 text files at b2a6f3f (#82). Lower it only in the commit that removes files.
     expect(files.length, 'text files read').toBeGreaterThan(114);
-    expect(
-      files.filter(({ text }) => DISSOLVED.test(text)).map(({ path }) => path),
-    ).toEqual([]);
+    const naming = files
+      .filter(({ text }) => DISSOLVED.test(text))
+      .map(({ path }) => path);
+    expect(searched(naming, { of: files, what: 'text files' })).toEqual([]);
+    expect(floorBreach('licences/text-files', files.length)).toBeUndefined();
   });
 
   it('NOTICE, TRADEMARKS.md and LICENSE-CONTENT.md name Shyden Labs', () => {
