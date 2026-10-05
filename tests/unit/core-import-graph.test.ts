@@ -8,6 +8,8 @@ import {
   scanModule,
 } from './core-import-graph';
 import { committableFiles } from './tracked-files';
+import { floorBreach } from '../floors';
+import { searched } from '../searched';
 
 /**
  * packages/core/src keeps an acyclic graph of value imports (#92).
@@ -268,7 +270,18 @@ describe('importGraph resolves each value import to a module read', () => {
       'b.ts': '',
     });
     expect(graph.declarations).toBe(1);
-    expect(graph.edges.get('a.ts')).toEqual([]);
+    expect(
+      searched(graph.edges.get('a.ts') ?? ['a.ts: not in the graph'], {
+        of: graph.declarations,
+        what: 'declarations',
+      }),
+    ).toEqual([]);
+    expect(
+      floorBreach(
+        'core-import-graph/type-only-declarations',
+        graph.declarations,
+      ),
+    ).toBeUndefined();
   });
 
   it('lists every module read, sorted, with an entry in edges', () => {
@@ -318,7 +331,12 @@ describe('importGraph cross-checks each module against its raw text', () => {
       'a.ts': "import {\n  x,\n} from './b';\nexport * from './b';",
       'b.ts': '',
     });
-    expect(graph.unread).toEqual([]);
+    expect(
+      searched(graph.unread, { of: graph.declarations, what: 'declarations' }),
+    ).toEqual([]);
+    expect(
+      floorBreach('core-import-graph/judged-declarations', graph.declarations),
+    ).toBeUndefined();
   });
 
   it('names a module whose raw text holds a specifier the reader did not judge', () => {
@@ -336,22 +354,30 @@ describe('importGraph cross-checks each module against its raw text', () => {
 
 describe('cycles names each value-import cycle once', () => {
   it('finds none in a chain', () => {
+    const edges = edgesOf({ 'a.ts': ['b.ts'], 'b.ts': ['c.ts'], 'c.ts': [] });
+    const modules = [...edges.keys()];
+    expect(searched(cycles(edges), { of: modules, what: 'modules' })).toEqual(
+      [],
+    );
     expect(
-      cycles(edgesOf({ 'a.ts': ['b.ts'], 'b.ts': ['c.ts'], 'c.ts': [] })),
-    ).toEqual([]);
+      floorBreach('core-import-graph/chain-modules', modules.length),
+    ).toBeUndefined();
   });
 
   it('finds none in a diamond, where two paths meet without returning', () => {
+    const edges = edgesOf({
+      'a.ts': ['b.ts', 'c.ts'],
+      'b.ts': ['d.ts'],
+      'c.ts': ['d.ts'],
+      'd.ts': [],
+    });
+    const modules = [...edges.keys()];
+    expect(searched(cycles(edges), { of: modules, what: 'modules' })).toEqual(
+      [],
+    );
     expect(
-      cycles(
-        edgesOf({
-          'a.ts': ['b.ts', 'c.ts'],
-          'b.ts': ['d.ts'],
-          'c.ts': ['d.ts'],
-          'd.ts': [],
-        }),
-      ),
-    ).toEqual([]);
+      floorBreach('core-import-graph/diamond-modules', modules.length),
+    ).toBeUndefined();
   });
 
   it('names a two-module cycle', () => {
@@ -410,7 +436,14 @@ describe('cycles names each value-import cycle once', () => {
   });
 
   it('ignores an edge to a module outside the map', () => {
-    expect(cycles(edgesOf({ 'a.ts': ['zod'] }))).toEqual([]);
+    const edges = edgesOf({ 'a.ts': ['zod'] });
+    const modules = [...edges.keys()];
+    expect(searched(cycles(edges), { of: modules, what: 'modules' })).toEqual(
+      [],
+    );
+    expect(
+      floorBreach('core-import-graph/outside-edge-modules', modules.length),
+    ).toBeUndefined();
   });
 
   it('finds no cycle through a type-only import', () => {
@@ -418,7 +451,13 @@ describe('cycles names each value-import cycle once', () => {
       'a.ts': "import type { T } from './b';",
       'b.ts': "import { a } from './a';",
     });
-    expect(cycles(graph.edges)).toEqual([]);
+    const modules = [...graph.edges.keys()];
+    expect(
+      searched(cycles(graph.edges), { of: modules, what: 'modules' }),
+    ).toEqual([]);
+    expect(
+      floorBreach('core-import-graph/type-only-cycle-modules', modules.length),
+    ).toBeUndefined();
   });
 
   it('finds the cycle when the same import carries a value', () => {
@@ -448,7 +487,12 @@ describe('packages/core/src holds no value-import cycle', () => {
     [...graph.edges.values()].reduce((n, targets) => n + targets.length, 0);
 
   it('every file under packages/core/src is a .ts module the graph reads', () => {
-    expect(corePaths().filter((path) => !path.endsWith('.ts'))).toEqual([]);
+    const paths = corePaths();
+    const notModules = paths.filter((path) => !path.endsWith('.ts'));
+    expect(searched(notModules, { of: paths, what: 'core paths' })).toEqual([]);
+    expect(
+      floorBreach('core-import-graph/core-paths', paths.length),
+    ).toBeUndefined();
   });
 
   it('reads every module (liveness)', () => {
@@ -467,14 +511,41 @@ describe('packages/core/src holds no value-import cycle', () => {
   });
 
   it('reads each module’s relative imports as its raw text counts them', () => {
-    expect(coreGraph().unread).toEqual([]);
+    const graph = coreGraph();
+    expect(
+      searched(graph.unread, { of: graph.modules, what: 'core modules' }),
+    ).toEqual([]);
+    expect(
+      floorBreach(
+        'core-import-graph/cross-checked-modules',
+        graph.modules.length,
+      ),
+    ).toBeUndefined();
   });
 
   it('refuses no import it cannot place in the graph', () => {
-    expect(coreGraph().refused).toEqual([]);
+    const graph = coreGraph();
+    expect(
+      searched(graph.refused, {
+        of: graph.declarations,
+        what: 'core declarations',
+      }),
+    ).toEqual([]);
+    expect(
+      floorBreach('core-import-graph/placed-declarations', graph.declarations),
+    ).toBeUndefined();
   });
 
   it('holds no value-import cycle', () => {
-    expect(cycles(coreGraph().edges)).toEqual([]);
+    const graph = coreGraph();
+    expect(
+      searched(cycles(graph.edges), {
+        of: graph.modules,
+        what: 'core modules',
+      }),
+    ).toEqual([]);
+    expect(
+      floorBreach('core-import-graph/cycle-modules', graph.modules.length),
+    ).toBeUndefined();
   });
 });

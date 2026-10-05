@@ -1,0 +1,12 @@
+{
+  "core-import-graph/chain-modules": 3,
+  "core-import-graph/core-paths": 25,
+  "core-import-graph/cross-checked-modules": 25,
+  "core-import-graph/cycle-modules": 25,
+  "core-import-graph/diamond-modules": 4,
+  "core-import-graph/judged-declarations": 2,
+  "core-import-graph/outside-edge-modules": 1,
+  "core-import-graph/placed-declarations": 135,
+  "core-import-graph/type-only-cycle-modules": 2,
+  "core-import-graph/type-only-declarations": 1
+}
