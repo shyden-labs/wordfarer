@@ -8,7 +8,8 @@
  * one to `> 420` against a real 421 and read 424 an hour after it merged, so
  * its reader could have lost three units in silence.
  *
- * So each floor is a figure recorded in `tests/floors.json` and checked for
+ * So each floor is a figure recorded in `tests/floors/<guard>.json` (one file
+ * per guard, #406) and checked for
  * EQUALITY. Fewer than recorded is a reader that lost units, or a corpus that
  * really shrank, which only a person can tell apart, so the figure is lowered
  * by hand with the reason in the commit. More than recorded is a population
@@ -25,24 +26,29 @@
  * The floor counts the very population the search names in `of:`;
  * `floorless-searches.test.ts` holds that.
  */
-import { appendFileSync, readFileSync } from 'node:fs';
+import { appendFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { FLOORS_FILE, RECORD_ENV } from '../scripts/record-floors';
+import {
+  FLOORS_DIR,
+  RECORD_ENV,
+  floorsFileOf,
+  readFloorsDir,
+} from '../scripts/record-floors';
 
-export { FLOORS_FILE, RECORD_ENV };
+export { FLOORS_DIR, RECORD_ENV };
 
 export type Floors = Readonly<Record<string, number>>;
 
 /**
  * The repository root, from this file's own place rather than the working
  * directory: the web gate's suite runs from `apps/web`, where a relative
- * `tests/floors.json` names nothing.
+ * `tests/floors` names nothing.
  */
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
-export const readFloors = (file: string = join(ROOT, FLOORS_FILE)): Floors =>
-  JSON.parse(readFileSync(file, 'utf8')) as Floors;
+export const readFloors = (dir: string = join(ROOT, FLOORS_DIR)): Floors =>
+  readFloorsDir(dir);
 
 const THIS_FILE = relative(ROOT, fileURLToPath(import.meta.url));
 
@@ -70,7 +76,7 @@ const callSite = (stack: string): string => {
 };
 
 export interface FloorOptions {
-  /** The recorded figures; read from `FLOORS_FILE` when judging, if absent. */
+  /** The recorded figures; read from `FLOORS_DIR` when judging, if absent. */
   readonly floors?: Floors;
   /**
    * Where to record, `null` to judge. Absent means the environment decides
@@ -104,19 +110,19 @@ export function floorBreach(
   }
   const measured = (options.floors ?? readFloors())[id];
   if (measured === undefined)
-    return `${id} is not recorded in ${FLOORS_FILE}: run npm run floors:record`;
+    return `${id} is not recorded in ${floorsFileOf(id)}: run npm run floors:record`;
   if (actual < measured)
     return (
       `${id}: read ${String(actual)}, recorded ${String(measured)}. The ` +
       `reader lost ${String(measured - actual)}, or the corpus shrank: if it ` +
-      `shrank, lower the figure in ${FLOORS_FILE} by hand and say why in the ` +
+      `shrank, lower the figure in ${floorsFileOf(id)} by hand and say why in the ` +
       `commit.`
     );
   if (actual > measured)
     return (
       `${id}: read ${String(actual)}, recorded ${String(measured)}. The ` +
       `population grew by ${String(actual - measured)}: run npm run ` +
-      `floors:record, read what it moved, and commit ${FLOORS_FILE}.`
+      `floors:record, read what it moved, and commit ${floorsFileOf(id)}.`
     );
   return undefined;
 }

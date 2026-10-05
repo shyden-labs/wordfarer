@@ -8,7 +8,7 @@ import { callbackOf, chainRoot, kindOf, titleOf } from './one-test-per-case';
  * An absence search asserts that a population holds nothing it hunts. Refusing
  * an EMPTY population (`searched`) catches a reader blind to everything; a
  * reader blind to PART of its population still passes while one unit is read.
- * Only a floor recorded in `tests/floors.json` and checked for equality sees
+ * Only a floor recorded in `tests/floors/` and checked for equality sees
  * that, so a scope that searches a population also checks a floor on THAT
  * population: `floorBreach(id, <of>.length)` (or `.size`, or `<of>` itself
  * for a count), `<of>` spelled as the search's `of:` spells it. A floor on

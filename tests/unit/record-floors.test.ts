@@ -1,19 +1,30 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import {
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import {
   SUITES,
   ciRefusal,
   decideRecord,
   describeMoves,
+  floorsFileOf,
   floorsText,
   importsFloorBreach,
   planRecord,
   playwrightListed,
+  readFloorsDir,
   runRefusal,
   suiteFiles,
   vitestListed,
+  writeFloors,
   type Suite,
 } from '../../scripts/record-floors';
 import { floorBreach } from '../floors';
@@ -59,7 +70,7 @@ describe('decideRecord', () => {
       next: { 'g/a': 5 },
       refusals: [
         'g/a would fall from 5 to 4: a blind reader looks like this. If the ' +
-          'corpus really shrank, lower it in tests/floors.json by hand and say ' +
+          'corpus really shrank, lower it in tests/floors/g.json by hand and say ' +
           'why in the commit.',
       ],
     });
@@ -85,7 +96,7 @@ describe('decideRecord', () => {
   it('refuses a recorded id that no test asserted', () => {
     expect(decideRecord({ 'g/gone': 2 }, []).refusals).toEqual([
       'g/gone is recorded but no test asserted it: remove it from ' +
-        'tests/floors.json with the floor that used it, or run every suite',
+        'tests/floors/g.json with the floor that used it, or run every suite',
     ]);
   });
 });
@@ -108,6 +119,131 @@ describe('describeMoves', () => {
   });
 });
 
+describe('floorsFileOf (#406)', () => {
+  it("names the guard's own file, from the id's text before its first slash", () => {
+    expect(floorsFileOf('supply-chain/pinned-uses')).toBe(
+      'tests/floors/supply-chain.json',
+    );
+    expect(floorsFileOf('collection-calls/allowed/a call inside a test')).toBe(
+      'tests/floors/collection-calls.json',
+    );
+  });
+
+  it.each([
+    ['an id with no slash', 'units'],
+    ['an empty guard', '/units'],
+    ['an empty name', 'guard/'],
+    ['a guard that is no file name', 'Guard.x/units'],
+  ])('refuses %s by name', (_what, id) => {
+    expect(() => floorsFileOf(id)).toThrow(
+      `${id} is not a floor id: write guard/name, the guard in lower-case words joined by hyphens`,
+    );
+  });
+});
+
+/** A fresh directory per test, removed after it. */
+const dirs: string[] = [];
+afterEach(() => {
+  for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true });
+});
+const tempDir = (files: Readonly<Record<string, string>> = {}): string => {
+  const dir = mkdtempSync(join(tmpdir(), 'floors-'));
+  dirs.push(dir);
+  for (const [name, text] of Object.entries(files))
+    writeFileSync(join(dir, name), text);
+  return dir;
+};
+
+describe('readFloorsDir (#406)', () => {
+  it('returns the union of every guard file', () => {
+    expect(
+      readFloorsDir(
+        tempDir({
+          'a.json': '{\n  "a/x": 1,\n  "a/y": 2\n}\n',
+          'b.json': '{\n  "b/z": 3\n}\n',
+        }),
+      ),
+    ).toEqual({ 'a/x': 1, 'a/y': 2, 'b/z': 3 });
+  });
+
+  it.each([
+    [
+      'a key in the wrong file',
+      { 'a.json': '{ "b/z": 3 }' },
+      'a.json: b/z belongs in b.json',
+    ],
+    [
+      'a figure that is not a count',
+      { 'a.json': '{ "a/x": 1.5 }' },
+      'a.json: a/x is 1.5, not a count',
+    ],
+    [
+      'a negative figure',
+      { 'a.json': '{ "a/x": -1 }' },
+      'a.json: a/x is -1, not a count',
+    ],
+    [
+      'a file that is not JSON',
+      { 'a.json': '{ "a/x": ' },
+      'a.json is not valid JSON',
+    ],
+    [
+      'a file that is not an object',
+      { 'a.json': '[1]' },
+      'a.json does not hold an object of floors',
+    ],
+    [
+      'a file that is no guard name',
+      { 'A b.json': '{}' },
+      'A b.json is not named for a guard',
+    ],
+    [
+      'a file without the .json extension',
+      { 'a.txt': '{}' },
+      'a.txt is not a .json floors file',
+    ],
+  ])('refuses %s by name', (_what, files, refusal) => {
+    expect(() => readFloorsDir(tempDir(files))).toThrow(refusal);
+  });
+});
+
+describe('writeFloors (#406)', () => {
+  it("writes only the files whose floors moved, in floorsText's form", () => {
+    const dir = tempDir({
+      'a.json': floorsText({ 'a/x': 1 }),
+      'b.json': floorsText({ 'b/z': 3 }),
+    });
+    expect(writeFloors(dir, { 'a/x': 1, 'b/z': 4, 'c/n': 2 })).toEqual([
+      'b.json',
+      'c.json',
+    ]);
+    expect(readFileSync(join(dir, 'b.json'), 'utf8')).toBe(
+      floorsText({ 'b/z': 4 }),
+    );
+    expect(readFileSync(join(dir, 'c.json'), 'utf8')).toBe(
+      floorsText({ 'c/n': 2 }),
+    );
+    expect(readFloorsDir(dir)).toEqual({ 'a/x': 1, 'b/z': 4, 'c/n': 2 });
+  });
+
+  it('writes nothing when no floor moved', () => {
+    const dir = tempDir({
+      'a.json': floorsText({ 'a/x': 1 }),
+      'b.json': floorsText({ 'b/z': 3 }),
+    });
+    const guardFiles = readdirSync(dir);
+    expect(
+      searched(writeFloors(dir, { 'a/x': 1, 'b/z': 3 }), {
+        of: guardFiles,
+        what: 'guard files compared',
+      }),
+    ).toEqual([]);
+    expect(
+      floorBreach('record-floors/unmoved-guard-files', guardFiles.length),
+    ).toBeUndefined();
+  });
+});
+
 describe('floorsText', () => {
   it('writes the ids sorted, two-space indented, with a final newline', () => {
     expect(floorsText({ 'g/b': 2, 'g/a': 1 })).toBe(
@@ -121,7 +257,7 @@ describe('importsFloorBreach', () => {
     ['a one-line import', "import { floorBreach } from '../floors';"],
     [
       'a multi-line import among others',
-      "import {\n  FLOORS_FILE,\n  floorBreach,\n} from '../../tests/floors';",
+      "import {\n  FLOORS_DIR,\n  floorBreach,\n} from '../../tests/floors';",
     ],
   ])('reads %s as a caller', (_what, source) => {
     expect(importsFloorBreach(source)).toBe(true);

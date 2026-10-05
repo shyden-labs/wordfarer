@@ -2,11 +2,13 @@
  * Record the guards' liveness floors (#361): `npm run floors:record`.
  *
  * Every `floorBreach` call (`tests/floors.ts`) judges a count against the
- * figure recorded in `tests/floors.json`. Run with `FLOORS_RECORD` set, it
- * writes the count it saw instead. This script runs each suite that holds a
- * call that way, judges every count together and raises `tests/floors.json`
- * to match. It checks EVERYTHING before writing anything, and refuses the
- * whole record when:
+ * figure recorded in `tests/floors/<guard>.json`, one file per guard, the
+ * guard being the id's text before its first `/` (#406: tickets that touch
+ * different guards then stop conflicting on one shared file). Run with
+ * `FLOORS_RECORD` set, it writes the count it saw instead. This script runs
+ * each suite that holds a call that way, judges every count together and
+ * raises the files whose floors moved, and only those. It checks EVERYTHING
+ * before writing anything, and refuses the whole record when:
  *
  * - a figure would FALL. A falling count is what a blind reader looks like,
  *   and so is a corpus that really shrank; only a person can tell the two
@@ -29,16 +31,121 @@
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, posix, relative, sep } from 'node:path';
 
-/** The recorded figures, relative to the repository root. */
-export const FLOORS_FILE = 'tests/floors.json';
+/** The recorded figures, one file per guard, relative to the repository root. */
+export const FLOORS_DIR = 'tests/floors';
+
+/** A guard's name: lower-case words joined by hyphens, so it is a safe file name. */
+const GUARD = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+/** The guard an id belongs to, or undefined when it is not `guard/name`. */
+const guardOf = (id: string): string | undefined => {
+  const slash = id.indexOf('/');
+  const guard = id.slice(0, slash);
+  return slash > 0 && slash < id.length - 1 && GUARD.test(guard)
+    ? guard
+    : undefined;
+};
+
+/** The repository-relative file that records `id`; throws for an id that names no guard. */
+export const floorsFileOf = (id: string): string => {
+  const guard = guardOf(id);
+  if (guard === undefined)
+    throw new Error(
+      `${id} is not a floor id: write guard/name, the guard in lower-case ` +
+        'words joined by hyphens',
+    );
+  return posix.join(FLOORS_DIR, `${guard}.json`);
+};
+
+/**
+ * Every figure recorded in `dir`, the union of its guard files. Throws,
+ * naming each, for a file that is not `<guard>.json`, is not JSON, holds no
+ * object, or holds an id of another guard or a figure that is not a count:
+ * read silently, any of them would hide a floor.
+ */
+export const readFloorsDir = (dir: string): Record<string, number> => {
+  const floors: Record<string, number> = {};
+  const refusals: string[] = [];
+  for (const name of readdirSync(dir).sort()) {
+    if (!name.endsWith('.json')) {
+      refusals.push(`${name} is not a .json floors file`);
+      continue;
+    }
+    const guard = name.slice(0, -'.json'.length);
+    if (!GUARD.test(guard)) {
+      refusals.push(`${name} is not named for a guard`);
+      continue;
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(readFileSync(join(dir, name), 'utf8'));
+    } catch {
+      refusals.push(`${name} is not valid JSON`);
+      continue;
+    }
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      Array.isArray(parsed)
+    ) {
+      refusals.push(`${name} does not hold an object of floors`);
+      continue;
+    }
+    for (const [id, figure] of Object.entries(parsed)) {
+      const owner = guardOf(id);
+      if (owner !== guard)
+        refusals.push(
+          owner === undefined
+            ? `${name}: ${id} is not a floor id`
+            : `${name}: ${id} belongs in ${owner}.json`,
+        );
+      else if (!Number.isInteger(figure) || (figure as number) < 0)
+        refusals.push(`${name}: ${id} is ${String(figure)}, not a count`);
+      else floors[id] = figure as number;
+    }
+  }
+  if (refusals.length > 0)
+    throw new Error(`${dir} cannot be read:\n  ${refusals.join('\n  ')}`);
+  return floors;
+};
+
+/**
+ * Write each guard's file whose text would change, in `floorsText`'s form,
+ * and nothing else; returns the files written, by name. A ticket that moves
+ * one guard's floors then changes one file.
+ */
+export const writeFloors = (
+  dir: string,
+  next: Readonly<Record<string, number>>,
+): string[] => {
+  const byGuard = new Map<string, Record<string, number>>();
+  for (const [id, figure] of Object.entries(next)) {
+    const name = posix.basename(floorsFileOf(id));
+    byGuard.set(name, { ...byGuard.get(name), [id]: figure });
+  }
+  mkdirSync(dir, { recursive: true });
+  const written: string[] = [];
+  for (const [name, floors] of [...byGuard].sort(([a], [b]) =>
+    a < b ? -1 : 1,
+  )) {
+    const file = join(dir, name);
+    const text = floorsText(floors);
+    if (existsSync(file) && readFileSync(file, 'utf8') === text) continue;
+    writeFileSync(file, text);
+    written.push(name);
+  }
+  return written;
+};
 
 /** Set to a file for each `floorBreach` call to append what it saw to. */
 export const RECORD_ENV = 'FLOORS_RECORD';
@@ -231,7 +338,7 @@ export function decideRecord(
       refusals.push(
         `${id} would fall from ${String(measured)} to ${String(actual)}: a ` +
           `blind reader looks like this. If the corpus really shrank, lower ` +
-          `it in ${FLOORS_FILE} by hand and say why in the commit.`,
+          `it in ${floorsFileOf(id)} by hand and say why in the commit.`,
       );
       continue;
     }
@@ -241,7 +348,7 @@ export function decideRecord(
     if (!byId.has(id))
       refusals.push(
         `${id} is recorded but no test asserted it: remove it from ` +
-          `${FLOORS_FILE} with the floor that used it, or run every suite`,
+          `${floorsFileOf(id)} with the floor that used it, or run every suite`,
       );
   return { next, refusals };
 }
@@ -327,13 +434,20 @@ const die = (message: string): never => {
   process.exit(1);
 };
 
-const main = (): void => {
-  const ci = ciRefusal(process.env);
-  if (ci !== undefined) die(ci);
+/** What one recording pass judged and wrote. */
+interface Pass {
+  readonly next: Record<string, number>;
+  readonly seen: readonly Observation[];
+  /** Guard files written, by name. */
+  readonly written: readonly string[];
+  /** Of those, the files that did not exist before the pass. */
+  readonly created: readonly string[];
+}
 
-  const recorded = existsSync(FLOORS_FILE)
-    ? (JSON.parse(readFileSync(FLOORS_FILE, 'utf8')) as Record<string, number>)
-    : {};
+/** Run every suite once, judge every count together, and write what moved. */
+const recordPass = (): Pass => {
+  const recorded = existsSync(FLOORS_DIR) ? readFloorsDir(FLOORS_DIR) : {};
+  const before = new Set(existsSync(FLOORS_DIR) ? readdirSync(FLOORS_DIR) : []);
 
   const membership = new Map<string, string[]>();
   for (const suite of SUITES) {
@@ -379,13 +493,47 @@ const main = (): void => {
   const { next, refusals } = decideRecord(recorded, seen);
   if (refusals.length > 0) die(`nothing recorded:\n  ${refusals.join('\n  ')}`);
 
-  const moves = describeMoves(recorded, next);
-  writeFileSync(FLOORS_FILE, floorsText(next));
+  const written = writeFloors(FLOORS_DIR, next);
+  return {
+    next,
+    seen,
+    written,
+    created: written.filter((name) => !before.has(name)),
+  };
+};
+
+/**
+ * Record, and record once more when the pass created a guard file: the walks
+ * that count files (licences, old-name, supply-chain) measured the directory
+ * before that file existed, so one pass is not yet exact (#406). A second
+ * pass creates nothing new, since it writes only the guards the first did.
+ */
+const main = (): void => {
+  const ci = ciRefusal(process.env);
+  if (ci !== undefined) die(ci);
+
+  const original = existsSync(FLOORS_DIR) ? readFloorsDir(FLOORS_DIR) : {};
+  let pass = recordPass();
+  const written = new Set(pass.written);
+  if (pass.created.length > 0) {
+    console.log(
+      `Created ${pass.created.join(', ')}, which the file walks have not ` +
+        'counted yet: recording once more.',
+    );
+    pass = recordPass();
+    if (pass.created.length > 0)
+      die(
+        `the second pass created ${pass.created.join(', ')} too, so the ` +
+          'record does not settle; the first pass is written, read git diff',
+      );
+    for (const name of pass.written) written.add(name);
+  }
+  const moves = describeMoves(original, pass.next);
   console.log(
     moves.length === 0
-      ? `${FLOORS_FILE}: every floor already matches (${String(seen.length)} read)`
+      ? `${FLOORS_DIR}: every floor already matches (${String(pass.seen.length)} read)`
       : [
-          `${FLOORS_FILE}: ${String(moves.length)} floor(s) moved:`,
+          `${FLOORS_DIR}: ${String(moves.length)} floor(s) moved, in ${[...written].sort().join(', ')}:`,
           ...moves.map((move) => `  ${move}`),
           'Read each one against your diff: a raise smaller than the units you',
           'added is a reader that lost some. Put these lines in the commit.',
