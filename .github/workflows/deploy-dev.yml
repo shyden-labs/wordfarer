@@ -47,8 +47,10 @@ jobs:
           cache: 'npm'
       - run: npm ci
       # From the repository root, which has no wrangler config to write to.
-      - name: Create the dev D1 database if it does not exist yet
-        run: node scripts/ensure-d1.ts yawelo-idle-dev
+      # Asia Pacific, near the players (operator, 2026-10-05): a database never
+      # moves, and without a hint it lands near the runner, in North America.
+      - name: Create the dev D1 database in Asia Pacific if it does not exist yet
+        run: node scripts/ensure-d1.ts yawelo-idle-dev apac
       - name: Apply D1 migrations (before the Worker, so new code never meets an old schema)
         working-directory: apps/sync-worker
         run: npx wrangler d1 migrations apply yawelo-idle-dev --remote

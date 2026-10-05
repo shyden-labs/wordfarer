@@ -65,41 +65,88 @@ describe('databaseNames', () => {
 });
 
 describe('ensureDatabase', () => {
+  /** What `wrangler d1 create` prints, as its source writes it (4.145). */
+  const created = (region: string) =>
+    `✅ Successfully created DB '${NAME}' in region ${region}\nCreated your new D1 database.\n`;
+  const CREATE = ['d1', 'create', NAME, '--location', 'apac'];
+
   it('finds a database that exists and creates nothing', () => {
     const { wrangler, calls } = scripted(list('other', NAME));
-    expect(ensureDatabase(NAME, wrangler)).toBe('found');
+    expect(ensureDatabase(NAME, 'apac', wrangler)).toBe('found');
     expect(calls).toEqual([['d1', 'list', '--json']]);
   });
 
   it('does not take a longer name for the one asked for', () => {
     const { wrangler, calls } = scripted(
       list(`${NAME}-old`),
-      'created',
+      created('APAC'),
       list(`${NAME}-old`, NAME),
     );
-    expect(ensureDatabase(NAME, wrangler)).toBe('created');
-    expect(calls[1]).toEqual(['d1', 'create', NAME]);
+    expect(ensureDatabase(NAME, 'apac', wrangler)).toBe('created');
+    expect(calls[1]).toEqual(CREATE);
   });
 
-  it('creates a missing database, then reads it back', () => {
-    const { wrangler, calls } = scripted(list('other'), 'created', list(NAME));
-    expect(ensureDatabase(NAME, wrangler)).toBe('created');
+  it('creates a missing database at its location, then reads it back', () => {
+    const { wrangler, calls } = scripted(
+      list('other'),
+      created('APAC'),
+      list(NAME),
+    );
+    expect(ensureDatabase(NAME, 'apac', wrangler)).toBe('created');
     expect(calls).toEqual([
       ['d1', 'list', '--json'],
-      ['d1', 'create', NAME],
+      CREATE,
       ['d1', 'list', '--json'],
     ]);
   });
 
   it('creates the database in an account that has none', () => {
-    const { wrangler, calls } = scripted(list(), 'created', list(NAME));
-    expect(ensureDatabase(NAME, wrangler)).toBe('created');
-    expect(calls[1]).toEqual(['d1', 'create', NAME]);
+    const { wrangler, calls } = scripted(list(), created('APAC'), list(NAME));
+    expect(ensureDatabase(NAME, 'apac', wrangler)).toBe('created');
+    expect(calls[1]).toEqual(CREATE);
+  });
+
+  it('passes the location it is given', () => {
+    const { wrangler, calls } = scripted(list(), created('OC'), list(NAME));
+    expect(ensureDatabase(NAME, 'oc', wrangler)).toBe('created');
+    expect(calls[1]).toEqual(['d1', 'create', NAME, '--location', 'oc']);
+  });
+
+  it('fails when Cloudflare placed the database in another region', () => {
+    const { wrangler, calls } = scripted(list(), created('WNAM'), list(NAME));
+    expect(() => ensureDatabase(NAME, 'apac', wrangler)).toThrow(
+      `wrangler d1 create ${NAME} placed it in region WNAM, not APAC: delete it and deploy again`,
+    );
+    expect(calls).toHaveLength(2);
+  });
+
+  it('fails when the create reports no region at all', () => {
+    const { wrangler } = scripted(
+      list(),
+      `✅ Successfully created DB '${NAME}' using primary location hint apac\n`,
+      list(NAME),
+    );
+    expect(() => ensureDatabase(NAME, 'apac', wrangler)).toThrow(
+      `wrangler d1 create ${NAME} reported no region, so APAC cannot be confirmed`,
+    );
+  });
+
+  it('refuses a location D1 does not offer, creating nothing', () => {
+    // Scripted with no output: any wrangler call would throw "unscripted
+    // call" instead, so this message proves nothing was listed or created.
+    const { wrangler } = scripted();
+    expect(() => ensureDatabase(NAME, 'asia', wrangler)).toThrow(
+      'asia is not a D1 location (weur, eeur, apac, oc, wnam, enam)',
+    );
   });
 
   it('fails when the database is still missing after the create', () => {
-    const { wrangler } = scripted(list('other'), 'created', list('other'));
-    expect(() => ensureDatabase(NAME, wrangler)).toThrow(
+    const { wrangler } = scripted(
+      list('other'),
+      created('APAC'),
+      list('other'),
+    );
+    expect(() => ensureDatabase(NAME, 'apac', wrangler)).toThrow(
       `wrangler d1 create ${NAME} returned, but the list still does not hold it`,
     );
   });
@@ -110,7 +157,7 @@ describe('ensureDatabase', () => {
       calls.push([...args]);
       throw new Error('Authentication error [code: 10000]');
     };
-    expect(() => ensureDatabase(NAME, wrangler)).toThrow(
+    expect(() => ensureDatabase(NAME, 'apac', wrangler)).toThrow(
       'Authentication error [code: 10000]',
     );
     expect(calls).toEqual([['d1', 'list', '--json']]);

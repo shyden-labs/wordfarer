@@ -139,13 +139,13 @@ describe('the dev D1 database, created by the pipeline (#357 AC1)', () => {
     ]);
   });
 
-  it('is created, from the root, before its migrations are applied', () => {
+  it('is created in Asia Pacific, from the root, before its migrations are applied', () => {
     const runs = deploySteps().map((step) => ({
       run: runOf(step),
       cwd: step['working-directory'],
     }));
     const create = runs.findIndex(
-      ({ run }) => run === `node scripts/ensure-d1.ts ${DATABASE}`,
+      ({ run }) => run === `node scripts/ensure-d1.ts ${DATABASE} apac`,
     );
     const migrate = runs.findIndex(
       ({ run }) =>
