@@ -52,20 +52,65 @@ export function basicAuthorization(password: string): string {
 }
 
 /** Problems with a response that should be the password challenge. */
-export function gateProblems(label: string, probe: Probe): string[] {
+/**
+ * What one judgement ran and found (#372): the checks it judged, by name, and
+ * the problems they found. A check that fails a gate (a wrong status, a body
+ * that is not JSON) stops the ones after it, which are then not judged, so
+ * `checked` is the population an absence of problems was drawn from.
+ */
+export interface Judgement {
+  readonly checked: readonly string[];
+  readonly problems: readonly string[];
+}
+
+/** One check: its name, the problem it finds or undefined, and whether a problem stops the rest. */
+interface Check {
+  readonly name: string;
+  readonly problem: () => string | undefined;
+  readonly gate?: boolean;
+}
+
+function judge(checks: readonly Check[]): Judgement {
+  const checked: string[] = [];
   const problems: string[] = [];
-  if (probe.status !== 401) {
-    problems.push(
-      `${label}: answered ${String(probe.status)}, expected 401; the password gate is not in front of it`,
-    );
+  for (const { name, problem, gate } of checks) {
+    checked.push(name);
+    const found = problem();
+    if (found === undefined) continue;
+    problems.push(found);
+    if (gate === true) break;
   }
-  if (!/^Basic /i.test(probe.headers.get('www-authenticate') ?? '')) {
-    problems.push(`${label}: no Basic WWW-Authenticate challenge`);
-  }
-  if (APP_MARKUP.test(probe.body)) {
-    problems.push(`${label}: the response carries app markup`);
-  }
-  return problems;
+  return { checked, problems };
+}
+
+export function gateJudgement(label: string, probe: Probe): Judgement {
+  return judge([
+    {
+      name: 'status',
+      problem: () =>
+        probe.status === 401
+          ? undefined
+          : `${label}: answered ${String(probe.status)}, expected 401; the password gate is not in front of it`,
+    },
+    {
+      name: 'challenge',
+      problem: () =>
+        /^Basic /i.test(probe.headers.get('www-authenticate') ?? '')
+          ? undefined
+          : `${label}: no Basic WWW-Authenticate challenge`,
+    },
+    {
+      name: 'markup',
+      problem: () =>
+        APP_MARKUP.test(probe.body)
+          ? `${label}: the response carries app markup`
+          : undefined,
+    },
+  ]);
+}
+
+export function gateProblems(label: string, probe: Probe): string[] {
+  return [...gateJudgement(label, probe).problems];
 }
 
 /** A gate probe that came back 2xx served content without the password. */
@@ -73,59 +118,106 @@ export function leaked(probe: Probe): boolean {
   return probe.status >= 200 && probe.status < 300;
 }
 
-export function robotsProblems(probe: Probe): string[] {
-  if (probe.status !== 200)
-    return [
-      `robots.txt: status ${String(probe.status)} without credentials, expected 200`,
-    ];
-  return /^User-agent: \*\nDisallow: \/$/m.test(probe.body)
-    ? []
-    : ['robots.txt: does not block every crawler'];
+export function robotsJudgement(probe: Probe): Judgement {
+  return judge([
+    {
+      name: 'status',
+      gate: true,
+      problem: () =>
+        probe.status === 200
+          ? undefined
+          : `robots.txt: status ${String(probe.status)} without credentials, expected 200`,
+    },
+    {
+      name: 'blocks every crawler',
+      problem: () =>
+        /^User-agent: \*\nDisallow: \/$/m.test(probe.body)
+          ? undefined
+          : 'robots.txt: does not block every crawler',
+    },
+  ]);
 }
 
-function noIndexProblems(label: string, probe: Probe): string[] {
-  const tag = probe.headers.get('x-robots-tag');
-  return tag === NO_INDEX
-    ? []
-    : [
-        `${label}: X-Robots-Tag is ${JSON.stringify(tag)}, expected "${NO_INDEX}"`,
-      ];
+export function robotsProblems(probe: Probe): string[] {
+  return [...robotsJudgement(probe).problems];
+}
+
+const noIndexCheck = (label: string, probe: Probe): Check => ({
+  name: 'noindex',
+  problem: () => {
+    const tag = probe.headers.get('x-robots-tag');
+    return tag === NO_INDEX
+      ? undefined
+      : `${label}: X-Robots-Tag is ${JSON.stringify(tag)}, expected "${NO_INDEX}"`;
+  },
+});
+
+export function webJudgement(probe: Probe, sha: string): Judgement {
+  return judge([
+    {
+      name: 'status',
+      gate: true,
+      problem: () =>
+        probe.status === 200
+          ? undefined
+          : `web: status ${String(probe.status)} with the password, expected 200`,
+    },
+    {
+      name: 'commit',
+      problem: () => {
+        const stamp = COMMIT_STAMP.exec(probe.body)?.[1];
+        if (stamp === undefined)
+          return 'web: no yawelo-idle-commit meta tag in the page';
+        return stamp === sha
+          ? undefined
+          : `web: serves commit ${stamp}, expected ${sha}`;
+      },
+    },
+    noIndexCheck('web', probe),
+  ]);
 }
 
 export function webProblems(probe: Probe, sha: string): string[] {
-  if (probe.status !== 200)
-    return [
-      `web: status ${String(probe.status)} with the password, expected 200`,
-    ];
-  const stamp = COMMIT_STAMP.exec(probe.body)?.[1];
-  return [
-    ...(stamp === undefined
-      ? ['web: no yawelo-idle-commit meta tag in the page']
-      : stamp === sha
-        ? []
-        : [`web: serves commit ${stamp}, expected ${sha}`]),
-    ...noIndexProblems('web', probe),
-  ];
+  return [...webJudgement(probe, sha).problems];
+}
+
+export function healthJudgement(probe: Probe, sha: string): Judgement {
+  let body: unknown;
+  const expected = { ok: true, commit: sha, db: 'ok' };
+  return judge([
+    {
+      name: 'status',
+      gate: true,
+      problem: () =>
+        probe.status === 200
+          ? undefined
+          : `sync: /health status ${String(probe.status)}, expected 200`,
+    },
+    {
+      name: 'JSON',
+      gate: true,
+      problem: () => {
+        try {
+          body = JSON.parse(probe.body);
+          return undefined;
+        } catch {
+          return 'sync: /health did not return JSON';
+        }
+      },
+    },
+    {
+      name: 'body',
+      problem: () =>
+        JSON.stringify(body) === JSON.stringify(expected)
+          ? undefined
+          : `sync: /health returned ${JSON.stringify(body)}, expected ${JSON.stringify(expected)}`,
+    },
+    noIndexCheck('sync', probe),
+  ]);
 }
 
 export function healthProblems(probe: Probe, sha: string): string[] {
-  if (probe.status !== 200)
-    return [`sync: /health status ${String(probe.status)}, expected 200`];
-  let body: unknown;
-  try {
-    body = JSON.parse(probe.body);
-  } catch {
-    return ['sync: /health did not return JSON'];
-  }
-  const expected = { ok: true, commit: sha, db: 'ok' };
-  return [
-    ...(JSON.stringify(body) === JSON.stringify(expected)
-      ? []
-      : [
-          `sync: /health returned ${JSON.stringify(body)}, expected ${JSON.stringify(expected)}`,
-        ]),
-    ...noIndexProblems('sync', probe),
-  ];
+  return [...healthJudgement(probe, sha).problems];
 }
 
 async function probe(

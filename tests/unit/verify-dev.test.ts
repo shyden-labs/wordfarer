@@ -4,14 +4,20 @@ import type { AddressInfo } from 'node:net';
 import {
   NO_INDEX,
   basicAuthorization,
+  gateJudgement,
   gateProblems,
+  healthJudgement,
   healthProblems,
   leaked,
+  robotsJudgement,
   robotsProblems,
   verifyDev,
+  webJudgement,
   webProblems,
   type Probe,
 } from '../../scripts/verify-dev';
+import { floorBreach } from '../floors';
+import { searched } from '../searched';
 
 const SHA = 'd547bd669678987eb85b5807d1a26ea55eaeb987';
 const OLD = '1f660b30f75d081ae6559d175e5c0c3e26acb84c';
@@ -40,9 +46,13 @@ describe('basicAuthorization', () => {
 
 describe('gateProblems', () => {
   it('accepts a 401 Basic challenge with no app in it', () => {
-    expect(gateProblems('web', probe(401, 'testers only', challenge))).toEqual(
-      [],
-    );
+    const judged = gateJudgement('web', probe(401, 'testers only', challenge));
+    expect(
+      searched(judged.problems, { of: judged.checked, what: 'gate checks' }),
+    ).toEqual([]);
+    expect(
+      floorBreach('verify-dev/gate-checks', judged.checked.length),
+    ).toBeUndefined();
   });
 
   it('fails a 200, naming the missing gate', () => {
@@ -90,7 +100,13 @@ describe('leaked', () => {
 
 describe('robotsProblems', () => {
   it('accepts a robots.txt that blocks every crawler', () => {
-    expect(robotsProblems(probe(200, ROBOTS))).toEqual([]);
+    const judged = robotsJudgement(probe(200, ROBOTS));
+    expect(
+      searched(judged.problems, { of: judged.checked, what: 'robots checks' }),
+    ).toEqual([]);
+    expect(
+      floorBreach('verify-dev/robots-checks', judged.checked.length),
+    ).toBeUndefined();
   });
 
   it.each([
@@ -113,7 +129,13 @@ describe('robotsProblems', () => {
 
 describe('webProblems', () => {
   it('accepts the expected commit with noindex', () => {
-    expect(webProblems(probe(200, page(SHA), noindex), SHA)).toEqual([]);
+    const judged = webJudgement(probe(200, page(SHA), noindex), SHA);
+    expect(
+      searched(judged.problems, { of: judged.checked, what: 'web checks' }),
+    ).toEqual([]);
+    expect(
+      floorBreach('verify-dev/web-checks', judged.checked.length),
+    ).toBeUndefined();
   });
 
   it('names the stale commit when the previous deploy is still served', () => {
@@ -142,7 +164,13 @@ describe('healthProblems', () => {
   const healthy = JSON.stringify({ ok: true, commit: SHA, db: 'ok' });
 
   it('accepts ok, the commit, db ok and noindex', () => {
-    expect(healthProblems(probe(200, healthy, noindex), SHA)).toEqual([]);
+    const judged = healthJudgement(probe(200, healthy, noindex), SHA);
+    expect(
+      searched(judged.problems, { of: judged.checked, what: 'health checks' }),
+    ).toEqual([]);
+    expect(
+      floorBreach('verify-dev/health-checks', judged.checked.length),
+    ).toBeUndefined();
   });
 
   it.each([
@@ -286,7 +314,11 @@ describe('verifyDev', () => {
 
   it('passes a gated site serving the expected commit, judging each check once', async () => {
     reset();
-    expect(await verifyDev(target(), { polls: 3, pollMs: 0 })).toEqual([]);
+    const problems = await verifyDev(target(), { polls: 3, pollMs: 0 });
+    expect(searched(problems, { of: requests, what: 'probes' })).toEqual([]);
+    expect(
+      floorBreach('verify-dev/healthy-site-probes', requests),
+    ).toBeUndefined();
     expect(
       requests,
       'no credentials, wrong password, web, health, robots: one look',
@@ -316,7 +348,11 @@ describe('verifyDev', () => {
   it('waits for a stale deploy to turn current, then judges it once', async () => {
     reset();
     staleLooks = 2;
-    expect(await verifyDev(target(), { polls: 5, pollMs: 0 })).toEqual([]);
+    const problems = await verifyDev(target(), { polls: 5, pollMs: 0 });
+    expect(searched(problems, { of: requests, what: 'probes' })).toEqual([]);
+    expect(
+      floorBreach('verify-dev/stale-site-probes', requests),
+    ).toBeUndefined();
     expect(requests, 'two stale looks of four probes, then one of five').toBe(
       13,
     );
@@ -450,10 +486,18 @@ describe('verifyDev', () => {
     expect(stale).toHaveLength(3);
     expect(untagged).toHaveLength(2);
     expect(unreachable).toHaveLength(3);
-    // runtime population: the problems verifyDev reported for four broken sites.
-    for (const problem of [...leaking, ...stale, ...untagged, ...unreachable]) {
-      expect(problem).not.toContain(PASSWORD);
-      expect(problem).not.toContain(basicAuthorization(PASSWORD).slice(6));
-    }
+    const reported = [...leaking, ...stale, ...untagged, ...unreachable];
+    const credential = basicAuthorization(PASSWORD).slice(6);
+    const showingPassword = reported.filter((p) => p.includes(PASSWORD));
+    const showingCredential = reported.filter((p) => p.includes(credential));
+    expect(
+      searched(showingPassword, { of: reported, what: 'reported problems' }),
+    ).toEqual([]);
+    expect(
+      searched(showingCredential, { of: reported, what: 'reported problems' }),
+    ).toEqual([]);
+    expect(
+      floorBreach('verify-dev/broken-site-problems', reported.length),
+    ).toBeUndefined();
   });
 });
