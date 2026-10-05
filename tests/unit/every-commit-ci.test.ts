@@ -160,7 +160,11 @@ describe('ci.yml checks out the commit it is called with (AC1)', () => {
       'actions/checkout',
     );
     expect(more).toEqual([]);
-    expect(checkout?.with).toEqual({ ref: '${{ inputs.ref }}' });
+    // fetch-depth 2 gives the docs-only classifier the commit's parents (#360).
+    expect(checkout?.with).toEqual({
+      ref: '${{ inputs.ref }}',
+      'fetch-depth': 2,
+    });
   });
 
   it('still runs on every pull request and for deploy-dev', () => {

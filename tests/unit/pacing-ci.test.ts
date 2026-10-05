@@ -52,7 +52,9 @@ describe('the pacing suite in CI (#35)', () => {
     const [at] = uploads;
     expect(at).toBeGreaterThan(suite ?? Infinity);
     const step = steps[at ?? -1];
-    expect(step?.if).toBe('${{ !cancelled() }}');
+    // !cancelled() first, so it uploads after a failed suite. The rest of the
+    // condition is #360's docs-only skip, pinned whole in ci-fast-path.test.ts.
+    expect(step?.if).toMatch(/^\$\{\{ !cancelled\(\) && /);
     // Called once per commit inside one every-commit run (#348), where an
     // artifact name may appear once, so a called run names its commit.
     expect(step?.with).toEqual({
