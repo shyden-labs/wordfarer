@@ -2,7 +2,7 @@
 
 - **Status:** sections A–D approved by the operator (Shyden) on 2026-10-02, one question per section; reviewed to zero findings (§F) and self-approved under the house rule.
 - **Stories:** #51 (gates and evidence, M2), #52 (report endpoint and D1 queue, M2), #53 (review-tool triage and the daily count, M2), #54 (in-game reporting and the disclosure line, M3).
-- **Parent spec:** [`2026-10-01-wordfarer-design.md`](2026-10-01-wordfarer-design.md), amended by D18.
+- **Parent spec:** [`2026-10-01-yawelo-idle-design.md`](2026-10-01-yawelo-idle-design.md), amended by D18.
 - **Precedent:** shyden.co.uk's translation reports (its #97, with #349's waiting count) and ShyTalk's in-app report and admin review queue.
 
 ## 1. Intent

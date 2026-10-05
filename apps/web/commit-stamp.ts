@@ -9,14 +9,14 @@ import type { Plugin } from 'vite';
  * the only check that the live site is THIS commit, not the previous one.
  */
 
-const PLACEHOLDER = '%WORDFARER_COMMIT%';
+const PLACEHOLDER = '%YAWELO_IDLE_COMMIT%';
 const LOCAL = 'local';
 
 export function stampCommit(html: string, commit: string | undefined): string {
   const value = commit === undefined || commit === '' ? LOCAL : commit;
   if (value !== LOCAL && !/^[0-9a-f]{40}$/.test(value)) {
     throw new Error(
-      `WORDFARER_COMMIT must be a full 40-hex SHA, got ${JSON.stringify(value)}`,
+      `YAWELO_IDLE_COMMIT must be a full 40-hex SHA, got ${JSON.stringify(value)}`,
     );
   }
   const occurrences = html.split(PLACEHOLDER).length - 1;
@@ -29,6 +29,6 @@ export function stampCommit(html: string, commit: string | undefined): string {
 }
 
 export const commitStamp = (commit: string | undefined): Plugin => ({
-  name: 'wordfarer-commit-stamp',
+  name: 'yawelo-idle-commit-stamp',
   transformIndexHtml: (html) => stampCommit(html, commit),
 });

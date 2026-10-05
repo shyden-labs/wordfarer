@@ -353,7 +353,7 @@ describe('the install is reproducible', () => {
     JSON.parse(readFileSync('package.json', 'utf8')) as PackageJson;
 
   it('the package is named for this repo, not the template', () => {
-    expect(pkg().name).toBe('wordfarer');
+    expect(pkg().name).toBe('yawelo-idle');
   });
 
   it('a lock file is committed and agrees with package.json', () => {

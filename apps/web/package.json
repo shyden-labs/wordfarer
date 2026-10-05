@@ -1,5 +1,5 @@
 {
-  "name": "@wordfarer/web",
+  "name": "@yawelo-idle/web",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
@@ -17,6 +17,6 @@
     "vite": "^8.3.1"
   },
   "dependencies": {
-    "@wordfarer/lockdown": "*"
+    "@yawelo-idle/lockdown": "*"
   }
 }

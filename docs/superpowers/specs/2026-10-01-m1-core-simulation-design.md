@@ -1,14 +1,14 @@
 # M1: Core Simulation and Pacing Bots — Design
 
 - **Status:** Reviewed to zero findings in 5 passes (§10) and self-approved under the house rule on 2026-10-01. Scope decided by the operator on 2026-10-01: **the whole v1 economy** in M1 (all three regions, automation, grammar, finale), so every §12.2 pacing target is live from M1. Technical choices were delegated: "I am relying on you. So go do some extensive research and answer your own question." They are decided below on measurements (§2).
-- **Parent spec:** [`2026-10-01-wordfarer-design.md`](2026-10-01-wordfarer-design.md). This document refines §3, §4, §6.2 and §12.1–§12.2 of it for `packages/core`. Where the two disagree, this one wins for `core`, and §9 below lists the amendments made to the parent.
+- **Parent spec:** [`2026-10-01-yawelo-idle-design.md`](2026-10-01-yawelo-idle-design.md). This document refines §3, §4, §6.2 and §12.1–§12.2 of it for `packages/core`. Where the two disagree, this one wins for `core`, and §9 below lists the amendments made to the parent.
 - **Epic:** #6.
 
 ---
 
 ## 1. Scope
 
-**In:** a pure TypeScript package `@wordfarer/core` holding every rule that moves a number, plus the pacing bots that play it.
+**In:** a pure TypeScript package `@yawelo-idle/core` holding every rule that moves a number, plus the pacing bots that play it.
 
 - Encounters, Understanding, the manual **Listen** action, bulk buy, milestones.
 - Words: pick-up, tags, ranks, the retrievability-weighted bonus and its floor.

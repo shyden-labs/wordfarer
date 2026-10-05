@@ -1,5 +1,5 @@
 {
-  // @wordfarer/core runs unchanged in browsers, Electron, Capacitor and
+  // @yawelo-idle/core runs unchanged in browsers, Electron, Capacitor and
   // Workers, so it sees ECMAScript alone: no DOM lib and no Node types.
   // `types: []` matters: without it, the hoisted @types/node would be
   // included automatically and `process` or `Buffer` would typecheck.

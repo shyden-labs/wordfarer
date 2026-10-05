@@ -1,6 +1,6 @@
 # Content licences
 
-Wordfarer's **code** is licensed under Apache-2.0 (`LICENSE`). Its **course content** — lexicon items, example sentences, grammar nodes, culture cards, story lines, motifs and art under `packages/content` — is licensed **per item**. Every item records its licence in its own `licence` field, and CI refuses an item whose licence is missing or not one of these two.
+Yawelo Idle's **code** is licensed under Apache-2.0 (`LICENSE`). Its **course content** — lexicon items, example sentences, grammar nodes, culture cards, story lines, motifs and art under `packages/content` — is licensed **per item**. Every item records its licence in its own `licence` field, and CI refuses an item whose licence is missing or not one of these two.
 
 | Licence                                                                 | SPDX id           | Applies to                                                                                                                         | Full text                                                      |
 | ----------------------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
@@ -9,8 +9,8 @@ Wordfarer's **code** is licensed under Apache-2.0 (`LICENSE`). Its **course cont
 
 ## Attribution
 
-Attribute content to **"Wordfarer, Shyden Labs"**, together with the upstream source named in the item's `source` field. The game's attribution screen lists every source.
+Attribute content to **"Yawelo Idle, Shyden Labs"**, together with the upstream source named in the item's `source` field. The game's attribution screen lists every source.
 
 ## Not licensed
 
-The Wordfarer name and logo are not covered by either licence. See [`TRADEMARKS.md`](TRADEMARKS.md).
+The Yawelo Idle name and logo are not covered by either licence. See [`TRADEMARKS.md`](TRADEMARKS.md).

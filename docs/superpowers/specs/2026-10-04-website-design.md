@@ -1,7 +1,7 @@
-# Wordfarer website (coming soon): design
+# Yawelo Idle website (coming soon): design
 
 - **Status:** Design approved section by section by the operator (Shyden) on 2026-10-04, between 11:54 and 12:06 UTC, one question per decision (§2). Review log in §13.
-- **Parent spec:** [`2026-10-01-wordfarer-design.md`](2026-10-01-wordfarer-design.md). This design amends §6.1 and D2 there (§12).
+- **Parent spec:** [`2026-10-01-yawelo-idle-design.md`](2026-10-01-yawelo-idle-design.md). This design amends §6.1 and D2 there (§12).
 - **Knowledge passed on:** `~/.claude/global-rules/reference-live-roadmap.md` (operator, 12:03 UTC: _"for the roadmap live updates, learn about this and make sure you pass in the knowledge to ShyTalk and future projects that will have a roadmap assigned to them"_). This build proves that note and updates it (§9, #341 and #342).
 
 ## 1. Intent
@@ -12,7 +12,7 @@ The operator, 2026-10-04 11:50 UTC: _"i want you to make the wordfarer website. 
 
 **Success:**
 
-1. A visitor understands what Wordfarer is, how it plays and when it is coming, in English or Indonesian, on any device from a 320 px phone to a TV.
+1. A visitor understands what Yawelo Idle is, how it plays and when it is coming, in English or Indonesian, on any device from a 320 px phone to a TV.
 2. A visitor can get ready for launch in one place: join the launch list, save the site, follow the project.
 3. Anyone can watch development happen: the public roadmap shows each change on the board within seconds, without a reload. Design target: under 10 s from the board edit to the open page. It is a target, not yet a measurement; #341 and #342 measures it on dev, and a miss is reported, never hidden by loosening the target.
 4. Nothing on the site breaks a player-trust promise (parent §9): no ads, no analytics, no cookies, no third-party trackers.
@@ -24,7 +24,7 @@ The operator, 2026-10-04 11:50 UTC: _"i want you to make the wordfarer website. 
 
 | #   | Decision     | Choice                                                                                                                                                                                                                                                                                                         |
 | --- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| W1  | Main action  | 11:54: **email launch list + follow links**, _"and give them the ability to once-click bookmark the website"_. No browser lets a page add a bookmark (measured, §6.2), so 11:55 chose the smart **Save Wordfarer** button                                                                                      |
+| W1  | Main action  | 11:54: **email launch list + follow links**, _"and give them the ability to once-click bookmark the website"_. No browser lets a page add a bookmark (measured, §6.2), so 11:55 chose the smart **Save Yawelo Idle** button                                                                                    |
 | W2  | Location     | 11:54: **`wordfarer.shyden.co.uk`**, the game's planned production host. The site takes `/`, and the game moves to `/play` (W10)                                                                                                                                                                               |
 | W3  | Trademark    | 11:54: **search first, then publish**. #157 runs first; nothing goes to production before the operator records a decision on it                                                                                                                                                                                |
 | W4  | Graphics     | 11:54: **code-generated art + a playable demo on the real simulation**, _"but make sure there's a message that says the released content may change and could potentially be completely different to what is being shown"_                                                                                     |
@@ -43,7 +43,7 @@ Every page exists in English at `/…` and Indonesian at `/id/…`, with a langu
 **Home**, top to bottom:
 
 1. **Development strip**, fixed on every page: _"In development: what you see may change, and the released game could be completely different."_ Its wording is approved with the copy in #334.
-2. **Hero:** animated batik night sky, the wordmark, a tagline (drafted in #334, approved by the operator), a "Coming soon" badge, and **Join the launch list** and **Save Wordfarer** buttons.
+2. **Hero:** animated batik night sky, the wordmark, a tagline (drafted in #334, approved by the operator), a "Coming soon" badge, and **Join the launch list** and **Save Yawelo Idle** buttons.
 3. **Two journeys:** a toggle between _Learn Indonesian_ (Jawa, Bali, Sumatra) and _Learn English_ (England, USA, Australia). The default follows the page language (`/` shows _Learn Indonesian_, `/id/` shows _Learn English_). The demo, map and examples below follow it. The choice lives in the URL (`?course=id-en`) so it can be shared; nothing is stored on the device.
 4. **Play the demo:** about two minutes on the real `packages/core`: tap _Selamat pagi!_ (or its `id-en` mirror), open the first Encounter, pick up the first word card, answer one review, watch Insight arrive. It runs on a short demo clock and saves nothing.
 5. **How it plays:** the three currencies, Encounters, word cards ranked Heard → Mastered, spaced-repetition review explained plainly, Journeys and culture cards, the grammar tree, Set Sail.
@@ -53,7 +53,7 @@ Every page exists in English at `/…` and Indonesian at `/id/…`, with a langu
 9. **Platforms and price:** W9's sentence.
 10. **Roadmap teaser:** live % complete and ETA, linking to `/roadmap`.
 11. **Open source:** the public repo, Apache-2.0 code, CC content licences, the reserved name and logo (TRADEMARKS.md).
-12. **Get ready:** sign-up form, Save Wordfarer, follow links, footer.
+12. **Get ready:** sign-up form, Save Yawelo Idle, follow links, footer.
 
 **Other pages:** `/roadmap` (§5), `/privacy` (§6.3), `/play` "coming soon" (served by the game app, §7.2), and a 404.
 
@@ -69,7 +69,7 @@ Every page exists in English at `/…` and Indonesian at `/id/…`, with a langu
 - **Map:** coastlines from **Natural Earth** (map data its site states is public domain; #337 quotes the terms before use), simplified at build time and drawn in the batik palette.
 - **Logo:** none exists, and the name and logo are reserved trademarks. #333 draws **three code-made wordmark candidates**, and the operator picks one.
 - **Fonts:** OFL-licensed, self-hosted, a Latin subset covering every Indonesian character.
-- **Devices:** the shyden.co.uk standard the operator set for Wordfarer on 2026-10-04 (#323): mobile-first from 320 px, no horizontal scroll, 44 px touch targets, legible on a TV and a Steam Deck.
+- **Devices:** the shyden.co.uk standard the operator set for Yawelo Idle on 2026-10-04 (#323): mobile-first from 320 px, no horizontal scroll, 44 px touch targets, legible on a TV and a Steam Deck.
 - **Visual sign-off:** before production the operator approves the real render on dev, from screenshots at phone, tablet, laptop and TV widths in both languages (#345).
 
 ## 5. Live roadmap (design question 3 of 5, approved 12:03)
@@ -85,11 +85,11 @@ Every page exists in English at `/…` and Indonesian at `/id/…`, with a langu
 
 1. **Source:** the Wordfarer Stories board only, resolved by node id `PVT_kwDOEOcG584BlRWb` with its title asserted on every read. Shown: items whose content is an issue in `shyden-labs/wordfarer`. Never shown: draft items and other repos' issues. Anything unclassifiable is refused by name and logged, never shown.
 2. **Events:** **two org webhooks**, dev and prod, each with its own secret, subscribed to `issues` and `projects_v2_item`, POSTing to `/hooks/github` on that environment's site Worker. The Worker verifies `X-Hub-Signature-256` (HMAC-SHA256) with a constant-time compare and refuses anything unsigned or mismatched with 401 and no body detail. That one path skips the dev password because the signature is its guard.
-3. **Read:** an event means only "something changed". The Worker re-reads the board over GraphQL as a **new read-only GitHub App, `wordfarer-roadmap`** (Projects, Issues, Metadata: read; nothing else). A public-facing Worker never holds a key that can write. Events arriving in a burst are coalesced into one read.
+3. **Read:** an event means only "something changed". The Worker re-reads the board over GraphQL as a **new read-only GitHub App, `yawelo-idle-roadmap`** (Projects, Issues, Metadata: read; nothing else). A public-facing Worker never holds a key that can write. Events arriving in a burst are coalesced into one read.
 4. **Hold and push:** a Durable Object, `Roadmap`, keeps the latest snapshot and its version, and pushes each new snapshot over **hibernating WebSockets** (`/api/roadmap/live`) to every open roadmap page. A page that cannot open a socket fetches `/api/roadmap.json` when it loads and says it is not live.
 5. **Read failures:** a GraphQL read that fails keeps the last snapshot, sets `readFailingSince` on the health endpoint, and the page shows its real age ("updated 14 minutes ago"). There is no retry loop: the next event or the next scheduled check is the next read, and verify-dev fails red on a failing read. A replayed signed delivery only causes one more idempotent read.
 6. **Check:** a Cron Trigger every **10 minutes** reads the whole board and compares its hash with the snapshot. If they differ, the fresh read wins, `drift` is incremented, and the event is recorded. `/api/roadmap/health` returns the last event time, last check time, snapshot version and drift count. **The dev verify job fails red** when drift is above zero, when `readFailingSince` is set, or when the last check is older than two intervals (20 min). A quiet board sends no events for hours, so the time since the last event is shown but is never a failure on its own; a missed event surfaces as drift. This is an independent reading of the source of truth, not a retry: a missed delivery is reported, never hidden.
-7. **One home for the maths:** the % complete and ETA, both by tickets and by effort (the `Estimate` field), come from `scripts/board-progress.ts` in `shyden-labs/repo-template`, which Wordfarer has not copied in yet (measured 2026-10-04: no such file in this repo). #341 and #342 brings its maths in as `packages/progress`, with a thin `scripts/board-progress.ts` wrapper, and the script and the Worker both import that one module. The roadmap and the operator's close-out lines therefore cannot disagree.
+7. **One home for the maths:** the % complete and ETA, both by tickets and by effort (the `Estimate` field), come from `scripts/board-progress.ts` in `shyden-labs/repo-template`, which Yawelo Idle has not copied in yet (measured 2026-10-04: no such file in this repo). #341 and #342 brings its maths in as `packages/progress`, with a thin `scripts/board-progress.ts` wrapper, and the script and the Worker both import that one module. The roadmap and the operator's close-out lines therefore cannot disagree.
 8. **Shown:** islands M0–M8 plus a "Beyond launch" cluster (`post-launch`), with the ship at the earliest milestone not complete. Tapping an island lists its stories under Done / In progress / Up next, each linking to its GitHub issue. Also shown: both estimates with ETA dates and confidence, "recently shipped" (the last 10 closed), and "updated N seconds ago". The development strip sits above it all.
 
 ### 5.3 Operator steps (exact click-paths go in #341 and #342)
@@ -101,11 +101,11 @@ Create and install the read-only App, and create the two org webhooks. Each webh
 ### 6.1 Launch list
 
 - **Provider:** #343 and #344 compares Buttondown, Brevo, Mailchimp and EmailOctopus on free-tier size, UK/EU data handling, double-opt-in API, unsubscribe and consent records. The operator picks one and creates the account. Prices are not yet read, so none is quoted here. Cloudflare's Email Service was ruled out: it is "Beta for outbound transactional emails" on the Workers Paid plan (read 2026-10-04), and a launch announcement is not transactional.
-- **Form:** email; site language; "which course interests you" (optional); an **unticked** consent box reading what W7 sends (_"one email when Wordfarer launches, and at most one milestone update a month"_); an **"I am 13 or older"** box (UK GDPR art. 8). Double opt-in is done by the provider.
+- **Form:** email; site language; "which course interests you" (optional); an **unticked** consent box reading what W7 sends (_"one email when Yawelo Idle launches, and at most one milestone update a month"_); an **"I am 13 or older"** box (UK GDPR art. 8). Double opt-in is done by the provider.
 - **Worker `POST /api/signup`:** validates with Zod and passes the sign-up to the provider. **Never stores or logs the address.** It returns the same response whether the address is new or already listed. Abuse controls: a honeypot field, a per-IP rate limit, double opt-in, and no CAPTCHA script (§3: no third-party requests).
 - **Secrets:** dev and prod each get their own provider key (dev points at a separate test list). Each is a Worker secret on its own environment's Worker only, set the way §5.3 sets the roadmap secrets; the agent never sees a value.
 
-### 6.2 Save Wordfarer
+### 6.2 Save Yawelo Idle
 
 - **Measured:** no current browser lets a page add a bookmark. Chrome and Safari refuse for security, and Firefox removed `window.sidebar.addPanel`. `beforeinstallprompt` (a real install prompt) fires in Chromium browsers only, never in Safari or Firefox.
 - **Behaviour:** where `beforeinstallprompt` has fired, the button opens the install prompt. Elsewhere it shows that browser's exact steps (⌘D / Ctrl+D; on iPhone and iPad, Share → Add to Home Screen, with a small picture).
@@ -133,7 +133,7 @@ The site Worker owns `dev.wordfarer.shyden.co.uk` now and `wordfarer.shyden.co.u
 
 ### 7.3 Data flow
 
-Board change → GitHub → org webhook → `/hooks/github` (verify) → coalesce → GraphQL read as `wordfarer-roadmap` → `Roadmap` DO (snapshot, version) → WebSocket push → open pages. In parallel: Cron (10 min) → full read → compare → health/drift.
+Board change → GitHub → org webhook → `/hooks/github` (verify) → coalesce → GraphQL read as `yawelo-idle-roadmap` → `Roadmap` DO (snapshot, version) → WebSocket push → open pages. In parallel: Cron (10 min) → full read → compare → health/drift.
 
 ## 8. Testing
 
@@ -166,7 +166,7 @@ Epic **#331**, "Website (coming soon) with a live voyage-map roadmap", on Wordfa
 | #336  | 5      | The playable demo on `packages/core`                                                                                                   |
 | #337  | 5      | The voyage map from Natural Earth data                                                                                                 |
 | #338  | 5      | Indonesian translation with D18 evidence                                                                                               |
-| #339  | 2      | The Save Wordfarer button, on #152's manifest                                                                                          |
+| #339  | 2      | The Save Yawelo Idle button, on #152's manifest                                                                                        |
 | #340  | 3      | `packages/progress`, the board-progress maths ported from repo-template                                                                |
 | #341  | 8      | Live roadmap backend: signed webhooks, the read-only App, the Durable Object, the drift check                                          |
 | #342  | 5      | The voyage-map roadmap page, the measured end-to-end latency, the update to `reference-live-roadmap.md` and the repo-template proposal |

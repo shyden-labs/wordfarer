@@ -32,7 +32,7 @@ export interface ModuleScan {
   readonly refused: readonly string[];
 }
 
-const CORE_PACKAGE = '@wordfarer/core';
+const CORE_PACKAGE = '@yawelo-idle/core';
 
 /** `.` and `..` name a directory's index.ts, so they are relative too. */
 const isRelative = (specifier: string): boolean =>

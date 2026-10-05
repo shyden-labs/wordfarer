@@ -149,7 +149,7 @@ describe('gateWebRequest', () => {
       );
       expect(response.status).toBe(401);
       expect(response.headers.get('WWW-Authenticate')).toBe(
-        'Basic realm="Wordfarer Non-Prod"',
+        'Basic realm="Yawelo Idle Non-Prod"',
       );
       expect(response.headers.get('X-Robots-Tag')).toBe(NO_INDEX);
       expect(await response.text()).not.toContain('app bytes');

@@ -40,7 +40,7 @@ const MAX_DAYS = 84;
  * margin the tuning keeps, the Clicker's 97% target against CI's 95%.
  */
 const INERT_SHIFT = 0.001;
-const CACHE = 'node_modules/.cache/wordfarer';
+const CACHE = 'node_modules/.cache/yawelo-idle';
 const ASSERTED = PERSONAS.filter((p) => p.asserted).map((p) => p.name);
 
 async function bundle(variant: Variant, index: number): Promise<string> {

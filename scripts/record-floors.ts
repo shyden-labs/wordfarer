@@ -19,7 +19,7 @@
  *   (the sync Worker's suite runs inside workerd, which has no file system);
  * - any suite failed or did not start.
  *
- * Wordfarer runs five suites, and the root unit suite skips four of them
+ * Yawelo Idle runs five suites, and the root unit suite skips four of them
  * (pacing, the web gate, the sync Worker, the engines), so each suite is
  * asked for its own file list rather than the recorder copying their globs.
  *

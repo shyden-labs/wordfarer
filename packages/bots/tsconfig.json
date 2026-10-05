@@ -1,5 +1,5 @@
 {
-  // @wordfarer/bots plays the real core in Node, in CI and from the
+  // @yawelo-idle/bots plays the real core in Node, in CI and from the
   // calibration tool, so it sees Node's types as well as ECMAScript.
   "compilerOptions": {
     "target": "ES2023",

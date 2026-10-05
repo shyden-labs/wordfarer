@@ -12,7 +12,7 @@ import {
 
 /**
  * The calibration itself, bundled by `scripts/pacing-calibrate.ts` with
- * `sail.ts` hooked to read its goals from `globalThis.__WORDFARER_GOALS`.
+ * `sail.ts` hooked to read its goals from `globalThis.__YAWELO_IDLE_GOALS`.
  * Options: `--first-minutes N` and `--gap-days N`. Prints each goal as it is
  * fitted, then the table to paste into `BALANCE.sail.goals`.
  */
@@ -29,12 +29,12 @@ function option(name: string, fallback: number): number {
   return value;
 }
 
-const hook = globalThis as { __WORDFARER_GOALS?: readonly number[] };
+const hook = globalThis as { __YAWELO_IDLE_GOALS?: readonly number[] };
 const course = syntheticCourse(1);
 const casual = persona('casual');
 
 const measure: Measure = (goals, destination, untilDay) => {
-  hook.__WORDFARER_GOALS = goals;
+  hook.__YAWELO_IDLE_GOALS = goals;
   const run = runPersona(course, casual, BOT_EPOCH_WALL_MS, untilDay, {
     stopAfterSails: destination + 1,
   });

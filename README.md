@@ -1,4 +1,4 @@
-# Wordfarer
+# Yawelo Idle
 
 An idle game for learning a real language. English speakers learn Indonesian (`en-id`) while journeying across the Indonesian archipelago; Indonesian speakers learn English (`id-en`) while journeying across the English-speaking world. Words you pick up power the game, and reviewing them with spaced repetition makes them stronger. Nobody is ever forced to study.
 
@@ -10,7 +10,7 @@ It is built once for the web and shipped to browsers (PWA), Steam (Electron) and
 
 ## Read first
 
-- [Design spec](docs/superpowers/specs/2026-10-01-wordfarer-design.md): the source of truth. It covers the core loop, progression, content, architecture, fair play and testing.
+- [Design spec](docs/superpowers/specs/2026-10-01-yawelo-idle-design.md): the source of truth. It covers the core loop, progression, content, architecture, fair play and testing.
 - [Idle-game research](docs/research/2026-10-01-idle-game-research.md): 20 games, 28 player complaints, and the 26-item do-not list the design is held to.
 
 ## Player-trust promises
@@ -39,6 +39,6 @@ Every merge to `develop` deploys dev (web and sync Workers, D1) and verifies it 
 | Source code                                                    | [Apache-2.0](LICENSE)                           |
 | Course content adapted from CC BY-SA sources (e.g. Wiktionary) | [CC BY-SA 4.0](LICENSES/CC-BY-SA-4.0.txt)       |
 | Original story, culture cards, motifs and art                  | [CC BY-NC-SA 4.0](LICENSES/CC-BY-NC-SA-4.0.txt) |
-| The Wordfarer name and logo                                    | Reserved, see [TRADEMARKS.md](TRADEMARKS.md)    |
+| The Yawelo Idle name and logo                                  | Reserved, see [TRADEMARKS.md](TRADEMARKS.md)    |
 
 Every content item records its own licence. See [LICENSE-CONTENT.md](LICENSE-CONTENT.md).

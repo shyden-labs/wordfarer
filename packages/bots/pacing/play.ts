@@ -1,7 +1,7 @@
 import {
   BOT_EPOCH_WALL_MS,
   syntheticCourse,
-} from '@wordfarer/core/fixtures/synthetic-course';
+} from '@yawelo-idle/core/fixtures/synthetic-course';
 import { persona } from '../src/personas';
 import { runPersona } from '../src/run';
 

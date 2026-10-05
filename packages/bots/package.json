@@ -1,5 +1,5 @@
 {
-  "name": "@wordfarer/bots",
+  "name": "@yawelo-idle/bots",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
@@ -10,6 +10,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@wordfarer/core": "*"
+    "@yawelo-idle/core": "*"
   }
 }

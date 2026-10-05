@@ -1,5 +1,5 @@
 /**
- * @wordfarer/bots: simulated players that play the real core and measure
+ * @yawelo-idle/bots: simulated players that play the real core and measure
  * its pacing (M1 design §6, #35).
  */
 export {

@@ -18,13 +18,13 @@ const OLD = '1f660b30f75d081ae6559d175e5c0c3e26acb84c';
 const PASSWORD = 'pä:ss';
 const ROBOTS = '# blocked\nUser-agent: *\nDisallow: /\n';
 const page = (sha: string) =>
-  `<!doctype html><html><head><meta name="wordfarer-commit" content="${sha}" /></head></html>`;
+  `<!doctype html><html><head><meta name="yawelo-idle-commit" content="${sha}" /></head></html>`;
 const probe = (
   status: number,
   body = '',
   headers: Record<string, string> = {},
 ): Probe => ({ status, body, headers: new Headers(headers) });
-const challenge = { 'www-authenticate': 'Basic realm="Wordfarer Non-Prod"' };
+const challenge = { 'www-authenticate': 'Basic realm="Yawelo Idle Non-Prod"' };
 const noindex = { 'x-robots-tag': NO_INDEX };
 
 describe('basicAuthorization', () => {
@@ -130,7 +130,7 @@ describe('webProblems', () => {
 
   it('fails a page with no stamp, and a non-200', () => {
     expect(webProblems(probe(200, '<html></html>', noindex), SHA)).toEqual([
-      'web: no wordfarer-commit meta tag in the page',
+      'web: no yawelo-idle-commit meta tag in the page',
     ]);
     expect(webProblems(probe(401, '', noindex), SHA)).toEqual([
       'web: status 401 with the password, expected 200',

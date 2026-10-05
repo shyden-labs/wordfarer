@@ -19,7 +19,7 @@ import {
   type GameState,
   type JourneyOffer,
   type View,
-} from '@wordfarer/core';
+} from '@yawelo-idle/core';
 import type { Persona } from './personas';
 import type { Streams } from './streams';
 

@@ -6,11 +6,11 @@ import {
   wallMs,
   type Course,
   type View,
-} from '@wordfarer/core';
+} from '@yawelo-idle/core';
 import {
   BOT_EPOCH_WALL_MS,
   syntheticCourse,
-} from '@wordfarer/core/fixtures/synthetic-course';
+} from '@yawelo-idle/core/fixtures/synthetic-course';
 import { persona } from '../src/personas';
 import { insaneValues, reachedAt, runPersona } from '../src/run';
 import { QUICK_RETURN_MS } from '../src/schedule';

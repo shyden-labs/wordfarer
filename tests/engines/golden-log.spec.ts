@@ -16,7 +16,7 @@ import {
  */
 
 interface GoldenGlobal {
-  wordfarerGoldenLog: { replayGolden(text: string): GoldenReplay };
+  yaweloIdleGoldenLog: { replayGolden(text: string): GoldenReplay };
 }
 
 const text = readFileSync('packages/core/fixtures/golden-log.jsonl', 'utf8');
@@ -32,14 +32,14 @@ test.beforeAll(async () => {
     bundle: true,
     write: false,
     format: 'iife',
-    globalName: 'wordfarerGoldenLog',
+    globalName: 'yaweloIdleGoldenLog',
     platform: 'browser',
     mainFields: ['module', 'main'],
     logLevel: 'error',
   });
   bundle = result.outputFiles[0]?.text ?? '';
   // Liveness: esbuild produced the global the page will call.
-  expect(bundle).toContain('wordfarerGoldenLog');
+  expect(bundle).toContain('yaweloIdleGoldenLog');
 });
 
 test('the golden log replays to its recorded hash', async ({
@@ -53,7 +53,7 @@ test('the golden log replays to its recorded hash', async ({
   await page.addScriptTag({ content: bundle });
   const replayed = await page.evaluate(
     (log) =>
-      (globalThis as unknown as GoldenGlobal).wordfarerGoldenLog.replayGolden(
+      (globalThis as unknown as GoldenGlobal).yaweloIdleGoldenLog.replayGolden(
         log,
       ),
     text,

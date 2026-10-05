@@ -1,5 +1,5 @@
 /**
- * The Wordfarer sync Worker. In M0 it serves one route, `GET /health`, which
+ * The Yawelo Idle sync Worker. In M0 it serves one route, `GET /health`, which
  * the dev deploy's verify job reads to prove two things about the live Worker:
  * it is the commit that was just deployed, and its D1 binding answers a query.
  *
@@ -7,7 +7,7 @@
  * noindex header and `/robots.txt` blocks crawlers (#39). There is no password:
  * native apps cannot answer a browser challenge (operator decision 2026-10-01).
  */
-import { markApiRequest } from '@wordfarer/lockdown';
+import { markApiRequest } from '@yawelo-idle/lockdown';
 
 const json = (
   body: unknown,

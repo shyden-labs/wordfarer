@@ -1,5 +1,5 @@
 /**
- * The non-prod lockdown for Wordfarer's Workers (#39).
+ * The non-prod lockdown for Yawelo Idle's Workers (#39).
  *
  * Ported from shyden.co.uk `functions/_lib/lockdown.js` and
  * `functions/_middleware.js` at 26b80e2, which ShyTalk shares. The behaviour
@@ -30,11 +30,11 @@ export const PROD_API_HOSTNAME = 'api.wordfarer.shyden.co.uk';
 export const NO_INDEX = 'noindex, nofollow, noarchive';
 
 /** The realm a browser shows in its password prompt. */
-export const REALM = 'Wordfarer Non-Prod';
+export const REALM = 'Yawelo Idle Non-Prod';
 
 /** The robots.txt every non-prod host serves, without credentials. */
 export const BLOCKING_ROBOTS_TXT = [
-  '# A non-prod Wordfarer environment, blocked from indexing.',
+  '# A non-prod Yawelo Idle environment, blocked from indexing.',
   '# The public robots.txt is served only on wordfarer.shyden.co.uk.',
   'User-agent: *',
   'Disallow: /',
@@ -136,7 +136,7 @@ export function robotsResponse(): Response {
 /** The 401 that makes a browser show its password prompt. No app bytes. */
 export function challengeResponse(): Response {
   return new Response(
-    'This is a non-prod Wordfarer environment for authorised testers. ' +
+    'This is a non-prod Yawelo Idle environment for authorised testers. ' +
       'The game is at https://wordfarer.shyden.co.uk.',
     {
       status: 401,

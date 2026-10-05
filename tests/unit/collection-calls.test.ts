@@ -20,7 +20,7 @@ import { trackedFiles } from './tracked-files';
  *
  * The question asked is whether a call evaluated at collection can REACH
  * workspace code. Workspace code enters a test file only through an import of
- * a relative path or an `@wordfarer/` package, so the detector resolves each
+ * a relative path or an `@yawelo-idle/` package, so the detector resolves each
  * call's root name: such an import is refused, apart from the clock brands
  * `simMs` and `wallMs`; a function declared in the file is followed into its
  * body; a runtime global, a third-party package and a method on local data
@@ -196,10 +196,10 @@ const s = go(1);`,
     ],
     [
       'an import of the core package',
-      `import { stateHash } from '@wordfarer/core';
+      `import { stateHash } from '@yawelo-idle/core';
 const s = stateHash(1);`,
       'stateHash',
-      'stateHash (@wordfarer/core)',
+      'stateHash (@yawelo-idle/core)',
     ],
     [
       'a constructor from workspace code',
@@ -436,7 +436,7 @@ describe('the detector allows', () => {
     ['a clock brand', `const t = simMs(1);`, 1],
     [
       'a clock brand imported from the core package',
-      `import { wallMs } from '@wordfarer/core';
+      `import { wallMs } from '@yawelo-idle/core';
 const t = wallMs(1);`,
       1,
     ],

@@ -1,5 +1,5 @@
 {
-  "name": "@wordfarer/sync-worker",
+  "name": "@yawelo-idle/sync-worker",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
@@ -12,6 +12,6 @@
     "@cloudflare/vitest-pool-workers": "^0.22.0"
   },
   "dependencies": {
-    "@wordfarer/lockdown": "*"
+    "@yawelo-idle/lockdown": "*"
   }
 }

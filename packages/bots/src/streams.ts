@@ -14,7 +14,7 @@ import {
   intFrom,
   ln,
   type RngStreams,
-} from '@wordfarer/core';
+} from '@yawelo-idle/core';
 
 export const STREAM_NAMES = [
   'opens',
