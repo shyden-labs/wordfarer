@@ -30,7 +30,7 @@ npm run build
 
 Every change follows test-driven development, and each ticket gets its own branch with a PR into `develop`. Third-party GitHub Actions are pinned to full commit SHAs, Dependabot opens its PRs against `develop`, and `tests/unit/supply-chain.test.ts` enforces both.
 
-Every merge to `develop` deploys dev (web and sync Workers, D1) and verifies it live before marking it `dev-verified`. Dev is at `https://dev.yawelo-idle.shyden.co.uk`, behind the shared Shyden Labs dev password, with the sync API at `https://dev-api.yawelo-idle.shyden.co.uk`.
+Every merge to `develop` deploys dev (web and sync Workers, D1) and verifies it live before marking it `dev-verified`. Dev is at `https://yawelo-idle-web-dev.shyden-labs-dev.workers.dev`, behind the shared Shyden Labs dev password, with the sync API at `https://yawelo-idle-sync-dev.shyden-labs-dev.workers.dev`. Both live in the dev-only "Shyden Labs Dev" Cloudflare account, so no dev credential can reach production (#395).
 
 ## Licences
 

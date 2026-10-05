@@ -13,7 +13,7 @@ import { BLOCKING_ROBOTS_TXT, NO_INDEX } from '@yawelo-idle/lockdown';
  *
  * Absolute URLs set the hostname the Worker sees.
  */
-const DEV = 'https://dev.yawelo-idle.shyden.co.uk';
+const DEV = 'https://yawelo-idle-web-dev.shyden-labs-dev.workers.dev';
 const PROD = 'https://yawelo-idle.shyden.co.uk';
 const PASSWORD = 'test-only-password';
 

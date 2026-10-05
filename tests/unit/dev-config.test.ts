@@ -14,6 +14,13 @@ import { runOf } from './workflow-steps';
 const ROOT = new URL('../..', import.meta.url).pathname;
 
 /**
+ * The "Shyden Labs Dev" account's workers.dev subdomain, read from the
+ * account 2026-10-05 (#395): dev lives there, beside dev only, never in the
+ * production account.
+ */
+const DEV_WORKERS_SUBDOMAIN = 'shyden-labs-dev';
+
+/**
  * The fields these guards read, declared here rather than imported: wrangler's
  * own `Config` type comes from `@cloudflare/workers-utils`, which it bundles
  * without shipping its declarations, so it does not resolve.
@@ -22,6 +29,7 @@ interface DeployConfig {
   name: string;
   main: string | undefined;
   workers_dev: unknown;
+  preview_urls: unknown;
   routes: unknown;
   assets: Record<string, unknown> | undefined;
   vars: Record<string, unknown>;
@@ -34,14 +42,32 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 function readDeployConfig(path: string): DeployConfig {
   const raw: unknown = unstable_readConfig({ config: path });
   if (!isRecord(raw)) throw new Error(`${path}: not a config object`);
-  const { name, main, workers_dev, routes, assets, vars, d1_databases } = raw;
+  const {
+    name,
+    main,
+    workers_dev,
+    preview_urls,
+    routes,
+    assets,
+    vars,
+    d1_databases,
+  } = raw;
   if (typeof name !== 'string') throw new Error(`${path}: no name`);
   if (main !== undefined && typeof main !== 'string')
     throw new Error(`${path}: main is not a path`);
   if (assets !== undefined && !isRecord(assets))
     throw new Error(`${path}: assets is not an object`);
   if (!isRecord(vars)) throw new Error(`${path}: vars is not an object`);
-  return { name, main, workers_dev, routes, assets, vars, d1_databases };
+  return {
+    name,
+    main,
+    workers_dev,
+    preview_urls,
+    routes,
+    assets,
+    vars,
+    d1_databases,
+  };
 }
 
 /** Every wrangler config in the repo, found on disk rather than listed. */
@@ -73,11 +99,9 @@ describe('the dev Workers’ deploy configs', () => {
     ]);
   });
 
-  it('serves the web Worker at its dev Custom Domain, gate first', () => {
+  it('serves the web Worker on workers.dev with no route, gate first (#395)', () => {
     const web = byName('yawelo-idle-web-dev');
-    expect(web.routes).toEqual([
-      { pattern: 'dev.yawelo-idle.shyden.co.uk', custom_domain: true },
-    ]);
+    expect(web.routes).toBeUndefined();
     expect(web.main).toMatch(/apps\/web\/worker\/index\.ts$/);
     expect(web.assets).toMatchObject({
       binding: 'ASSETS',
@@ -85,19 +109,35 @@ describe('the dev Workers’ deploy configs', () => {
     });
   });
 
-  it('serves the sync Worker at its dev Custom Domain', () => {
-    expect(byName('yawelo-idle-sync-dev').routes).toEqual([
-      { pattern: 'dev-api.yawelo-idle.shyden.co.uk', custom_domain: true },
+  it('serves the sync Worker on workers.dev with no route (#395)', () => {
+    expect(byName('yawelo-idle-sync-dev').routes).toBeUndefined();
+  });
+
+  it('serves each dev Worker at its workers.dev address only, with no preview URLs (#395)', () => {
+    expect(
+      configs
+        .map(({ config }) => [
+          config.name,
+          config.workers_dev,
+          config.preview_urls,
+        ])
+        .sort(),
+    ).toEqual([
+      ['yawelo-idle-sync-dev', true, false],
+      ['yawelo-idle-web-dev', true, false],
     ]);
   });
 
-  it('serves each dev Worker at its Custom Domain only, never on workers.dev', () => {
-    expect(
-      configs.map(({ config }) => [config.name, config.workers_dev]).sort(),
-    ).toEqual([
-      ['yawelo-idle-sync-dev', false],
-      ['yawelo-idle-web-dev', false],
-    ]);
+  it('verifies each dev Worker at its workers.dev address in the dev account (#395)', () => {
+    const verify = verifySteps().find(
+      (step) => runOf(step) === 'node scripts/verify-dev.ts',
+    );
+    const address = (name: string) =>
+      `https://${byName(name).name}.${DEV_WORKERS_SUBDOMAIN}.workers.dev`;
+    expect(verify?.env).toMatchObject({
+      DEV_WEB_URL: `${address('yawelo-idle-web-dev')}/`,
+      DEV_SYNC_URL: address('yawelo-idle-sync-dev'),
+    });
   });
 
   it('declares no secret as a plain var (the password is a Worker secret)', () => {
@@ -122,14 +162,17 @@ interface Step {
   'working-directory'?: string;
   env?: Record<string, unknown>;
 }
-const deploySteps = (): Step[] => {
+/** A deploy-dev.yml job's steps. */
+const jobSteps = (job: 'deploy' | 'verify'): Step[] => {
   const workflow = parse(
     readFileSync(join(ROOT, '.github/workflows/deploy-dev.yml'), 'utf8'),
   ) as { jobs: Record<string, { steps?: Step[] }> };
-  const steps = workflow.jobs['deploy']?.steps;
-  if (steps === undefined) throw new Error('deploy-dev.yml: no deploy steps');
+  const steps = workflow.jobs[job]?.steps;
+  if (steps === undefined) throw new Error(`deploy-dev.yml: no ${job} steps`);
   return steps;
 };
+const deploySteps = (): Step[] => jobSteps('deploy');
+const verifySteps = (): Step[] => jobSteps('verify');
 
 describe('the dev D1 database, created by the pipeline (#357 AC1)', () => {
   const DATABASE = 'yawelo-idle-dev';
@@ -195,6 +238,65 @@ describe('the dev D1 database, created by the pipeline (#357 AC1)', () => {
       spawnSync('git', ['check-ignore', '--quiet', path], { cwd: ROOT }).status;
     expect(ignored(`apps/sync-worker/${DEPLOY_CONFIG}`)).toBe(0);
     expect(ignored('apps/sync-worker/wrangler.jsonc')).toBe(1);
+  });
+});
+
+describe('the dev Cloudflare token, proven and held only where it is used (#395)', () => {
+  const CLOUDFLARE = {
+    CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}',
+    CLOUDFLARE_ACCOUNT_ID: '${{ secrets.CLOUDFLARE_ACCOUNT_ID }}',
+  };
+
+  it('is not in the deploy job’s own env, so npm ci and the build never hold it', () => {
+    const workflow = parse(
+      readFileSync(join(ROOT, '.github/workflows/deploy-dev.yml'), 'utf8'),
+    ) as { jobs: Record<string, { env?: Record<string, unknown> }> };
+    expect(Object.keys(workflow.jobs['deploy']?.env ?? {})).toEqual([
+      'WRANGLER_SEND_METRICS',
+    ]);
+  });
+
+  it('is held by exactly the steps that call Cloudflare, the reach check first', () => {
+    const holds = (run: string) => ({
+      run,
+      env: expect.objectContaining(CLOUDFLARE) as unknown,
+    });
+    expect(
+      deploySteps()
+        .filter((step) =>
+          Object.keys(step.env ?? {}).some((name) =>
+            name.startsWith('CLOUDFLARE_'),
+          ),
+        )
+        .map((step) => ({ run: runOf(step), env: step.env })),
+    ).toEqual([
+      holds('node scripts/token-reach.ts'),
+      holds('node scripts/ensure-d1.ts yawelo-idle-dev apac'),
+      holds(
+        'node scripts/d1-binding.ts yawelo-idle-dev apps/sync-worker/wrangler.jsonc apps/sync-worker/wrangler.deploy.jsonc',
+      ),
+      holds(
+        'npx wrangler d1 migrations apply yawelo-idle-dev --remote --config wrangler.deploy.jsonc',
+      ),
+      holds(
+        'npx wrangler deploy --config wrangler.deploy.jsonc --var "COMMIT:${GITHUB_SHA}"',
+      ),
+      holds(
+        'npx wrangler deploy --secrets-file "$RUNNER_TEMP/web-secrets.json"',
+      ),
+    ]);
+  });
+
+  it('is proven to reach the dev account alone before any step that uses it', () => {
+    const steps = deploySteps();
+    const reach = steps.findIndex(
+      (step) => runOf(step) === 'node scripts/token-reach.ts',
+    );
+    const firstCloudflare = steps.findIndex((step) =>
+      /wrangler|ensure-d1|d1-binding/.test(runOf(step)),
+    );
+    expect(reach).toBeGreaterThanOrEqual(0);
+    expect(reach).toBeLessThan(firstCloudflare);
   });
 });
 

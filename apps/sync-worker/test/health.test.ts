@@ -92,7 +92,7 @@ describe('non-prod marking (#39)', () => {
     'marks %s noindex on the dev API host, with no password asked',
     async (path) => {
       const response = await host(
-        'https://dev-api.yawelo-idle.shyden.co.uk',
+        'https://yawelo-idle-sync-dev.shyden-labs-dev.workers.dev',
         path,
       );
       expect(response.status).not.toBe(401);
@@ -104,7 +104,7 @@ describe('non-prod marking (#39)', () => {
 
   it('serves blocking robots.txt on the dev API host', async () => {
     const response = await host(
-      'https://dev-api.yawelo-idle.shyden.co.uk',
+      'https://yawelo-idle-sync-dev.shyden-labs-dev.workers.dev',
       '/robots.txt',
     );
     expect(response.status).toBe(200);
