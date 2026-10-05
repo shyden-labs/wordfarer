@@ -1,6 +1,6 @@
 // The DEV web app: a Worker with static assets (spec D9, as amended
 // 2026-10-01: Cloudflare now folds Pages into Workers), served at
-// dev.wordfarer.shyden.co.uk behind the shared dev password (#39).
+// dev.yawelo-idle.shyden.co.uk behind the shared dev password (#39).
 //
 // Cloudflare serves a matching asset WITHOUT invoking a Worker unless
 // `run_worker_first` is set, so the gate in worker/index.ts would never see
@@ -8,7 +8,7 @@
 // future production config can stay script-less and keep asset requests free.
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "wordfarer-web-dev",
+  "name": "yawelo-idle-web-dev",
   "main": "worker/index.ts",
   "compatibility_date": "2026-09-30",
   // Served only at its Custom Domain (#39): the *.workers.dev address would
@@ -16,7 +16,7 @@
   "workers_dev": false,
   "preview_urls": false,
   "routes": [
-    { "pattern": "dev.wordfarer.shyden.co.uk", "custom_domain": true },
+    { "pattern": "dev.yawelo-idle.shyden.co.uk", "custom_domain": true },
   ],
   "assets": {
     "directory": "./dist",

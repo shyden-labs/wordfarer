@@ -1,7 +1,8 @@
 /**
  * The dev web Worker: every request passes the non-prod gate (#39) before the
- * static assets are served. `DEV_PASSWORD` is a Worker secret, set by Shyden
- * with `wrangler secret put`; when it is missing the gate fails closed.
+ * static assets are served. `DEV_PASSWORD` is a Worker secret, uploaded by the
+ * deploy from the `dev` environment secret (#357); when it is missing the gate
+ * fails closed.
  */
 import { gateWebRequest } from '@yawelo-idle/lockdown';
 

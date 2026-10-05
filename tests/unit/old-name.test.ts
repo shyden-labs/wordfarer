@@ -35,11 +35,6 @@ const QUOTE: Allowance = {
   quote: `make the ${OLD} site`,
   reason: 'their words',
 };
-const HOST: Allowance = {
-  kind: 'infrastructure',
-  what: 'hosts',
-  pattern: new RegExp(`[a-z.]*${OLD}\\.example\\b`, 'gi'),
-};
 
 describe('judge (#356)', () => {
   it('finds the old name in each case form, with its line and column', () => {
@@ -154,29 +149,15 @@ describe('judge (#356)', () => {
     });
   });
 
-  it('allows an infrastructure name only where its match holds the occurrence whole', () => {
-    const line = `dev.${OLD}.example and @${OLD}/core`;
-    expect(judge('src/a.ts', line, [HOST])).toEqual({
-      findings: [`src/a.ts:1:${String(line.indexOf('@') + 2)}: ${line}`],
-      allowed: { [keyOf(HOST)]: 1 },
-    });
-  });
-
-  it('allows nothing for a pattern that matches only part of the occurrence', () => {
-    const part: Allowance = {
-      kind: 'infrastructure',
-      what: 'part',
-      pattern: new RegExp(OLD.slice(0, 4), 'g'),
-    };
-    expect(judge('src/a.ts', OLD, [part])).toEqual({
-      findings: [`src/a.ts:1:1: ${OLD}`],
-      allowed: {},
-    });
-  });
-
   it('counts an occurrence once, under the first allowance that covers it', () => {
-    const line = `dev.${OLD}.example`;
-    expect(judge('docs/old.md', line, [FILE, HOST])).toEqual({
+    const line = `make the ${OLD} site`;
+    const quoted: Allowance = {
+      kind: 'quote',
+      path: 'docs/old.md',
+      quote: line,
+      reason: 'their words',
+    };
+    expect(judge('docs/old.md', line, [FILE, quoted])).toEqual({
       findings: [],
       allowed: { [keyOf(FILE)]: 1 },
     });

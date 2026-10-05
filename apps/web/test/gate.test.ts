@@ -13,8 +13,8 @@ import { BLOCKING_ROBOTS_TXT, NO_INDEX } from '@yawelo-idle/lockdown';
  *
  * Absolute URLs set the hostname the Worker sees.
  */
-const DEV = 'https://dev.wordfarer.shyden.co.uk';
-const PROD = 'https://wordfarer.shyden.co.uk';
+const DEV = 'https://dev.yawelo-idle.shyden.co.uk';
+const PROD = 'https://yawelo-idle.shyden.co.uk';
 const PASSWORD = 'test-only-password';
 
 const authorised = { Authorization: `Basic ${btoa(`tester:${PASSWORD}`)}` };

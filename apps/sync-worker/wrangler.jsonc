@@ -2,28 +2,30 @@
 // production pipeline is built; until then this file describes dev only.
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "wordfarer-sync-dev",
+  "name": "yawelo-idle-sync-dev",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-30",
   // Served only at its Custom Domain (#39): the *.workers.dev address would
   // be a second way in, outside the hostname the gate and the verify know.
   "workers_dev": false,
   "preview_urls": false,
-  // The sync API at dev-api.wordfarer.shyden.co.uk (#39). Not password-gated:
+  // The sync API at dev-api.yawelo-idle.shyden.co.uk (#39). Not password-gated:
   // the Worker marks non-prod responses noindex instead (src/index.ts).
   "routes": [
-    { "pattern": "dev-api.wordfarer.shyden.co.uk", "custom_domain": true },
+    { "pattern": "dev-api.yawelo-idle.shyden.co.uk", "custom_domain": true },
   ],
   "vars": {
     // Overwritten at deploy time with `--var COMMIT:<sha>`, so /health can
     // prove which commit is live. "local" never matches a SHA.
     "COMMIT": "local",
   },
+  // Named, with no id: wrangler finds the database by name, and the deploy
+  // creates it when it is missing (scripts/ensure-d1.ts, #357), so no id is
+  // ever copied in by hand.
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "wordfarer-dev",
-      "database_id": "7ef754ed-f21e-4524-ac11-eac9bde28cc0",
+      "database_name": "yawelo-idle-dev",
       "migrations_dir": "migrations",
     },
   ],

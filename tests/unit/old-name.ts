@@ -10,7 +10,7 @@ import { join } from 'node:path';
  * was true then (operator decision on #356): dated plans, the clearance
  * record, the specs' decision and review logs, and the operator's own words.
  * Infrastructure names (hosts, Workers, D1, the App, the repository, the
- * board, the local checkouts) move in #357 and are allowed until then.
+ * board, the local checkouts) moved with #357, so none is allowed.
  *
  * The name is assembled rather than written, so this file, which the guard
  * reads like any other, holds no occurrence of its own; a planted one turns
@@ -52,18 +52,7 @@ export interface Quote {
   readonly reason: string;
 }
 
-/**
- * A name of infrastructure that #357 renames. An occurrence is covered only
- * when a match of the pattern contains it whole, so `@<old>/core` on a line
- * that also names a host is still found.
- */
-export interface Infrastructure {
-  readonly kind: 'infrastructure';
-  readonly what: string;
-  readonly pattern: RegExp;
-}
-
-export type Allowance = HistoryFile | HistorySection | Quote | Infrastructure;
+export type Allowance = HistoryFile | HistorySection | Quote;
 
 const PLAN = 'a dated plan: the record of how a story was built, and when';
 const plan = (path: string): HistoryFile => ({
@@ -122,36 +111,6 @@ export const ALLOWANCES: readonly Allowance[] = [
     quote: `i want you to make the ${OLD} website`,
     reason: "the operator's request, 2026-10-04 11:50 UTC, quoted as written",
   },
-  {
-    kind: 'infrastructure',
-    what: 'the hosts under shyden.co.uk (#357)',
-    pattern: new RegExp(`[a-z0-9.-]*${OLD}\\.shyden\\.co\\b`, 'gi'),
-  },
-  {
-    kind: 'infrastructure',
-    what: 'the dev Workers and the dev D1 database (#357)',
-    pattern: new RegExp(`\\b${OLD}-(?:web-dev|sync-dev|dev)\\b`, 'g'),
-  },
-  {
-    kind: 'infrastructure',
-    what: 'the GitHub App (#357)',
-    pattern: new RegExp(`\\b${OLD}-agent\\b`, 'g'),
-  },
-  {
-    kind: 'infrastructure',
-    what: 'the repository (#357)',
-    pattern: new RegExp(`\\bshyden-labs/${OLD}(?![\\w-])`, 'g'),
-  },
-  {
-    kind: 'infrastructure',
-    what: 'the board title (#357)',
-    pattern: new RegExp(`\\b${OLD_NAME} Stories\\b`, 'g'),
-  },
-  {
-    kind: 'infrastructure',
-    what: 'the local checkouts and their memory folder (#357)',
-    pattern: new RegExp(`Repos[/-]${OLD}(?:-[\\w-]+)?`, 'g'),
-  },
 ];
 
 /** How a verdict names an allowance. */
@@ -163,8 +122,6 @@ export const keyOf = (allowance: Allowance): string => {
       return `history section ${allowance.path} › ${allowance.heading}`;
     case 'quote':
       return `quote ${allowance.path} › ${allowance.quote}`;
-    case 'infrastructure':
-      return `infrastructure: ${allowance.what}`;
   }
 };
 
@@ -209,17 +166,6 @@ const sectionsOf = (
     return open?.section;
   });
 };
-
-/** Whether `[start, end)` lies inside some match of `pattern` in `line`. */
-const inside = (
-  line: string,
-  pattern: RegExp,
-  start: number,
-  end: number,
-): boolean =>
-  [...line.matchAll(new RegExp(pattern.source, pattern.flags))].some(
-    (match) => match.index <= start && end <= match.index + match[0].length,
-  );
 
 const insideText = (
   line: string,
@@ -271,8 +217,6 @@ export function judge(
               allowance.path === path &&
               insideText(line, allowance.quote, start, end)
             );
-          case 'infrastructure':
-            return inside(line, allowance.pattern, start, end);
         }
       });
       if (covering) allow(covering);

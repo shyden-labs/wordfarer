@@ -6,7 +6,7 @@ It is built once for the web and shipped to browsers (PWA), Steam (Electron) and
 
 ## Status
 
-**Pre-alpha: design complete, foundations in progress.** Nothing is playable yet. Work is tracked on the [Wordfarer Stories](https://github.com/orgs/shyden-labs/projects/4) board.
+**Pre-alpha: design complete, foundations in progress.** Nothing is playable yet. Work is tracked on the [Yawelo Idle Stories](https://github.com/orgs/shyden-labs/projects/4) board.
 
 ## Read first
 
@@ -30,7 +30,7 @@ npm run build
 
 Every change follows test-driven development, and each ticket gets its own branch with a PR into `develop`. Third-party GitHub Actions are pinned to full commit SHAs, Dependabot opens its PRs against `develop`, and `tests/unit/supply-chain.test.ts` enforces both.
 
-Every merge to `develop` deploys dev (web and sync Workers, D1) and verifies it live before marking it `dev-verified`. Dev is at `https://dev.wordfarer.shyden.co.uk`, behind the shared Shyden Labs dev password, with the sync API at `https://dev-api.wordfarer.shyden.co.uk`.
+Every merge to `develop` deploys dev (web and sync Workers, D1) and verifies it live before marking it `dev-verified`. Dev is at `https://dev.yawelo-idle.shyden.co.uk`, behind the shared Shyden Labs dev password, with the sync API at `https://dev-api.yawelo-idle.shyden.co.uk`.
 
 ## Licences
 

@@ -43,24 +43,24 @@ function request(url: string, authorization?: string): Request {
 
 describe('isProdHost', () => {
   it('matches the production hostnames exactly', () => {
-    expect(PROD_HOSTNAME).toBe('wordfarer.shyden.co.uk');
-    expect(PROD_API_HOSTNAME).toBe('api.wordfarer.shyden.co.uk');
-    expect(isProdHost('wordfarer.shyden.co.uk', PROD_HOSTNAME)).toBe(true);
-    expect(isProdHost('api.wordfarer.shyden.co.uk', PROD_API_HOSTNAME)).toBe(
+    expect(PROD_HOSTNAME).toBe('yawelo-idle.shyden.co.uk');
+    expect(PROD_API_HOSTNAME).toBe('api.yawelo-idle.shyden.co.uk');
+    expect(isProdHost('yawelo-idle.shyden.co.uk', PROD_HOSTNAME)).toBe(true);
+    expect(isProdHost('api.yawelo-idle.shyden.co.uk', PROD_API_HOSTNAME)).toBe(
       true,
     );
   });
 
   it('ignores case, as DNS does', () => {
-    expect(isProdHost('WordFarer.Shyden.CO.UK', PROD_HOSTNAME)).toBe(true);
+    expect(isProdHost('Yawelo-Idle.Shyden.CO.UK', PROD_HOSTNAME)).toBe(true);
   });
 
   it.each([
-    'dev.wordfarer.shyden.co.uk',
-    'wordfarer.shyden.co.uk.evil.com',
-    'evilwordfarer.shyden.co.uk',
-    'wordfarer.shyden.co',
-    'api.wordfarer.shyden.co.uk',
+    'dev.yawelo-idle.shyden.co.uk',
+    'yawelo-idle.shyden.co.uk.evil.com',
+    'evilyawelo-idle.shyden.co.uk',
+    'yawelo-idle.shyden.co',
+    'api.yawelo-idle.shyden.co.uk',
     '',
   ])('refuses the near-miss %j', (hostname) => {
     expect(isProdHost(hostname, PROD_HOSTNAME)).toBe(false);
@@ -121,18 +121,18 @@ describe('basicAuthOk', () => {
 });
 
 describe('gateWebRequest', () => {
-  const dev = 'https://dev.wordfarer.shyden.co.uk';
+  const dev = 'https://dev.yawelo-idle.shyden.co.uk';
 
   it('serves the production host untouched, without asking for a password', async () => {
     const { serve, calls } = recordingServe();
     const response = await gateWebRequest(
-      request('https://WORDFARER.shyden.co.uk/index.html'),
+      request('https://YAWELO-IDLE.shyden.co.uk/index.html'),
       undefined,
       serve,
     );
     expect(response.status).toBe(200);
     expect(response.headers.get('X-Robots-Tag')).toBeNull();
-    expect(calls).toEqual(['https://wordfarer.shyden.co.uk/index.html']);
+    expect(calls).toEqual(['https://yawelo-idle.shyden.co.uk/index.html']);
   });
 
   it.each([
@@ -201,7 +201,7 @@ describe('markApiRequest', () => {
   it('adds noindex to every response on a non-prod host, with no password', async () => {
     const { serve, calls } = recordingServe();
     const response = await markApiRequest(
-      request('https://dev-api.wordfarer.shyden.co.uk/health'),
+      request('https://dev-api.yawelo-idle.shyden.co.uk/health'),
       serve,
     );
     expect(response.status).toBe(200);
@@ -212,7 +212,7 @@ describe('markApiRequest', () => {
   it('serves blocking robots.txt on a non-prod host', async () => {
     const { serve, calls } = recordingServe();
     const response = await markApiRequest(
-      request('https://dev-api.wordfarer.shyden.co.uk/robots.txt'),
+      request('https://dev-api.yawelo-idle.shyden.co.uk/robots.txt'),
       serve,
     );
     expect(await response.text()).toBe(BLOCKING_ROBOTS_TXT);
@@ -224,7 +224,7 @@ describe('markApiRequest', () => {
     async (path) => {
       const { serve, calls } = recordingServe();
       const response = await markApiRequest(
-        request(`https://api.wordfarer.shyden.co.uk${path}`),
+        request(`https://api.yawelo-idle.shyden.co.uk${path}`),
         serve,
       );
       expect(response.headers.get('X-Robots-Tag')).toBeNull();

@@ -21,10 +21,10 @@
  */
 
 /** The production web hostname. Attaching it is the production pipeline's job. */
-export const PROD_HOSTNAME = 'wordfarer.shyden.co.uk';
+export const PROD_HOSTNAME = 'yawelo-idle.shyden.co.uk';
 
 /** The production sync API hostname. */
-export const PROD_API_HOSTNAME = 'api.wordfarer.shyden.co.uk';
+export const PROD_API_HOSTNAME = 'api.yawelo-idle.shyden.co.uk';
 
 /** Sent on every non-prod response: no index, no link crawl, no cached copy. */
 export const NO_INDEX = 'noindex, nofollow, noarchive';
@@ -35,7 +35,7 @@ export const REALM = 'Yawelo Idle Non-Prod';
 /** The robots.txt every non-prod host serves, without credentials. */
 export const BLOCKING_ROBOTS_TXT = [
   '# A non-prod Yawelo Idle environment, blocked from indexing.',
-  '# The public robots.txt is served only on wordfarer.shyden.co.uk.',
+  '# The public robots.txt is served only on yawelo-idle.shyden.co.uk.',
   'User-agent: *',
   'Disallow: /',
   '',
@@ -47,7 +47,7 @@ export type Serve = (request: Request) => Promise<Response>;
 /**
  * True only when `hostname` is exactly `prodHostname`, ignoring case (DNS
  * does). Exact equality, never a prefix or suffix test, so neither
- * `dev.wordfarer.shyden.co.uk` nor `wordfarer.shyden.co.uk.evil.com` passes.
+ * `dev.yawelo-idle.shyden.co.uk` nor `yawelo-idle.shyden.co.uk.evil.com` passes.
  */
 export function isProdHost(hostname: string, prodHostname: string): boolean {
   return hostname.length > 0 && hostname.toLowerCase() === prodHostname;
@@ -137,7 +137,7 @@ export function robotsResponse(): Response {
 export function challengeResponse(): Response {
   return new Response(
     'This is a non-prod Yawelo Idle environment for authorised testers. ' +
-      'The game is at https://wordfarer.shyden.co.uk.',
+      'The game is at https://yawelo-idle.shyden.co.uk.',
     {
       status: 401,
       headers: {
