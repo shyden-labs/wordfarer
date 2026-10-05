@@ -204,6 +204,16 @@ export function searchesWritten(code: string): number {
 export const absencesWritten = (code: string): number =>
   searchesWritten(code) + bareAbsencesWritten(code);
 
+/** `toBe(0)`, `toEqual(0)` or `toStrictEqual(0)`, as the code spells it. */
+const ZERO_TEXT = /\.\s*(?:toBe|toEqual|toStrictEqual)\s*\(\s*0\s*\)/g;
+
+/**
+ * How many zero assertions `code` writes, negated or not (#367): the text
+ * count the reader's `zeroAssertions` is checked against.
+ */
+export const zerosWritten = (code: string): number =>
+  code.match(ZERO_TEXT)?.length ?? 0;
+
 const FUNCTION_TEXT =
   /^(?:async\s*)?(?:function\b|(?:\([\s\S]*?\)|[\w$]+)\s*(?::[^=]+)?=>)/;
 

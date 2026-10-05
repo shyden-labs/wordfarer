@@ -18,6 +18,8 @@ import {
   scopeFor,
   type Change,
 } from '../../scripts/ci-scope';
+import { floorBreach } from '../floors';
+import { searched } from '../searched';
 
 /**
  * The docs-only fast path (#360). build-and-test classifies the change it
@@ -176,18 +178,24 @@ describe('the classification (AC1, AC4)', () => {
   });
 });
 
+/** Events whose run is full whatever the diff holds, so the diff is never read. */
+const FULL_EVENTS = ['push', 'workflow_dispatch', 'merge_group', ''] as const;
+
 describe('the event decides whether the fast path applies at all (AC3)', () => {
-  it.each(['push', 'workflow_dispatch', 'merge_group', ''])(
+  it.each(FULL_EVENTS)(
     'a %j event is full without reading the diff',
     (event) => {
-      let reads = 0;
+      const reads: string[] = [];
       const result = scopeFor(event, () => {
-        reads += 1;
+        reads.push(event);
         return z('M', 'HANDOVER.md');
       });
       expect(result.scope).toBe('full');
       expect(result.reason).toContain(JSON.stringify(event));
-      expect(reads).toBe(0);
+      expect(searched(reads, { of: FULL_EVENTS, what: 'events' })).toEqual([]);
+      expect(
+        floorBreach('ci-scope/full-events', FULL_EVENTS.length),
+      ).toBeUndefined();
     },
   );
 

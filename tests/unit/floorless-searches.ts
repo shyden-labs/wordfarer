@@ -445,6 +445,56 @@ export function searchSitesIn(sf: ts.SourceFile): SearchReading {
   };
 }
 
+/** The zero assertions in one file (#367). */
+export interface ZeroReading {
+  /**
+   * `toBe(0)`, `toEqual(0)` or `toStrictEqual(0)` on an expect chain, negated
+   * or not, read as a site or not: what the text count checks.
+   */
+  readonly zeroAssertions: number;
+  /**
+   * The non-negated ones `searchSitesIn` does not read as a site, by line: a
+   * count the parse tree cannot tell from an exit status or a game value
+   * without guessing from names, so a recorded floor ratchets them instead.
+   */
+  readonly scalarZeros: readonly string[];
+}
+
+export function scalarZerosIn(sf: ts.SourceFile): ZeroReading {
+  let zeroAssertions = 0;
+  const scalarZeros: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      chainRoot(node) === EXPECT
+    ) {
+      const name = node.expression.name.text;
+      const read = expectationOf(node.expression);
+      const subject = read?.expectation.arguments[0];
+      if (
+        read &&
+        subject &&
+        (name === 'toBe' || EQUALITY.has(name)) &&
+        isZero(node.arguments[0])
+      ) {
+        zeroAssertions += 1;
+        const isSite =
+          !startsFromWrapper(subject) &&
+          bareForm(name, node.arguments[0], subject, read.negated) !==
+            undefined;
+        if (!read.negated && !isSite)
+          scalarZeros.push(
+            `line ${String(sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1)}: ${node.getText(sf).replace(/\s+/g, ' ')}`,
+          );
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return { zeroAssertions, scalarZeros };
+}
+
 /** A site with the file it was read in. */
 export interface FiledSite {
   readonly file: string;

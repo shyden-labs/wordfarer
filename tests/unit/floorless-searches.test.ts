@@ -1,15 +1,22 @@
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { absencesWritten, callOpening, testsWritten } from './absence-text';
+import {
+  absencesWritten,
+  callOpening,
+  testsWritten,
+  zerosWritten,
+} from './absence-text';
 import { readFileSync } from 'node:fs';
 import {
   burnDownFindings,
+  scalarZerosIn,
   scopeKey,
   searchSitesIn,
   walkDisagreements,
   type FiledSite,
   type Form,
   type SearchReading,
+  type ZeroReading,
 } from './floorless-searches';
 import { UNPROVED } from './floorless-searches.burn-down';
 import { floorBreach } from '../floors';
@@ -319,6 +326,49 @@ describe('searchSitesIn: againstControl', () => {
       one({ form: 'control' }),
     );
   });
+});
+
+/** The scalar zeros a source holds, as the reader returns them (#367). */
+const ZERO_CASES = [
+  ['a scalar toBe(0)', 'expect(x).toBe(0);', ['line 1: expect(x).toBe(0)'], 1],
+  [
+    'a scalar toEqual(0)',
+    'expect(x).toEqual(0);',
+    ['line 1: expect(x).toEqual(0)'],
+    1,
+  ],
+  [
+    'a scalar toStrictEqual(0)',
+    'expect(x).toStrictEqual(0);',
+    ['line 1: expect(x).toStrictEqual(0)'],
+    1,
+  ],
+  [
+    'a soft scalar zero',
+    'expect.soft(x).toBe(0);',
+    ['line 1: expect.soft(x).toBe(0)'],
+    1,
+  ],
+  ['a length of 0, which is a site', 'expect(x.length).toBe(0);', [], 1],
+  ['a negated zero', 'expect(x).not.toBe(0);', [], 1],
+  ['toHaveLength(0), which is no scalar', 'expect(x).toHaveLength(0);', [], 0],
+  ['a non-zero', 'expect(x).toBe(1);', [], 0],
+] as const;
+
+describe('searchSitesIn: scalar zeros it does not read as sites (#367)', () => {
+  it.each(ZERO_CASES)('%s', (_name, source, scalarZeros, zeroAssertions) => {
+    expect(scalarZerosIn(parse(source))).toEqual({
+      scalarZeros,
+      zeroAssertions,
+    });
+  });
+
+  it.each(ZERO_CASES)(
+    'the text counts the zero assertions in %s',
+    (_name, source, _scalarZeros, zeroAssertions) => {
+      expect(zerosWritten(text(source))).toBe(zeroAssertions);
+    },
+  );
 });
 
 describe('searchSitesIn: refusal checks and refusals', () => {
@@ -702,7 +752,8 @@ describe('walkDisagreements', () => {
 let walked:
   | {
       files: string[];
-      readings: (SearchReading & { file: string; code: string })[];
+      readings: (SearchReading &
+        ZeroReading & { file: string; code: string })[];
       sites: (FiledSite & { form: Form })[];
       tests: string[];
     }
@@ -717,7 +768,12 @@ const repository = () => {
       ts.ScriptTarget.Latest,
       true,
     );
-    return { file, code: codeWithoutLiterals(sf), ...searchSitesIn(sf) };
+    return {
+      file,
+      code: codeWithoutLiterals(sf),
+      ...searchSitesIn(sf),
+      ...scalarZerosIn(sf),
+    };
   });
   walked = {
     files,
@@ -795,6 +851,36 @@ describe('the reader proves what it read (#361)', () => {
     ).toEqual([]);
     expect(
       floorBreach('floorless-searches/files', FILES.length),
+    ).toBeUndefined();
+  });
+
+  it('reads every zero assertion its text writes, and ratchets the scalar ones (#367)', () => {
+    const { readings, files: FILES } = repository();
+    // A scalar zero is a count the reader cannot tell from an exit status or
+    // a game value without guessing from names, so it is not a site. Its
+    // count is recorded instead, so a new one fails until it is read and
+    // recorded, and the count is checked per file against the text.
+    const misread = readings
+      .filter(
+        ({ code, zeroAssertions }) => zerosWritten(code) !== zeroAssertions,
+      )
+      .map(
+        ({ file, code, zeroAssertions }) =>
+          `${file}: ${String(zerosWritten(code))} written, ${String(zeroAssertions)} read`,
+      );
+    const ZEROS = readings.flatMap(({ file, scalarZeros }) =>
+      scalarZeros.map((zero) => `${file}: ${zero}`),
+    );
+    expect(
+      searched(misread, { of: FILES, what: 'TypeScript files' }),
+      misread.join('\n'),
+    ).toEqual([]);
+    expect(
+      floorBreach('floorless-searches/zero-checked-files', FILES.length),
+    ).toBeUndefined();
+    expect(
+      floorBreach('floorless-searches/scalar-zeros', ZEROS.length),
+      ZEROS.join('\n'),
     ).toBeUndefined();
   });
 

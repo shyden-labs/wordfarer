@@ -53,6 +53,10 @@ export interface RefusedCall {
 export interface CollectionScan {
   /** Describe callbacks read, nested ones included. */
   readonly describes: number;
+  /** The same callbacks, as `line N: title` (#367). */
+  readonly describeCallbacks: readonly string[];
+  /** Describe-family registrations the reader examined, with or without a callback: what it searched. */
+  readonly describeForms: number;
   /** Calls evaluated at collection or in a `beforeAll`, judged, refused or allowed. Test, hook and describe registrations are not judged. */
   readonly judged: number;
   /** Every judged call that can reach workspace code. */
@@ -418,7 +422,10 @@ const titleOf = (sf: ts.SourceFile, call: ts.CallExpression): string => {
 interface Sink {
   judge(call: CallLike, scope: string): void;
   unread(node: ts.Node, text: string): void;
-  describe(): void;
+  /** A describe registration of any form was examined. */
+  describeForm(): void;
+  /** A describe callback was read. */
+  describe(call: ts.CallExpression, title: string): void;
   stopped(): boolean;
 }
 
@@ -507,6 +514,7 @@ export function scanCollection(
       return;
     }
     if (registration.name !== 'describe') return;
+    sink.describeForm();
     const { form } = registration;
     if (!registration.members.every((member) => DESCRIBE_MEMBERS.has(member))) {
       sink.unread(call, `${form} is not a known describe form`);
@@ -519,7 +527,7 @@ export function scanCollection(
       sink.unread(call, `${form}('${title}') has no inline callback to read`);
       return;
     }
-    sink.describe();
+    sink.describe(call, title);
     walk(callback.body, inner(title), sink);
   };
 
@@ -558,6 +566,7 @@ export function scanCollection(
       unread: (_node, text) => {
         found ??= { kind: 'unread', text };
       },
+      describeForm: () => undefined,
       describe: () => undefined,
       stopped: () => found !== null,
     });
@@ -613,7 +622,8 @@ export function scanCollection(
     return judgeArguments(call, visited);
   };
 
-  let describes = 0;
+  const describeCallbacks: string[] = [];
+  let describeForms = 0;
   let judged = 0;
   const refused: RefusedCall[] = [];
   const unclassified: string[] = [];
@@ -634,10 +644,20 @@ export function scanCollection(
     unread: (node, text) => {
       unclassified.push(`line ${String(lineOf(node))}: ${text}`);
     },
-    describe: () => {
-      describes += 1;
+    describeForm: () => {
+      describeForms += 1;
+    },
+    describe: (call, title) => {
+      describeCallbacks.push(`line ${String(lineOf(call))}: ${title}`);
     },
     stopped: () => false,
   });
-  return { describes, judged, refused, unclassified };
+  return {
+    describes: describeCallbacks.length,
+    describeCallbacks,
+    describeForms,
+    judged,
+    refused,
+    unclassified,
+  };
 }
