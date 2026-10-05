@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -132,6 +133,8 @@ const deploySteps = (): Step[] => {
 
 describe('the dev D1 database, created by the pipeline (#357 AC1)', () => {
   const DATABASE = 'yawelo-idle-dev';
+  /** Written at deploy beside wrangler.jsonc by scripts/d1-binding.ts. */
+  const DEPLOY_CONFIG = 'wrangler.deploy.jsonc';
 
   it('is bound by name alone, with no id copied in by hand', () => {
     expect(byName('yawelo-idle-sync-dev').d1_databases).toEqual([
@@ -149,12 +152,49 @@ describe('the dev D1 database, created by the pipeline (#357 AC1)', () => {
     );
     const migrate = runs.findIndex(
       ({ run }) =>
-        run === `npx wrangler d1 migrations apply ${DATABASE} --remote`,
+        run ===
+        `npx wrangler d1 migrations apply ${DATABASE} --remote --config ${DEPLOY_CONFIG}`,
     );
     expect(create).toBeGreaterThanOrEqual(0);
     expect(runs[create]?.cwd).toBeUndefined();
     expect(migrate).toBeGreaterThan(create);
     expect(runs[migrate]?.cwd).toBe('apps/sync-worker');
+  });
+
+  it('is bound by id at deploy: resolved after it exists, then read by the migrations and the sync deploy (#391)', () => {
+    const runs = deploySteps().map((step) => ({
+      run: runOf(step),
+      cwd: step['working-directory'],
+    }));
+    const create = runs.findIndex(
+      ({ run }) => run === `node scripts/ensure-d1.ts ${DATABASE} apac`,
+    );
+    const bind = runs.findIndex(
+      ({ run }) =>
+        run ===
+        `node scripts/d1-binding.ts ${DATABASE} apps/sync-worker/wrangler.jsonc apps/sync-worker/${DEPLOY_CONFIG}`,
+    );
+    const migrate = runs.findIndex(({ run }) =>
+      run.startsWith(`npx wrangler d1 migrations apply ${DATABASE} `),
+    );
+    const deploy = runs.findIndex(
+      ({ run }) =>
+        run ===
+        `npx wrangler deploy --config ${DEPLOY_CONFIG} --var "COMMIT:\${GITHUB_SHA}"`,
+    );
+    expect(create).toBeGreaterThanOrEqual(0);
+    expect(bind).toBeGreaterThan(create);
+    expect(runs[bind]?.cwd).toBeUndefined();
+    expect(migrate).toBeGreaterThan(bind);
+    expect(deploy).toBeGreaterThan(migrate);
+    expect(runs[deploy]?.cwd).toBe('apps/sync-worker');
+  });
+
+  it('keeps the generated deploy config, which holds the id, out of git (#391)', () => {
+    const ignored = (path: string) =>
+      spawnSync('git', ['check-ignore', '--quiet', path], { cwd: ROOT }).status;
+    expect(ignored(`apps/sync-worker/${DEPLOY_CONFIG}`)).toBe(0);
+    expect(ignored('apps/sync-worker/wrangler.jsonc')).toBe(1);
   });
 });
 

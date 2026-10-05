@@ -22,10 +22,20 @@ import { execFileSync } from 'node:child_process';
 /** Runs `wrangler <args>` and returns what it printed on stdout. */
 export type Wrangler = (args: readonly string[]) => string;
 
-const LIST = ['d1', 'list', '--json'] as const;
+/**
+ * The real wrangler, run from the current directory. A non-zero exit throws,
+ * carrying wrangler's own stderr (inherited).
+ */
+export const wranglerCli: Wrangler = (args) =>
+  execFileSync('npx', ['wrangler', ...args], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'inherit'],
+  });
 
-/** The names in `wrangler d1 list --json`'s output; anything else refused. */
-export function databaseNames(listJson: string): string[] {
+export const LIST = ['d1', 'list', '--json'] as const;
+
+/** The entries of `wrangler d1 list --json`'s output, which must be a list. */
+export function databaseList(listJson: string): unknown[] {
   let parsed: unknown;
   try {
     parsed = JSON.parse(listJson);
@@ -36,7 +46,12 @@ export function databaseNames(listJson: string): string[] {
   }
   if (!Array.isArray(parsed))
     throw new Error('wrangler d1 list --json did not print a list');
-  return parsed.map((entry: unknown) => {
+  return parsed;
+}
+
+/** The names in `wrangler d1 list --json`'s output; anything else refused. */
+export function databaseNames(listJson: string): string[] {
+  return databaseList(listJson).map((entry: unknown) => {
     const name: unknown =
       typeof entry === 'object' && entry !== null
         ? (entry as { name?: unknown }).name
@@ -98,13 +113,7 @@ if (import.meta.main) {
     throw new Error(
       'usage: node scripts/ensure-d1.ts <database-name> <location>',
     );
-  // A non-zero exit throws, carrying wrangler's own stderr (inherited).
-  const wrangler: Wrangler = (args) =>
-    execFileSync('npx', ['wrangler', ...args], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'inherit'],
-    });
-  const outcome = ensureDatabase(name, location, wrangler);
+  const outcome = ensureDatabase(name, location, wranglerCli);
   console.log(
     outcome === 'found'
       ? `✓ D1 database ${name} exists`
