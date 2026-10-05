@@ -13,6 +13,7 @@
   "scripts": {
     "postinstall": "npm run types --workspace @wordfarer/sync-worker --workspace @wordfarer/web",
     "test:unit": "vitest run",
+    "floors:record": "node scripts/record-floors.ts",
     "test:worker": "npm run test --workspace @wordfarer/sync-worker --workspace @wordfarer/web",
     "test:pacing": "vitest run -c vitest.pacing.config.ts",
     "test:engines": "playwright test -c playwright.engines.config.ts",
