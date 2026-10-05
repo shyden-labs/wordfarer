@@ -57,6 +57,7 @@ describe('isProdHost', () => {
 
   it.each([
     'dev.yawelo-idle.shyden.co.uk',
+    'yawelo-idle-web-dev.shyden-labs-dev.workers.dev',
     'yawelo-idle.shyden.co.uk.evil.com',
     'evilyawelo-idle.shyden.co.uk',
     'yawelo-idle.shyden.co',
@@ -121,7 +122,7 @@ describe('basicAuthOk', () => {
 });
 
 describe('gateWebRequest', () => {
-  const dev = 'https://dev.yawelo-idle.shyden.co.uk';
+  const dev = 'https://yawelo-idle-web-dev.shyden-labs-dev.workers.dev';
 
   it('serves the production host untouched, without asking for a password', async () => {
     const { serve, calls } = recordingServe();
@@ -201,7 +202,9 @@ describe('markApiRequest', () => {
   it('adds noindex to every response on a non-prod host, with no password', async () => {
     const { serve, calls } = recordingServe();
     const response = await markApiRequest(
-      request('https://dev-api.yawelo-idle.shyden.co.uk/health'),
+      request(
+        'https://yawelo-idle-sync-dev.shyden-labs-dev.workers.dev/health',
+      ),
       serve,
     );
     expect(response.status).toBe(200);
@@ -212,7 +215,9 @@ describe('markApiRequest', () => {
   it('serves blocking robots.txt on a non-prod host', async () => {
     const { serve, calls } = recordingServe();
     const response = await markApiRequest(
-      request('https://dev-api.yawelo-idle.shyden.co.uk/robots.txt'),
+      request(
+        'https://yawelo-idle-sync-dev.shyden-labs-dev.workers.dev/robots.txt',
+      ),
       serve,
     );
     expect(await response.text()).toBe(BLOCKING_ROBOTS_TXT);

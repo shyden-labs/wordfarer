@@ -34,6 +34,7 @@ const SCRIPTS = [
   'scripts/every-commit.ts',
   'scripts/record-floors.ts',
   'scripts/third-party-notices.ts',
+  'scripts/token-reach.ts',
   'scripts/verify-dev.ts',
 ] as const;
 

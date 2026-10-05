@@ -5,15 +5,13 @@
   "name": "yawelo-idle-sync-dev",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-30",
-  // Served only at its Custom Domain (#39): the *.workers.dev address would
-  // be a second way in, outside the hostname the gate and the verify know.
-  "workers_dev": false,
+  // The sync API at yawelo-idle-sync-dev.shyden-labs-dev.workers.dev, in the
+  // "Shyden Labs Dev" account, which holds dev only (#395): no dev credential
+  // may reach the production account that holds the shyden.co.uk zone, so dev
+  // has no Custom Domain. Not password-gated: the Worker marks non-prod
+  // responses noindex instead (src/index.ts). No preview URLs.
+  "workers_dev": true,
   "preview_urls": false,
-  // The sync API at dev-api.yawelo-idle.shyden.co.uk (#39). Not password-gated:
-  // the Worker marks non-prod responses noindex instead (src/index.ts).
-  "routes": [
-    { "pattern": "dev-api.yawelo-idle.shyden.co.uk", "custom_domain": true },
-  ],
   "vars": {
     // Overwritten at deploy time with `--var COMMIT:<sha>`, so /health can
     // prove which commit is live. "local" never matches a SHA.

@@ -129,7 +129,7 @@ Create and install the read-only App, and create the two org webhooks. Each webh
 
 ### 7.2 One hostname, two apps
 
-The site Worker owns `dev.yawelo-idle.shyden.co.uk` now and `yawelo-idle.shyden.co.uk` in production. It forwards `/play/*` to the game Worker through a **service binding**. The game Worker gives up its Custom Domain and keeps `workers_dev: false`, so the binding is its only way in. The dev password gate moves to the site Worker, the front door, and `apps/web/test/gate.test.ts` moves with it. Before launch, `/play/` shows "coming soon" with links to the roadmap and the list.
+The site Worker owns `yawelo-idle.shyden.co.uk` in production. **Amended 2026-10-05 (#395):** dev lives in the dev-only "Shyden Labs Dev" account with no zone, so on dev the site Worker is the front door at its own workers.dev address (it no longer owns `dev.yawelo-idle.shyden.co.uk`). It forwards `/play/*` to the game Worker through a **service binding**. The game Worker gives up its Custom Domain and keeps `workers_dev: false`, so the binding is its only way in. The dev password gate moves to the site Worker, the front door, and `apps/web/test/gate.test.ts` moves with it. Before launch, `/play/` shows "coming soon" with links to the roadmap and the list.
 
 ### 7.3 Data flow
 

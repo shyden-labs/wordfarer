@@ -1,6 +1,7 @@
 // The DEV web app: a Worker with static assets (spec D9, as amended
 // 2026-10-01: Cloudflare now folds Pages into Workers), served at
-// dev.yawelo-idle.shyden.co.uk behind the shared dev password (#39).
+// yawelo-idle-web-dev.shyden-labs-dev.workers.dev behind the shared dev
+// password (#39, #395).
 //
 // Cloudflare serves a matching asset WITHOUT invoking a Worker unless
 // `run_worker_first` is set, so the gate in worker/index.ts would never see
@@ -11,13 +12,13 @@
   "name": "yawelo-idle-web-dev",
   "main": "worker/index.ts",
   "compatibility_date": "2026-09-30",
-  // Served only at its Custom Domain (#39): the *.workers.dev address would
-  // be a second way in, outside the hostname the gate and the verify know.
-  "workers_dev": false,
+  // Deployed to the "Shyden Labs Dev" account, which holds dev only (#395):
+  // the shyden.co.uk zone sits in the production account, and no dev
+  // credential may reach it, so dev has no Custom Domain and is served at its
+  // workers.dev address alone. The gate in worker/index.ts guards every host
+  // but production's. No preview URLs: one address, the one verify knows.
+  "workers_dev": true,
   "preview_urls": false,
-  "routes": [
-    { "pattern": "dev.yawelo-idle.shyden.co.uk", "custom_domain": true },
-  ],
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
