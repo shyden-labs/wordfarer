@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { floorBreach } from '../floors';
-import { trackedFiles } from './tracked-files';
+import { committableFiles } from './tracked-files';
 
 /**
  * Every script with an `import.meta.main` entry loads under Node's own
@@ -40,11 +40,12 @@ const SCRIPTS = [
 
 describe('the scripts load under Node’s own loader (#391)', () => {
   it('lists every script with a main, as git has them, at the recorded floor', () => {
-    const derived = trackedFiles().filter(isScript).filter(hasMain);
+    const derived = committableFiles().filter(isScript).filter(hasMain);
     const grep = spawnSync(
       'git',
       [
         'grep',
+        '--untracked',
         '-l',
         '--fixed-strings',
         'import.meta.main',

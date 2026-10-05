@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { scanTests, type LoopedCase, type TestScan } from './one-test-per-case';
 import { minus } from './burn-down';
-import { trackedFiles } from './tracked-files';
+import { committableFiles } from './tracked-files';
 
 /**
  * One test per case (operator, 2026-10-02; Refs #58).
@@ -363,7 +363,7 @@ const RAW_TEST_CALL = /(^|[^\w.$])(it|test)(\.\w+)*\s*\(/m;
 
 /** Every tracked test file and what the detector read in it, scanned inside each test, never at collection. */
 const scan = () => {
-  const files = trackedFiles().filter((path) => TEST_FILE.test(path));
+  const files = committableFiles().filter((path) => TEST_FILE.test(path));
   const read = files.map((file) => {
     const source = readFileSync(file, 'utf8');
     return { file, source, scan: scanTests(source, file) };
@@ -386,7 +386,7 @@ const scan = () => {
 };
 
 describe('the suite', () => {
-  it('scans every tracked test file, this one included', () => {
+  it('scans every committable test file, this one included', () => {
     const { files } = scan();
     expect(files).toContain('tests/unit/one-test-per-case.test.ts');
     expect(files).toContain('tests/engines/golden-vectors.spec.ts');

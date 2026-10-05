@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
-import { trackedFiles } from './tracked-files';
+import { committableFiles } from './tracked-files';
 
 /**
  * The licence set promised by spec D17 is present and is the real text
@@ -73,9 +73,9 @@ const DISSOLVED = /shyden[\s_-]*(?:ltd|limited)\b/i;
 const OLD_COMPANY = ['Shyden', 'Ltd'].join(' ');
 const OLD_HANDLE = ['Shyden', 'Ltd'].join('-');
 
-/** Every tracked text file, read from disk (a NUL byte marks binary). */
-const trackedText = () =>
-  trackedFiles()
+/** Every committable text file, read from disk (a NUL byte marks binary). */
+const committableText = () =>
+  committableFiles()
     .filter((path) => existsSync(path))
     .map((path) => ({ path, text: readFileSync(path, 'utf8') }))
     .filter(({ text }) => !text.includes('\0'));
@@ -95,8 +95,8 @@ describe('the rights holder is Shyden Labs (Refs #49)', () => {
     expect(DISSOLVED.test('Shyden Labs and shyden-labs')).toBe(false);
   });
 
-  it('no tracked file names the dissolved company or its old org handle', () => {
-    const files = trackedText();
+  it('no committable file names the dissolved company or its old org handle', () => {
+    const files = committableText();
     expect(
       files.map(({ path }) => path),
       'positive control: the sweep reads the whole repo',
