@@ -1,7 +1,7 @@
-# @wordfarer/bots
+# @yawelo-idle/bots
 
-Simulated players for Wordfarer's pacing (M1 design §6, #35). They play the
-real `@wordfarer/core` and decide only from `view`, as a UI would. Every
+Simulated players for Yawelo Idle's pacing (M1 design §6, #35). They play the
+real `@yawelo-idle/core` and decide only from `view`, as a UI would. Every
 action goes through `apply`. On every CI run they check that the game's pace
 meets the spec.
 

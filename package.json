@@ -1,5 +1,5 @@
 {
-  "name": "wordfarer",
+  "name": "yawelo-idle",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
@@ -11,10 +11,10 @@
     "packages/*"
   ],
   "scripts": {
-    "postinstall": "npm run types --workspace @wordfarer/sync-worker --workspace @wordfarer/web",
+    "postinstall": "npm run types --workspace @yawelo-idle/sync-worker --workspace @yawelo-idle/web",
     "test:unit": "vitest run",
     "floors:record": "node scripts/record-floors.ts",
-    "test:worker": "npm run test --workspace @wordfarer/sync-worker --workspace @wordfarer/web",
+    "test:worker": "npm run test --workspace @yawelo-idle/sync-worker --workspace @yawelo-idle/web",
     "test:pacing": "vitest run -c vitest.pacing.config.ts",
     "test:engines": "playwright test -c playwright.engines.config.ts",
     "lint": "eslint . --max-warnings 0",
@@ -22,7 +22,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "build": "npm run build --workspaces --if-present",
-    "golden-log": "esbuild scripts/golden-log.ts --bundle --platform=node --format=esm --log-level=warning --outfile=node_modules/.cache/wordfarer/golden-log.mjs && node node_modules/.cache/wordfarer/golden-log.mjs",
+    "golden-log": "esbuild scripts/golden-log.ts --bundle --platform=node --format=esm --log-level=warning --outfile=node_modules/.cache/yawelo-idle/golden-log.mjs && node node_modules/.cache/yawelo-idle/golden-log.mjs",
     "notices": "node scripts/third-party-notices.ts",
     "pacing:calibrate": "node scripts/pacing-calibrate.ts",
     "pacing:sweep": "node scripts/pacing-sweep.ts"

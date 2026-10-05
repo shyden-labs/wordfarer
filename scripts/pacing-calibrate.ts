@@ -11,7 +11,7 @@ import { hookGoals } from './goal-hook.ts';
  * Arguments pass through: `-- --gap-days 2.2 --first-minutes 45`.
  */
 
-const OUT = 'node_modules/.cache/wordfarer/pacing-calibrate.mjs';
+const OUT = 'node_modules/.cache/yawelo-idle/pacing-calibrate.mjs';
 
 await build({
   entryPoints: ['scripts/pacing-calibrate-main.ts'],

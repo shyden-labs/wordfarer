@@ -18,7 +18,7 @@ import {
  */
 
 interface GoldenGlobal {
-  wordfarerGolden: { digest(fn: GoldenFunction): string };
+  yaweloIdleGolden: { digest(fn: GoldenFunction): string };
 }
 
 let bundle = '';
@@ -33,14 +33,14 @@ test.beforeAll(async () => {
     bundle: true,
     write: false,
     format: 'iife',
-    globalName: 'wordfarerGolden',
+    globalName: 'yaweloIdleGolden',
     platform: 'browser',
     mainFields: ['module', 'main'],
     logLevel: 'error',
   });
   bundle = result.outputFiles[0]?.text ?? '';
   // Liveness: esbuild produced the global the page will call.
-  expect(bundle).toContain('wordfarerGolden');
+  expect(bundle).toContain('yaweloIdleGolden');
 });
 
 for (const fn of FUNCTIONS)
@@ -52,7 +52,7 @@ for (const fn of FUNCTIONS)
     await page.addScriptTag({ content: bundle });
     const engine = await page.evaluate(
       (name) =>
-        (globalThis as unknown as GoldenGlobal).wordfarerGolden.digest(name),
+        (globalThis as unknown as GoldenGlobal).yaweloIdleGolden.digest(name),
       fn,
     );
     expect(engine, `${browserName}: ${fn}`).toBe(digest(fn));

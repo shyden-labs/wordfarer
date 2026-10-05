@@ -8,7 +8,7 @@
  * 1. The web host answers 401 with a Basic challenge and none of the app,
  *    both without credentials and with a wrong password.
  * 2. Its robots.txt blocks every crawler, without credentials.
- * 3. With the password, the page carries `wordfarer-commit` = the expected SHA
+ * 3. With the password, the page carries `yawelo-idle-commit` = the expected SHA
  *    and the noindex header.
  * 4. The sync API's /health reports ok, that SHA and db "ok", with the
  *    noindex header (the API is not password-gated, by operator decision).
@@ -41,7 +41,7 @@ export interface Target {
 
 export const NO_INDEX = 'noindex, nofollow, noarchive';
 
-const COMMIT_STAMP = /<meta name="wordfarer-commit" content="([^"]*)"/;
+const COMMIT_STAMP = /<meta name="yawelo-idle-commit" content="([^"]*)"/;
 
 /** Any sign that a response carries the app rather than a challenge. */
 const APP_MARKUP = /<(?:!doctype|html|meta|script)\b/i;
@@ -100,7 +100,7 @@ export function webProblems(probe: Probe, sha: string): string[] {
   const stamp = COMMIT_STAMP.exec(probe.body)?.[1];
   return [
     ...(stamp === undefined
-      ? ['web: no wordfarer-commit meta tag in the page']
+      ? ['web: no yawelo-idle-commit meta tag in the page']
       : stamp === sha
         ? []
         : [`web: serves commit ${stamp}, expected ${sha}`]),
@@ -186,7 +186,7 @@ function webCommit(probe: Probe): Reported {
     };
   const stamp = COMMIT_STAMP.exec(probe.body)?.[1];
   return stamp === undefined
-    ? { problem: 'web: no wordfarer-commit meta tag in the page' }
+    ? { problem: 'web: no yawelo-idle-commit meta tag in the page' }
     : { commit: stamp };
 }
 

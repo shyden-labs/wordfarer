@@ -55,7 +55,7 @@ describe('the licence set (D17)', () => {
 
   it('the notice and the trademark reservation are present', () => {
     expect(existsSync('NOTICE'), 'Apache-2.0 section 4(d)').toBe(true);
-    expect(firstLine('NOTICE')).toBe('Wordfarer');
+    expect(firstLine('NOTICE')).toBe('Yawelo Idle');
     expect(firstLine('TRADEMARKS.md')).toBe('# Trademarks');
   });
 });
@@ -130,6 +130,6 @@ describe('the rights holder is Shyden Labs (Refs #49)', () => {
 
     const content = readFileSync('LICENSE-CONTENT.md', 'utf8');
     expect(content).toContain('Original work by Shyden Labs:');
-    expect(content).toContain('**"Wordfarer, Shyden Labs"**');
+    expect(content).toContain('**"Yawelo Idle, Shyden Labs"**');
   });
 });

@@ -53,8 +53,8 @@ jobs:
         run: npx wrangler deploy --var "COMMIT:${GITHUB_SHA}"
       - name: Build the web app, stamped with this commit
         env:
-          WORDFARER_COMMIT: ${{ github.sha }}
-        run: npm run build --workspace @wordfarer/web
+          YAWELO_IDLE_COMMIT: ${{ github.sha }}
+        run: npm run build --workspace @yawelo-idle/web
       - name: Deploy the web app
         working-directory: apps/web
         run: npx wrangler deploy

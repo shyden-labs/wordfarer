@@ -27,7 +27,7 @@ import {
  */
 
 const MAX_DAYS = 84;
-const BUNDLE = 'node_modules/.cache/wordfarer/pacing-play.mjs';
+const BUNDLE = 'node_modules/.cache/yawelo-idle/pacing-play.mjs';
 const REPORT = 'pacing-report.json';
 
 /** The asserted personas, written out: a population known before the run. */

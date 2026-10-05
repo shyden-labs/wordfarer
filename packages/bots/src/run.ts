@@ -15,7 +15,7 @@ import {
   type GameState,
   type View,
   view,
-} from '@wordfarer/core';
+} from '@yawelo-idle/core';
 import { Player } from './player';
 import type { Persona } from './personas';
 import { dayOpens, DAY_MS, QUICK_RETURN_MS, WAKE_MS } from './schedule';

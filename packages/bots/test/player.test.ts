@@ -12,11 +12,11 @@ import {
   type Course,
   type GameEvent,
   type GameState,
-} from '@wordfarer/core';
+} from '@yawelo-idle/core';
 import {
   BOT_EPOCH_WALL_MS,
   syntheticCourse,
-} from '@wordfarer/core/fixtures/synthetic-course';
+} from '@yawelo-idle/core/fixtures/synthetic-course';
 import { Player, STEP_MS } from '../src/player';
 import { persona } from '../src/personas';
 import { QUICK_RETURN_MS } from '../src/schedule';
@@ -143,13 +143,13 @@ describe('the player reads nothing but view (AC3)', () => {
 
   it('the player imports from core only apply, view and what they take', () => {
     expect(valueImports('packages/bots/src/player.ts')).toEqual({
-      '@wordfarer/core': ['Num', 'PROMPT_TYPES', 'apply', 'view', 'wallMs'],
+      '@yawelo-idle/core': ['Num', 'PROMPT_TYPES', 'apply', 'view', 'wallMs'],
     });
   });
 
   it('the run starts the game and reads the state only to measure, through view for when each goal was reached', () => {
     expect(valueImports('packages/bots/src/run.ts')).toEqual({
-      '@wordfarer/core': ['Num', 'initialState', 'view', 'wallMs'],
+      '@yawelo-idle/core': ['Num', 'initialState', 'view', 'wallMs'],
       './player': ['Player'],
       './schedule': ['DAY_MS', 'QUICK_RETURN_MS', 'WAKE_MS', 'dayOpens'],
       './streams': ['Streams'],

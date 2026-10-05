@@ -18,7 +18,7 @@ import ts from 'typescript';
  *
  * Each call there is judged by its root name, resolved through the file's
  * scopes. Workspace code enters a test file only through an import, so:
- * - an import of a relative path or an `@wordfarer/` package is REFUSED,
+ * - an import of a relative path or an `@yawelo-idle/` package is REFUSED,
  *   apart from the clock brands `simMs` and `wallMs` imported from a clock
  *   module, each one integer check that calls nothing else;
  * - a function declared in the file is followed into its body, under the same
@@ -140,7 +140,7 @@ const CLOCK_BRANDS = new Set(['simMs', 'wallMs']);
 /** Packages whose function arguments run later, inside the property, never at collection. */
 const LAZY_PACKAGES = new Set(['fast-check']);
 
-const CORE_PACKAGE = '@wordfarer/core';
+const CORE_PACKAGE = '@yawelo-idle/core';
 
 type Binding =
   | {
@@ -180,7 +180,7 @@ const isFunctionValue = (
   ts.isArrowFunction(node) || ts.isFunctionExpression(node);
 
 const isWorkspace = (specifier: string): boolean =>
-  specifier.startsWith('.') || specifier.startsWith('@wordfarer/');
+  specifier.startsWith('.') || specifier.startsWith('@yawelo-idle/');
 
 const isClockBrand = (binding: Binding | undefined): boolean =>
   binding?.kind === 'import' &&

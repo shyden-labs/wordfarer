@@ -9,7 +9,7 @@
 
 export const GOAL_ANCHOR = '  const base = goals[i];';
 export const GOAL_HOOK =
-  '  const base = ((globalThis as { __WORDFARER_GOALS?: readonly number[] }).__WORDFARER_GOALS ?? goals)[i];';
+  '  const base = ((globalThis as { __YAWELO_IDLE_GOALS?: readonly number[] }).__YAWELO_IDLE_GOALS ?? goals)[i];';
 
 export function hookGoals(source: string): string {
   const found = source.split(GOAL_ANCHOR).length - 1;

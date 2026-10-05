@@ -2,12 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { stampCommit } from './commit-stamp';
 
 const SHA = 'd547bd669678987eb85b5807d1a26ea55eaeb987';
-const page = '<meta name="wordfarer-commit" content="%WORDFARER_COMMIT%" />';
+const page =
+  '<meta name="yawelo-idle-commit" content="%YAWELO_IDLE_COMMIT%" />';
 
 describe('stampCommit', () => {
   it('writes a full SHA into the placeholder', () => {
     expect(stampCommit(page, SHA)).toBe(
-      `<meta name="wordfarer-commit" content="${SHA}" />`,
+      `<meta name="yawelo-idle-commit" content="${SHA}" />`,
     );
   });
 

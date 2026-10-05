@@ -143,13 +143,13 @@ describe('scanModule refuses what it cannot place in the graph, by name', () => 
     ],
     [
       'core importing its own package by name',
-      "import { x } from '@wordfarer/core';",
-      "a.ts:1: '@wordfarer/core' names core's own package, which loads index.ts behind the graph's back; import the module relatively",
+      "import { x } from '@yawelo-idle/core';",
+      "a.ts:1: '@yawelo-idle/core' names core's own package, which loads index.ts behind the graph's back; import the module relatively",
     ],
     [
       'core importing a subpath of its own package',
-      "import { x } from '@wordfarer/core/sim';",
-      "a.ts:1: '@wordfarer/core/sim' names core's own package, which loads index.ts behind the graph's back; import the module relatively",
+      "import { x } from '@yawelo-idle/core/sim';",
+      "a.ts:1: '@yawelo-idle/core/sim' names core's own package, which loads index.ts behind the graph's back; import the module relatively",
     ],
   ])('%s', (_label, source, refusal) => {
     expect(scanModule('a.ts', source).refused).toEqual([refusal]);

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestHarness } from 'wrangler';
-import { BLOCKING_ROBOTS_TXT, NO_INDEX } from '@wordfarer/lockdown';
+import { BLOCKING_ROBOTS_TXT, NO_INDEX } from '@yawelo-idle/lockdown';
 
 /**
  * The dev web Worker, served by wrangler's test harness from the real
@@ -66,7 +66,7 @@ describe('the dev web Worker gate, through the asset router', () => {
     const response = await get(`${DEV}/`, authorised);
     expect(response.status).toBe(200);
     expect(response.headers.get('X-Robots-Tag')).toBe(NO_INDEX);
-    expect(await response.text()).toContain('<meta name="wordfarer-commit"');
+    expect(await response.text()).toContain('<meta name="yawelo-idle-commit"');
   });
 
   it.each([
@@ -79,7 +79,7 @@ describe('the dev web Worker gate, through the asset router', () => {
       const response = await get(`${DEV}${path}`, headers);
       expect(response.status).toBe(401);
       expect(response.headers.get('WWW-Authenticate')).toBe(
-        'Basic realm="Wordfarer Non-Prod"',
+        'Basic realm="Yawelo Idle Non-Prod"',
       );
       expect(response.headers.get('X-Robots-Tag')).toBe(NO_INDEX);
       const body = await response.text();
@@ -106,7 +106,7 @@ describe('the dev web Worker gate, through the asset router', () => {
   it('serves index.html for a client route once authorised', async () => {
     const response = await get(`${DEV}/some/client/route`, authorised);
     expect(response.status).toBe(200);
-    expect(await response.text()).toContain('<meta name="wordfarer-commit"');
+    expect(await response.text()).toContain('<meta name="yawelo-idle-commit"');
   });
 
   it('passes the production host through untouched', async () => {

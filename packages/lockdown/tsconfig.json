@@ -1,5 +1,5 @@
 {
-  // @wordfarer/lockdown runs in workerd (the dev Workers) and in Node (its
+  // @yawelo-idle/lockdown runs in workerd (the dev Workers) and in Node (its
   // unit tests), so it sees only the web platform APIs both share: fetch
   // types, atob, TextEncoder/TextDecoder and crypto.subtle. `types: []` keeps
   // the hoisted @types/node out, so a Node-only API cannot typecheck here.
