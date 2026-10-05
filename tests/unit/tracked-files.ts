@@ -9,3 +9,26 @@ export const trackedFiles = (): string[] =>
   execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' })
     .split('\0')
     .filter((path) => path !== '');
+
+/**
+ * Every path git tracks or would track at the next `git add -A`: tracked,
+ * plus untracked and not ignored. A test file written before its `git add`
+ * is in it, so a count over it does not move when the file is committed.
+ * `pathspecs` narrow it with git's own globs, `'*.ts'` matching at any depth.
+ */
+export const committableFiles = (pathspecs: readonly string[] = []): string[] =>
+  execFileSync(
+    'git',
+    [
+      'ls-files',
+      '-z',
+      '--cached',
+      '--others',
+      '--exclude-standard',
+      '--',
+      ...pathspecs,
+    ],
+    { encoding: 'utf8' },
+  )
+    .split('\0')
+    .filter((path) => path !== '');
