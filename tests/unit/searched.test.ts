@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { floorBreach } from '../floors';
-import { searched } from '../searched';
+import { againstControl, searched } from '../searched';
 
 /**
  * `searched` puts the population a finding list was drawn from inside the
@@ -77,5 +77,46 @@ describe('searched', () => {
     expect(() => searched([], { of: count, what: 'rows' })).toThrow(
       /searched no rows/,
     );
+  });
+});
+
+/** Splits on commas: nothing in, nothing out, and one word per field. */
+const fields = (line: string): string[] =>
+  line.split(',').filter((field) => field !== '');
+
+describe('againstControl', () => {
+  it('returns what the run finds in the empty input', () => {
+    expect(againstControl(fields, { input: '', control: 'a,b' })).toEqual([]);
+  });
+
+  it('runs the control first, then the input, and returns the input’s result', () => {
+    const seen: string[] = [];
+    const run = (given: string): string[] => {
+      seen.push(given);
+      return fields(given);
+    };
+    expect(againstControl(run, { input: '', control: 'x' })).toEqual([]);
+    expect(seen).toEqual(['x', '']);
+  });
+
+  it('refuses an input with content: a population checks a floor instead', () => {
+    expect(() =>
+      againstControl(fields, { input: 'a', control: 'a,b' }),
+    ).toThrow(/againstControl is for an empty input/);
+  });
+
+  it('refuses a control that finds nothing: a dead run passes otherwise', () => {
+    expect(() => againstControl(fields, { input: '', control: ',' })).toThrow(
+      /the control found nothing/,
+    );
+  });
+
+  it('leaves a run that ignores its input to fail the absence assertion', () => {
+    // Its control finds something, so its input finds the same thing, and
+    // the `toEqual([])` a real use writes would fail.
+    const ignoring = (): string[] => ['always'];
+    expect(againstControl(ignoring, { input: '', control: 'a' })).toEqual([
+      'always',
+    ]);
   });
 });

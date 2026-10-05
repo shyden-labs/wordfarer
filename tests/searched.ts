@@ -54,3 +54,36 @@ function isSubstantive(member: unknown): boolean {
   if (typeof member === 'object') return Object.keys(member).length > 0;
   return true;
 }
+
+/**
+ * A search over an input the test leaves empty on purpose, proved live by a
+ * positive control (#361, operator decision 2026-10-05: empty input only).
+ *
+ * `expect(parseLog('')).toEqual([])` checks that nothing in gives nothing
+ * out, and a dead parser passes it. `searched` cannot help, since the
+ * population is empty by design, so no floor can be recorded on it either:
+ *
+ *     expect(againstControl(parseLog, { input: '', control: ONE_COMMIT })).toEqual([]);
+ *
+ * runs `run` on the control, which must find something, then returns what it
+ * finds in `input`, which must be empty. A `run` that ignored its argument
+ * would return the same thing twice, and one result cannot be both, so that
+ * shortcut fails by itself. `floorless-searches.test.ts` holds the rest: the
+ * input is an empty literal written in place, and nothing else uses this.
+ */
+export function againstControl<I, R>(
+  run: (input: I) => R,
+  { input, control }: { input: I; control: I },
+): R {
+  if (isSubstantive(input))
+    throw new Error(
+      'againstControl is for an empty input; a search over a population ' +
+        'checks a recorded floor instead',
+    );
+  if (!isSubstantive(run(control)))
+    throw new Error(
+      'the control found nothing, so this cannot tell nothing in from a dead ' +
+        'function',
+    );
+  return run(input);
+}

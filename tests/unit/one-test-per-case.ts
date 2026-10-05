@@ -104,9 +104,9 @@ const isAnnotation = (call: ts.CallExpression): boolean => {
  * the reader does not know, which is refused rather than skipped; or no call
  * on `it` or `test` at all.
  */
-type Kind = 'test' | 'table' | 'other' | 'unknown' | 'none';
+export type Kind = 'test' | 'table' | 'other' | 'unknown' | 'none';
 
-const kindOf = (call: ts.CallExpression): Kind => {
+export const kindOf = (call: ts.CallExpression): Kind => {
   const callee = call.expression;
   if (ts.isCallExpression(callee))
     return kindOf(callee) === 'table' ? 'test' : 'none';
@@ -128,13 +128,13 @@ const kindOf = (call: ts.CallExpression): Kind => {
  * A test's body: its first function argument. Not its last, since Vitest
  * takes a timeout or options after the body as well as before it.
  */
-const callbackOf = (
+export const callbackOf = (
   call: ts.CallExpression,
 ): ts.ArrowFunction | ts.FunctionExpression | null =>
   call.arguments.find(isFunction) ?? null;
 
 /** A title as written: a template keeps its `${…}`, so an entry naming it is stable. */
-const titleOf = (sf: ts.SourceFile, call: ts.CallExpression): string => {
+export const titleOf = (sf: ts.SourceFile, call: ts.CallExpression): string => {
   const first = call.arguments[0];
   if (!first) return '';
   if (ts.isStringLiteral(first) || ts.isNoSubstitutionTemplateLiteral(first))
@@ -143,7 +143,7 @@ const titleOf = (sf: ts.SourceFile, call: ts.CallExpression): string => {
 };
 
 /** The identifier a call chain starts from: `expect` for `expect.soft(x).not.toBe(y)`. */
-const chainRoot = (call: ts.CallExpression): string => {
+export const chainRoot = (call: ts.CallExpression): string => {
   let at: ts.Expression = call.expression;
   while (ts.isPropertyAccessExpression(at) || ts.isCallExpression(at))
     at = at.expression;
