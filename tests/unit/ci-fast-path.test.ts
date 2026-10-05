@@ -18,7 +18,8 @@ interface Step {
   id?: string;
   name?: string;
   if?: string;
-  run?: string;
+  // YAML may type it otherwise: read it through runOf.
+  run?: unknown;
   uses?: string;
   with?: Record<string, unknown>;
   env?: Record<string, unknown>;

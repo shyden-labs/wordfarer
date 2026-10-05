@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 import pacing from '../../vitest.pacing.config';
+import { runOf } from './workflow-steps';
 
 /**
  * The pacing suite stays wired (#35 AC4, AC6, AC7). A CI step removed, its
@@ -12,7 +13,8 @@ import pacing from '../../vitest.pacing.config';
 
 interface Step {
   name?: string;
-  run?: string;
+  // YAML may type it otherwise: read it through runOf.
+  run?: unknown;
   uses?: string;
   if?: string;
   'timeout-minutes'?: number;
@@ -24,7 +26,7 @@ const ci = parse(readFileSync('.github/workflows/ci.yml', 'utf8')) as {
 };
 const steps = ci.jobs['build-and-test']?.steps ?? [];
 const runs = (command: string): number[] =>
-  steps.flatMap((s, i) => ((s.run ?? '').trim() === command ? [i] : []));
+  steps.flatMap((s, i) => (runOf(s) === command ? [i] : []));
 
 describe('the pacing suite in CI (#35)', () => {
   it('runs as its own step, once, after the unit tests (AC4)', () => {
