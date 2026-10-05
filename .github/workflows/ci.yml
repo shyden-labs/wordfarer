@@ -7,6 +7,12 @@
 # Runs on every PR (the required `build-and-test` check) and is called by
 # deploy-dev.yml before each dev deploy, so develop never deploys a tree that
 # has not passed here.
+#
+# A docs-only change (HANDOVER.md and Markdown under docs/, #360) runs
+# checkout, install, Format and the unit suite; `classify` decides, and every
+# other step skips only on its `docs-only` verdict, so the required check
+# still reports and anything else runs in full. deploy-dev's call is a push,
+# which is always full (tests/unit/ci-fast-path.test.ts).
 name: build-and-test
 on:
   pull_request:
@@ -40,17 +46,26 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref }}
+          # The commit and its parents: classify diffs HEAD^1..HEAD.
+          fetch-depth: 2
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
+      - name: Classify the change as docs-only or full (#360)
+        id: classify
+        env:
+          EVENT: ${{ github.event_name }}
+        run: node scripts/ci-scope.ts
       - name: Install (a warning fails it)
         run: scripts/fail-on-warnings.sh npm ci
       - name: Format
         run: npm run format:check
       - name: Lint (zero warnings)
+        if: ${{ steps.classify.outputs.scope != 'docs-only' }}
         run: npm run lint
       - name: Typecheck (tsc, svelte-check)
+        if: ${{ steps.classify.outputs.scope != 'docs-only' }}
         run: npm run typecheck
       - name: Unit tests
         run: npm run test:unit
@@ -58,9 +73,10 @@ jobs:
       # checked (#35); AC7 holds the suite under 5 minutes on the runner.
       - name: Pacing bots (under 5 minutes)
         timeout-minutes: 5
+        if: ${{ steps.classify.outputs.scope != 'docs-only' }}
         run: npm run test:pacing
       - name: Upload the pacing report
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.classify.outputs.scope != 'docs-only' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           # every-commit.yml calls this once per commit in one run, where an
@@ -69,8 +85,11 @@ jobs:
           path: pacing-report.json
           if-no-files-found: error
       - name: Worker tests (sync in workerd + local D1, web gate through the asset router)
+        if: ${{ steps.classify.outputs.scope != 'docs-only' }}
         run: npm run test:worker
       - name: Cross-engine determinism (Node, Chromium, Firefox, WebKit)
+        if: ${{ steps.classify.outputs.scope != 'docs-only' }}
         run: npm run test:engines
       - name: Build (a warning fails it)
+        if: ${{ steps.classify.outputs.scope != 'docs-only' }}
         run: scripts/fail-on-warnings.sh npm run build

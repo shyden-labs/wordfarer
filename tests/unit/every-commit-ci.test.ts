@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 import { CALLED_JOB } from '../../scripts/every-commit';
+import { runOf } from './workflow-steps';
 
 /**
  * Every commit a pull request brings passes CI on its own (#348 AC1-AC3,
@@ -18,7 +19,8 @@ import { CALLED_JOB } from '../../scripts/every-commit';
 interface Step {
   id?: string;
   name?: string;
-  run?: string;
+  // YAML may type it otherwise: read it through runOf.
+  run?: unknown;
   uses?: string;
   with?: Record<string, unknown>;
   env?: Record<string, unknown>;
@@ -49,7 +51,7 @@ const every = () => read('every-commit.yml');
 const ci = () => read('ci.yml');
 const job = (id: string): Job => every().jobs[id] ?? {};
 const stepRunning = (steps: Step[] | undefined, command: string) =>
-  (steps ?? []).filter((s) => (s.run ?? '').trim() === command);
+  (steps ?? []).filter((s) => runOf(s) === command);
 const usesOf = (steps: Step[] | undefined, action: string) =>
   (steps ?? []).filter((s) => (s.uses ?? '').startsWith(`${action}@`));
 
@@ -104,7 +106,7 @@ describe('the list job (AC1, AC5)', () => {
     const [node] = usesOf(job('list').steps, 'actions/setup-node');
     expect(node?.with).toEqual({ 'node-version-file': '.nvmrc' });
     expect(
-      (job('list').steps ?? []).filter((s) => /\bnpm\b/.test(s.run ?? '')),
+      (job('list').steps ?? []).filter((s) => /\bnpm\b/.test(runOf(s))),
     ).toEqual([]);
   });
 });
@@ -160,7 +162,11 @@ describe('ci.yml checks out the commit it is called with (AC1)', () => {
       'actions/checkout',
     );
     expect(more).toEqual([]);
-    expect(checkout?.with).toEqual({ ref: '${{ inputs.ref }}' });
+    // fetch-depth 2 gives the docs-only classifier the commit's parents (#360).
+    expect(checkout?.with).toEqual({
+      ref: '${{ inputs.ref }}',
+      'fetch-depth': 2,
+    });
   });
 
   it('still runs on every pull request and for deploy-dev', () => {

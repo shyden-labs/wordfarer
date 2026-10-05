@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 import config from '../../playwright.engines.config';
+import { runOf } from './workflow-steps';
 
 /**
  * The cross-engine check stays wired (#26 AC10). A Playwright project dropped
@@ -12,7 +13,8 @@ import config from '../../playwright.engines.config';
 
 interface Step {
   name?: string;
-  run?: string;
+  // YAML may type it otherwise: read it through runOf.
+  run?: unknown;
 }
 
 const ci = parse(readFileSync('.github/workflows/ci.yml', 'utf8')) as {
@@ -34,11 +36,11 @@ describe('the cross-engine harness', () => {
     );
     const steps = job?.steps ?? [];
     expect(
-      steps.filter((s) => (s.run ?? '').trim() === 'npm run test:engines'),
+      steps.filter((s) => runOf(s) === 'npm run test:engines'),
       'test:engines step',
     ).toHaveLength(1);
     expect(
-      steps.filter((s) => /playwright install/.test(s.run ?? '')),
+      steps.filter((s) => /playwright install/.test(runOf(s))),
       'no step installs browsers: the image has them, and --with-deps reached an apt mirror',
     ).toEqual([]);
   });
