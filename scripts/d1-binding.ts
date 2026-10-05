@@ -24,7 +24,7 @@ import {
   type ParseError,
   printParseErrorCode,
 } from 'jsonc-parser';
-import { databaseList, LIST, type Wrangler, wranglerCli } from './ensure-d1';
+import { databaseList, LIST, type Wrangler, wranglerCli } from './ensure-d1.ts';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
