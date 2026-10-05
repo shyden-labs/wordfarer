@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { floorBreach } from '../floors';
+import { searched } from '../searched';
 import { minus } from './burn-down';
 import {
   scanCollection,
@@ -558,6 +560,16 @@ describe.skip('d', function () {});`).describes,
     ).toBe(4);
   });
 
+  it('lists each describe callback it read, by line and title (#367)', () => {
+    expect(
+      read(`describe('a', () => {
+  describe('b', () => {});
+  describe.each([[1]])('c %s', () => {});
+});
+describe.skip('d', function () {});`).describeCallbacks,
+    ).toEqual(['line 2: a', 'line 3: b', 'line 4: c %s', 'line 6: d']);
+  });
+
   it('counts the calls evaluated at collection, refused or allowed', () => {
     expect(
       read(`const a = String(1);
@@ -570,13 +582,29 @@ describe('d', () => {
 
   it('reads test.describe.configure as no callback, refusing nothing', () => {
     const scan = read(`test.describe.configure({ mode: 'serial' });`);
-    expect(scan.describes).toBe(0);
+    expect(
+      searched(scan.describeCallbacks, {
+        of: scan.describeForms,
+        what: 'describe forms',
+      }),
+    ).toEqual([]);
+    expect(
+      floorBreach('collection-calls/configure-forms', scan.describeForms),
+    ).toBeUndefined();
     expect(scan.unclassified).toEqual([]);
   });
 
   it('reads describe.todo as no callback, refusing nothing', () => {
     const scan = read(`describe.todo('later');`);
-    expect(scan.describes).toBe(0);
+    expect(
+      searched(scan.describeCallbacks, {
+        of: scan.describeForms,
+        what: 'describe forms',
+      }),
+    ).toEqual([]);
+    expect(
+      floorBreach('collection-calls/todo-forms', scan.describeForms),
+    ).toBeUndefined();
     expect(scan.unclassified).toEqual([]);
   });
 });

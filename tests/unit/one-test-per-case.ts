@@ -254,6 +254,10 @@ const loopParts = (
 export interface TestScan {
   /** Test calls read: `it` and `test`, their run modifiers and table forms. */
   readonly tests: number;
+  /** The same test calls, as `line N: callee('title')` (#367). */
+  readonly testCalls: readonly string[];
+  /** Calls on `it` or `test` the reader classified, of any kind: what it searched. */
+  readonly examined: number;
   /**
    * Every loop inside a test body that asserts, or changes page state, on
    * each pass, unless a marker declares it a runtime population or one
@@ -274,7 +278,8 @@ export function scanTests(source: string, fileName: string): TestScan {
   );
   const cases: LoopedCase[] = [];
   const unclassified: string[] = [];
-  let tests = 0;
+  const testCalls: string[] = [];
+  let examined = 0;
   const lineOf = (node: ts.Node): number =>
     sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
   const inTest = (title: string, node: ts.Node): void => {
@@ -293,6 +298,7 @@ export function scanTests(source: string, fileName: string): TestScan {
     if (ts.isCallExpression(node)) {
       const kind = kindOf(node);
       const callee = node.expression.getText(sf);
+      if (kind !== 'none') examined += 1;
       if (kind === 'unknown')
         unclassified.push(
           `line ${String(lineOf(node))}: ${callee} is neither a test form nor a known non-test`,
@@ -300,7 +306,9 @@ export function scanTests(source: string, fileName: string): TestScan {
       if (kind === 'test') {
         const callback = callbackOf(node);
         if (callback) {
-          tests += 1;
+          testCalls.push(
+            `line ${String(lineOf(node))}: ${callee}('${titleOf(sf, node)}')`,
+          );
           inTest(titleOf(sf, node), callback.body);
           return;
         }
@@ -312,5 +320,11 @@ export function scanTests(source: string, fileName: string): TestScan {
     ts.forEachChild(node, visit);
   };
   visit(sf);
-  return { tests, looped: cases, unclassified };
+  return {
+    tests: testCalls.length,
+    testCalls,
+    examined,
+    looped: cases,
+    unclassified,
+  };
 }

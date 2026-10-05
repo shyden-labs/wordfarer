@@ -29,6 +29,8 @@ export interface Finding {
 export interface Scan {
   jobs: number;
   secretReferences: number;
+  /** Every secret reference read, as `file: where: reference` (#367). */
+  references: string[];
   findings: Finding[];
 }
 
@@ -75,11 +77,12 @@ export function scanWorkflow(file: string, source: string): Scan {
     return {
       jobs: 0,
       secretReferences: 0,
+      references: [],
       findings: [{ where: file, problem: 'not a YAML mapping' }],
     };
   }
   const findings: Finding[] = [];
-  let references = 0;
+  const references: string[] = [];
 
   const triggers = isRecord(doc.on)
     ? Object.keys(doc.on)
@@ -98,7 +101,7 @@ export function scanWorkflow(file: string, source: string): Scan {
 
   for (const key of Object.keys(doc).filter((k) => k !== 'jobs')) {
     const refs = secretReferences(strings(doc[key]).join('\n'));
-    references += refs.length;
+    references.push(...refs.map((ref) => `${file}: ${key}: ${ref}`));
     for (const ref of refs) {
       findings.push({
         where: `${file}: ${key}`,
@@ -110,7 +113,7 @@ export function scanWorkflow(file: string, source: string): Scan {
   const jobs = isRecord(doc.jobs) ? Object.entries(doc.jobs) : [];
   for (const [id, job] of jobs) {
     const refs = secretReferences(strings(job).join('\n'));
-    references += refs.length;
+    references.push(...refs.map((ref) => `${file}: jobs.${id}: ${ref}`));
     if (refs.length === 0) continue;
     const name = isRecord(job) ? environmentName(job.environment) : undefined;
     const isProtected = (PROTECTED_ENVIRONMENTS as readonly string[]).includes(
@@ -130,5 +133,10 @@ export function scanWorkflow(file: string, source: string): Scan {
     }
   }
 
-  return { jobs: jobs.length, secretReferences: references, findings };
+  return {
+    jobs: jobs.length,
+    secretReferences: references.length,
+    references,
+    findings,
+  };
 }

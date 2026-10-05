@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { scanTests, type LoopedCase, type TestScan } from './one-test-per-case';
+import { floorBreach } from '../floors';
+import { searched } from '../searched';
 import { minus } from './burn-down';
 import { committableFiles } from './tracked-files';
 
@@ -303,13 +305,19 @@ it.skip.each(XS)('t %s', () => {
   for (const c of CASES) expect(c).toBe(1);
 });`);
     expect(scan.tests).toBe(1);
+    expect(scan.testCalls).toEqual(["line 2: it.skip.each(XS)('t %s')"]);
     expect(scan.looped.map((c) => c.loop)).toEqual(['for (const c of CASES)']);
   });
 
   it('reads a describe modifier as no test and refuses nothing', () => {
     const scan = read(`test.describe.parallel('d', () => {});
 test.describe.configure({ mode: 'serial' });`);
-    expect(scan.tests).toBe(0);
+    expect(
+      searched(scan.testCalls, { of: scan.examined, what: 'calls on test' }),
+    ).toEqual([]);
+    expect(
+      floorBreach('one-test-per-case/describe-modifier-calls', scan.examined),
+    ).toBeUndefined();
     expect(scan.unclassified).toEqual([]);
   });
 
@@ -343,7 +351,13 @@ test.skip.sometimes('y', () => {});`).unclassified,
   });
 
   it('counts a refused call as no test', () => {
-    expect(read(`it.todoo('x', () => {});`).tests).toBe(0);
+    const scan = read(`it.todoo('x', () => {});`);
+    expect(
+      searched(scan.testCalls, { of: scan.examined, what: 'calls on it' }),
+    ).toEqual([]);
+    expect(
+      floorBreach('one-test-per-case/refused-calls', scan.examined),
+    ).toBeUndefined();
   });
 });
 

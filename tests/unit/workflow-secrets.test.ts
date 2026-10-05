@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { floorBreach } from '../floors';
+import { searched } from '../searched';
 import { withoutYamlComments } from './source-text';
 import { scanWorkflow } from './workflow-secrets';
 
@@ -23,6 +25,9 @@ describe('scanWorkflow', () => {
   it('accepts a secret in a job that declares the dev environment', () => {
     const scan = scanWorkflow('w.yml', workflow(job('    environment: dev\n')));
     expect(scan.secretReferences).toBe(1);
+    expect(scan.references).toEqual([
+      'w.yml: jobs.deploy: secrets.CLOUDFLARE_API_TOKEN',
+    ]);
     expect(scan.findings).toEqual([]);
   });
 
@@ -101,7 +106,12 @@ describe('scanWorkflow', () => {
       '  status:\n    runs-on: ubuntu-latest\n    steps:\n      - run: gh api x\n        env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n',
     );
     const scan = scanWorkflow('w.yml', source);
-    expect(scan.secretReferences).toBe(0);
+    expect(searched(scan.references, { of: scan.jobs, what: 'jobs' })).toEqual(
+      [],
+    );
+    expect(
+      floorBreach('workflow-secrets/github-token-jobs', scan.jobs),
+    ).toBeUndefined();
     expect(scan.findings).toEqual([]);
   });
 
@@ -110,7 +120,12 @@ describe('scanWorkflow', () => {
       '  test:\n    runs-on: ubuntu-latest\n    # environment: dev  -- reads ${{ secrets.CLOUDFLARE_API_TOKEN }}\n    steps:\n      - run: npm test\n',
     );
     const scan = scanWorkflow('w.yml', source);
-    expect(scan.secretReferences).toBe(0);
+    expect(searched(scan.references, { of: scan.jobs, what: 'jobs' })).toEqual(
+      [],
+    );
+    expect(
+      floorBreach('workflow-secrets/commented-secret-jobs', scan.jobs),
+    ).toBeUndefined();
     expect(scan.findings).toEqual([]);
   });
 
