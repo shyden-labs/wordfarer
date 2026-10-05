@@ -5,6 +5,8 @@ import { parse } from 'yaml';
 import { withoutYamlComments, withoutYamlQuotes } from './source-text';
 import { committableFiles } from './tracked-files';
 import { isRecord } from './workflow-secrets';
+import { floorBreach } from '../floors';
+import { searched } from '../searched';
 
 /**
  * The CI supply chain is pinned, and something keeps it current.
@@ -121,12 +123,11 @@ const actionRepos = (): [string, Set<string>][] => {
 };
 
 /**
- * Every `owner/repo` referenced at MORE THAN ONE sub-path — the ones
+ * True for an `owner/repo` referenced at MORE THAN ONE sub-path: one that
  * Dependabot would otherwise bump one sub-path at a time, leaving the
  * siblings behind.
  */
-const subPathRepos = (): [string, Set<string>][] =>
-  actionRepos().filter(([, seen]) => seen.size > 1);
+const isSubPath = ([, seen]: [string, Set<string>]): boolean => seen.size > 1;
 
 describe('the CI supply chain is pinned', () => {
   it('there is something to check', () => {
@@ -144,26 +145,46 @@ describe('the CI supply chain is pinned', () => {
   it('reads every file that can hold a uses: line (Refs #82)', () => {
     const tracked = committableFiles();
     expect(tracked, 'positive control').toContain('.github/workflows/ci.yml');
+    const composites = tracked.filter((path) =>
+      /(^|\/)action\.ya?ml$/.test(path),
+    );
     expect(
-      tracked.filter((path) => /(^|\/)action\.ya?ml$/.test(path)),
+      searched(composites, { of: tracked, what: 'committable files' }),
       'a composite action’s steps sit outside .github/workflows, unscanned',
     ).toEqual([]);
+    expect(
+      floorBreach('supply-chain/action-file-walk', tracked.length),
+    ).toBeUndefined();
   });
 
   it('every third-party action is pinned to a full commit SHA', () => {
-    const unpinned = externalUses()
+    const uses = externalUses();
+    const unpinned = uses
       .filter(({ text }) => !/@[0-9a-f]{40}(?=\s|$)/.test(text))
       .map(({ where, text }) => `${where} ${text}`);
 
-    expect(unpinned, 'a mutable tag can be repointed under us').toEqual([]);
+    expect(
+      searched(unpinned, { of: uses, what: 'third-party uses' }),
+      'a mutable tag can be repointed under us',
+    ).toEqual([]);
+    expect(
+      floorBreach('supply-chain/pinned-uses', uses.length),
+    ).toBeUndefined();
   });
 
   it('every pinned action names the version its SHA resolves to', () => {
-    const opaque = externalUses()
+    const uses = externalUses();
+    const opaque = uses
       .filter(({ text }) => !/@[0-9a-f]{40}\s+#\s*v\d/.test(text))
       .map(({ where, text }) => `${where} ${text}`);
 
-    expect(opaque, 'a bare SHA bump is unreviewable by a human').toEqual([]);
+    expect(
+      searched(opaque, { of: uses, what: 'third-party uses' }),
+      'a bare SHA bump is unreviewable by a human',
+    ).toEqual([]);
+    expect(
+      floorBreach('supply-chain/versioned-uses', uses.length),
+    ).toBeUndefined();
   });
 });
 
@@ -202,10 +223,17 @@ describe('the browser image is pinned and matches the test runner (#44)', () => 
   });
 
   it('every container image is pinned to a digest, not just a tag', () => {
-    const unpinned = containerImages()
+    const images = containerImages();
+    const unpinned = images
       .filter(({ image }) => !/@sha256:[0-9a-f]{64}$/.test(image))
       .map(({ where, image }) => `${where} ${image}`);
-    expect(unpinned, 'a tag can be re-pushed under us').toEqual([]);
+    expect(
+      searched(unpinned, { of: images, what: 'container images' }),
+      'a tag can be re-pushed under us',
+    ).toEqual([]);
+    expect(
+      floorBreach('supply-chain/digest-images', images.length),
+    ).toBeUndefined();
   });
 
   it('the Playwright image is the version of @playwright/test the lockfile installs', () => {
@@ -213,8 +241,10 @@ describe('the browser image is pinned and matches the test runner (#44)', () => 
     expect(version, 'positive control: the lockfile names it').toMatch(
       /^\d+\.\d+\.\d+$/,
     );
-    const stale = containerImages()
-      .filter(({ image }) => image.startsWith('mcr.microsoft.com/playwright:'))
+    const playwrightImages = containerImages().filter(({ image }) =>
+      image.startsWith('mcr.microsoft.com/playwright:'),
+    );
+    const stale = playwrightImages
       .filter(
         ({ image }) =>
           !image.startsWith(
@@ -223,9 +253,12 @@ describe('the browser image is pinned and matches the test runner (#44)', () => 
       )
       .map(({ where, image }) => `${where} ${image}`);
     expect(
-      stale,
+      searched(stale, { of: playwrightImages, what: 'Playwright images' }),
       `a browser build the runner was not made for fails to launch; move the tag to v${String(version)}-noble and re-read its digest from https://mcr.microsoft.com/v2/playwright/manifests/v${String(version)}-noble`,
     ).toEqual([]);
+    expect(
+      floorBreach('supply-chain/playwright-images', playwrightImages.length),
+    ).toBeUndefined();
   });
 });
 
@@ -251,7 +284,11 @@ describe('Dependabot keeps the pins from rotting', () => {
 
   it('an action repo used at more than one sub-path is grouped into one PR', () => {
     const config = configBody();
-    const ungrouped = subPathRepos()
+    // Searched over every action repo: the sub-path ones are drawn from them,
+    // and there are none today (dormant, see below).
+    const repos = actionRepos();
+    const ungrouped = repos
+      .filter(isSubPath)
       .filter(([key]) => !withoutYamlQuotes(config).includes(`${key}*`))
       .map(
         ([key, refs]) =>
@@ -259,9 +296,12 @@ describe('Dependabot keeps the pins from rotting', () => {
       );
 
     expect(
-      ungrouped,
+      searched(ungrouped, { of: repos, what: 'action repos' }),
       'separate PRs per sub-path break the one-SHA-per-repo invariant',
     ).toEqual([]);
+    expect(
+      floorBreach('supply-chain/grouped-action-repos', repos.length),
+    ).toBeUndefined();
   });
 
   /**
@@ -279,7 +319,8 @@ describe('Dependabot keeps the pins from rotting', () => {
    * mutation, not by watching it pass.
    */
   it('a sub-path group is declared before the catch-all that would swallow it', () => {
-    const misordered = subPathRepos().flatMap(([key]) =>
+    const repos = actionRepos();
+    const misordered = repos.filter(isSubPath).flatMap(([key]) =>
       ecosystemBlocks()
         .filter((block) => withoutYamlQuotes(block).includes(`${key}*`))
         .filter((block) => {
@@ -293,9 +334,12 @@ describe('Dependabot keeps the pins from rotting', () => {
     );
 
     expect(
-      misordered,
+      searched(misordered, { of: repos, what: 'action repos' }),
       'Dependabot assigns to the FIRST matching group and stops',
     ).toEqual([]);
+    expect(
+      floorBreach('supply-chain/ordered-action-repos', repos.length),
+    ).toBeUndefined();
   });
 
   it('a Dependabot config exists', () => {
@@ -324,7 +368,13 @@ describe('Dependabot keeps the pins from rotting', () => {
       onDevelop.length,
       'an ecosystem defaults to the default branch, bypassing the develop gate',
     ).toBe(ecosystems);
-    expect(config).not.toMatch(/target-branch:\s*["']?main["']?/);
+    const onMain = config.match(/target-branch:\s*["']?main["']?/g) ?? [];
+    expect(
+      searched(onMain, { of: ecosystems, what: 'Dependabot ecosystems' }),
+    ).toEqual([]);
+    expect(
+      floorBreach('supply-chain/dependabot-ecosystems', ecosystems),
+    ).toBeUndefined();
   });
 });
 
@@ -374,8 +424,14 @@ describe('the install is reproducible', () => {
     expect(tracked, 'positive control: the walk sees this repo').toContain(
       'package.json',
     );
-    expect(tracked.filter((path) => /(^|\/)node_modules\//.test(path))).toEqual(
-      [],
+    const installed = tracked.filter((path) =>
+      /(^|\/)node_modules\//.test(path),
     );
+    expect(
+      searched(installed, { of: tracked, what: 'committable files' }),
+    ).toEqual([]);
+    expect(
+      floorBreach('supply-chain/node-modules-walk', tracked.length),
+    ).toBeUndefined();
   });
 });
