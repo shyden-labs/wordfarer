@@ -92,7 +92,7 @@ describe('non-prod marking (#39)', () => {
     'marks %s noindex on the dev API host, with no password asked',
     async (path) => {
       const response = await host(
-        'https://dev-api.wordfarer.shyden.co.uk',
+        'https://dev-api.yawelo-idle.shyden.co.uk',
         path,
       );
       expect(response.status).not.toBe(401);
@@ -104,7 +104,7 @@ describe('non-prod marking (#39)', () => {
 
   it('serves blocking robots.txt on the dev API host', async () => {
     const response = await host(
-      'https://dev-api.wordfarer.shyden.co.uk',
+      'https://dev-api.yawelo-idle.shyden.co.uk',
       '/robots.txt',
     );
     expect(response.status).toBe(200);
@@ -112,11 +112,14 @@ describe('non-prod marking (#39)', () => {
   });
 
   it('leaves the production API host unmarked, robots.txt included', async () => {
-    const health = await host('https://api.wordfarer.shyden.co.uk', '/health');
+    const health = await host(
+      'https://api.yawelo-idle.shyden.co.uk',
+      '/health',
+    );
     expect(health.status).toBe(200);
     expect(health.headers.get('x-robots-tag')).toBeNull();
     const robots = await host(
-      'https://api.wordfarer.shyden.co.uk',
+      'https://api.yawelo-idle.shyden.co.uk',
       '/robots.txt',
     );
     expect(robots.status).toBe(404);

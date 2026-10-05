@@ -25,7 +25,7 @@ The operator, 2026-10-04 11:50 UTC: _"i want you to make the wordfarer website. 
 | #   | Decision     | Choice                                                                                                                                                                                                                                                                                                         |
 | --- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | W1  | Main action  | 11:54: **email launch list + follow links**, _"and give them the ability to once-click bookmark the website"_. No browser lets a page add a bookmark (measured, §6.2), so 11:55 chose the smart **Save Yawelo Idle** button                                                                                    |
-| W2  | Location     | 11:54: **`wordfarer.shyden.co.uk`**, the game's planned production host. The site takes `/`, and the game moves to `/play` (W10)                                                                                                                                                                               |
+| W2  | Location     | 11:54: **`yawelo-idle.shyden.co.uk`** (the host renamed with the game, #357), the game's planned production host. The site takes `/`, and the game moves to `/play` (W10)                                                                                                                                      |
 | W3  | Trademark    | 11:54: **search first, then publish**. #157 runs first; nothing goes to production before the operator records a decision on it                                                                                                                                                                                |
 | W4  | Graphics     | 11:54: **code-generated art + a playable demo on the real simulation**, _"but make sure there's a message that says the released content may change and could potentially be completely different to what is being shown"_                                                                                     |
 | W5  | Roadmap      | 11:54: _"a roadmap similar to ShyTalk where users can follow the progress. but it needs to be properly built and updated in realtime which ShyTalk currently struggles with"_. 11:55: **voyage map + story detail**, updated **on screen in seconds**. The ShyTalk roadmap was not read (global boundary rule) |
@@ -83,7 +83,7 @@ Every page exists in English at `/…` and Indonesian at `/id/…`, with a langu
 
 ### 5.2 Design
 
-1. **Source:** the Wordfarer Stories board only, resolved by node id `PVT_kwDOEOcG584BlRWb` with its title asserted on every read. Shown: items whose content is an issue in `shyden-labs/wordfarer`. Never shown: draft items and other repos' issues. Anything unclassifiable is refused by name and logged, never shown.
+1. **Source:** the Yawelo Idle Stories board only, resolved by node id `PVT_kwDOEOcG584BlRWb` with its title asserted on every read. Shown: items whose content is an issue in `shyden-labs/yawelo-idle`. Never shown: draft items and other repos' issues. Anything unclassifiable is refused by name and logged, never shown.
 2. **Events:** **two org webhooks**, dev and prod, each with its own secret, subscribed to `issues` and `projects_v2_item`, POSTing to `/hooks/github` on that environment's site Worker. The Worker verifies `X-Hub-Signature-256` (HMAC-SHA256) with a constant-time compare and refuses anything unsigned or mismatched with 401 and no body detail. That one path skips the dev password because the signature is its guard.
 3. **Read:** an event means only "something changed". The Worker re-reads the board over GraphQL as a **new read-only GitHub App, `yawelo-idle-roadmap`** (Projects, Issues, Metadata: read; nothing else). A public-facing Worker never holds a key that can write. Events arriving in a burst are coalesced into one read.
 4. **Hold and push:** a Durable Object, `Roadmap`, keeps the latest snapshot and its version, and pushes each new snapshot over **hibernating WebSockets** (`/api/roadmap/live`) to every open roadmap page. A page that cannot open a socket fetches `/api/roadmap.json` when it loads and says it is not live.
@@ -129,7 +129,7 @@ Create and install the read-only App, and create the two org webhooks. Each webh
 
 ### 7.2 One hostname, two apps
 
-The site Worker owns `dev.wordfarer.shyden.co.uk` now and `wordfarer.shyden.co.uk` in production. It forwards `/play/*` to the game Worker through a **service binding**. The game Worker gives up its Custom Domain and keeps `workers_dev: false`, so the binding is its only way in. The dev password gate moves to the site Worker, the front door, and `apps/web/test/gate.test.ts` moves with it. Before launch, `/play/` shows "coming soon" with links to the roadmap and the list.
+The site Worker owns `dev.yawelo-idle.shyden.co.uk` now and `yawelo-idle.shyden.co.uk` in production. It forwards `/play/*` to the game Worker through a **service binding**. The game Worker gives up its Custom Domain and keeps `workers_dev: false`, so the binding is its only way in. The dev password gate moves to the site Worker, the front door, and `apps/web/test/gate.test.ts` moves with it. Before launch, `/play/` shows "coming soon" with links to the roadmap and the list.
 
 ### 7.3 Data flow
 
@@ -148,7 +148,7 @@ TDD throughout: each test is written and seen failing before its code (red again
 
 ## 9. Delivery
 
-Epic **#331**, "Website (coming soon) with a live voyage-map roadmap", on Wordfarer Stories. Every story has full acceptance criteria and an `Estimate`.
+Epic **#331**, "Website (coming soon) with a live voyage-map roadmap", on Yawelo Idle Stories. Every story has full acceptance criteria and an `Estimate`.
 
 **Order, decided by the operator on 2026-10-04:**
 
@@ -180,7 +180,7 @@ The production pipeline the first draft planned as its own story is #252 and #25
 
 - **R1:** whether a SQLite-backed Durable Object and Cron Triggers run on the Workers Free plan, or whether the roadmap waits for the Paid plan (#253).
 - **R2:** Chromium's current installability criteria (whether a service worker is still required).
-- **R3:** the `shyden.co.uk` zone is on the dev deploy account (#39, read 2026-10-01). How a production Worker in a **separate** account attaches `wordfarer.shyden.co.uk`, so that dev can never reach prod (global rule). Read from Cloudflare's docs and from how shyden.co.uk #415 solved it, without assuming either.
+- **R3:** the `shyden.co.uk` zone is on the dev deploy account (#39, read 2026-10-01). How a production Worker in a **separate** account attaches `yawelo-idle.shyden.co.uk`, so that dev can never reach prod (global rule). Read from Cloudflare's docs and from how shyden.co.uk #415 solved it, without assuming either.
 - **R4:** how the board links stories to milestones, so the islands group correctly. Measured 2026-10-04: the board has `Parent issue`, `Sub-issues progress` and `Milestone` fields, and story bodies say "Part of epic #N"; which of them is complete and authoritative is not yet measured.
 - **R5:** whether a service-binding-forwarded game keeps correct asset paths and PWA scope under `/play/`.
 - **R6:** the dev gate is HTTP Basic auth (no cookie, `packages/lockdown`). Whether each browser engine sends cached Basic credentials on the same-origin WebSocket upgrade, or whether `/api/roadmap/live` needs its own handling on dev.

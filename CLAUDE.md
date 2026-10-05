@@ -12,9 +12,9 @@ The global `~/.claude/CLAUDE.md` rules all apply here. This file adds what is sp
 
 ## Boundaries
 
-- **Board:** "Wordfarer Stories", a GitHub Project owned by shyden-labs. Its node id is recorded below once created. Resolve the board from that node id and assert its **title** before any write. **Never** touch project #1 (ShyTalk Stories), project #2 (Shyden Site), project #3 (ShyFerry Stories), or the ShyTalk roadmap.
-  - Board node id: `PVT_kwDOEOcG584BlRWb` (shyden-labs project **4**, title "Wordfarer Stories", read back 2026-10-02 00:13 UTC after the org rename, #49)
-- **Git identity:** agent git acts through a per-repo GitHub App (`wordfarer-agent`, see HANDOVER step 1). Until it exists, `git fetch`/`push` refuse by design. Never route around the credential helper. Commits are authored as Shyden.
+- **Board:** "Yawelo Idle Stories", a GitHub Project owned by shyden-labs. Its node id is recorded below once created. Resolve the board from that node id and assert its **title** before any write. **Never** touch project #1 (ShyTalk Stories), project #2 (Shyden Site), project #3 (ShyFerry Stories), or the ShyTalk roadmap.
+  - Board node id: `PVT_kwDOEOcG584BlRWb` (shyden-labs project **4**, title "Yawelo Idle Stories", renamed by the App and read back 2026-10-05 15:25 UTC, #357)
+- **Git identity:** agent git and `gh` act through the repo's GitHub App (`yawelo-idle-agent`, renamed in #357). Never route around the credential helper or the `gh` router. Commits are authored as Shyden.
 
 ## Flow
 

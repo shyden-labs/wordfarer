@@ -135,7 +135,7 @@ CREATE TABLE content_report_quota (
 ## Assumptions, to be measured in the stories' plans
 
 - Which second source each course uses for evidence (open dictionaries and wordnets are candidates; each one's licence is read before it is named here).
-- That the free-plan Cloudflare rate-limit rule applies to a Worker on a custom domain (`dev-api.wordfarer.shyden.co.uk`) as it does to shyden.co.uk's Pages Function.
+- That the free-plan Cloudflare rate-limit rule applies to a Worker on a custom domain (`dev-api.yawelo-idle.shyden.co.uk`) as it does to shyden.co.uk's Pages Function.
 - That the conditional upsert holds the daily limit under concurrency (measured in #52 with the 20-at-once test).
 - That a D1 batch rolls back as a whole when its insert hits the `UNIQUE` index (Cloudflare documents batches as transactions; #52 measures it with a duplicate that must leave the quota unchanged).
 
