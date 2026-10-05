@@ -30,7 +30,7 @@ jobs:
 
   deploy:
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # A normal deploy takes 35 s; GitHub's default would be 360 minutes (#44).
     timeout-minutes: 10
     environment:
@@ -105,7 +105,7 @@ jobs:
 
   verify:
     needs: deploy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # 8 s when the commit is already served; verify-dev waits at most 36 looks,
     # 5 s apart, for it to appear, then judges every check once (#83).
     timeout-minutes: 10

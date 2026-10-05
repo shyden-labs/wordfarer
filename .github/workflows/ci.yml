@@ -29,7 +29,7 @@ permissions:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # GitHub's default is 360 minutes (#44). The pacing step alone may take
     # up to 5 (#35 AC7), so the job allows 20.
     timeout-minutes: 20
