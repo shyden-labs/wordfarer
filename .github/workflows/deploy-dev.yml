@@ -1,6 +1,6 @@
 # Deploys develop to the dev environment on every merge (spec §13): the D1
-# database (created on the first deploy, #357) and its migrations, then the
-# sync Worker, then the web app (a static-assets Worker
+# database (created on the first deploy, #357, bound by id, #391) and its
+# migrations, then the sync Worker, then the web app (a static-assets Worker
 # with the password gate in front, spec D9 and #39), then a verify that reads
 # all three back from the live Custom Domains.
 #
@@ -51,12 +51,18 @@ jobs:
       # moves, and without a hint it lands near the runner, in North America.
       - name: Create the dev D1 database in Asia Pacific if it does not exist yet
         run: node scripts/ensure-d1.ts yawelo-idle-dev apac
+      # Bound by name alone, a deploy after the database was recreated reuses
+      # the deleted database's id and fails with 7404 (#391). This writes a
+      # git-ignored copy of wrangler.jsonc with the id resolved by name, and
+      # the migrations and the deploy both read it.
+      - name: Bind the sync Worker to the dev D1 database by id
+        run: node scripts/d1-binding.ts yawelo-idle-dev apps/sync-worker/wrangler.jsonc apps/sync-worker/wrangler.deploy.jsonc
       - name: Apply D1 migrations (before the Worker, so new code never meets an old schema)
         working-directory: apps/sync-worker
-        run: npx wrangler d1 migrations apply yawelo-idle-dev --remote
+        run: npx wrangler d1 migrations apply yawelo-idle-dev --remote --config wrangler.deploy.jsonc
       - name: Deploy the sync Worker, stamped with this commit
         working-directory: apps/sync-worker
-        run: npx wrangler deploy --var "COMMIT:${GITHUB_SHA}"
+        run: npx wrangler deploy --config wrangler.deploy.jsonc --var "COMMIT:${GITHUB_SHA}"
       - name: Build the web app, stamped with this commit
         env:
           YAWELO_IDLE_COMMIT: ${{ github.sha }}

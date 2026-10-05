@@ -15,6 +15,8 @@ pacing-report.json
 # Cloudflare local state
 .wrangler/
 .dev.vars
+# Written at deploy by scripts/d1-binding.ts with the D1 database id (#391)
+wrangler.deploy.jsonc
 # Generated on install by `wrangler types` (root postinstall)
 apps/sync-worker/worker-configuration.d.ts
 apps/web/worker/worker-configuration.d.ts

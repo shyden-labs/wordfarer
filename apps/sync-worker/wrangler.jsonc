@@ -19,9 +19,11 @@
     // prove which commit is live. "local" never matches a SHA.
     "COMMIT": "local",
   },
-  // Named, with no id: wrangler finds the database by name, and the deploy
-  // creates it when it is missing (scripts/ensure-d1.ts, #357), so no id is
-  // ever copied in by hand.
+  // Named, with no id, so no id is ever copied in by hand. The deploy creates
+  // the database when it is missing (scripts/ensure-d1.ts, #357), then binds
+  // it by id through a git-ignored copy of this file, wrangler.deploy.jsonc
+  // (scripts/d1-binding.ts, #391): bound by name alone, a recreated database
+  // fails to deploy with 7404.
   "d1_databases": [
     {
       "binding": "DB",
