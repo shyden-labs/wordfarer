@@ -789,8 +789,8 @@ const repository = () => {
 };
 
 /** The burn-down list's size when the meta-guard landed (#361): it only shrinks. */
-const CEILING_SITES = 123;
-const CEILING_SCOPES = 110;
+const CEILING_SITES = 115;
+const CEILING_SCOPES = 103;
 
 describe('every absence search is proved, or listed (#361)', () => {
   it('finds every scope holding exactly the unproved searches listed', () => {

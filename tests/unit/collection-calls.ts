@@ -59,6 +59,14 @@ export interface CollectionScan {
   readonly describeForms: number;
   /** Calls evaluated at collection or in a `beforeAll`, judged, refused or allowed. Test, hook and describe registrations are not judged. */
   readonly judged: number;
+  /**
+   * Every call the walk met, as `line N: callee (what it did)`: `judged`; a
+   * test, hook or describe `registration`; or `in a function` the walk does
+   * not enter where it is written (a test or hook callback, a declared helper,
+   * a callback run later). A helper's calls are judged again through the call
+   * that runs it. The population an empty `refused` is read against (#371).
+   */
+  readonly calls: readonly string[];
   /** Every judged call that can reach workspace code. */
   readonly refused: readonly RefusedCall[];
   /** Forms the reader cannot judge, by line: refused, never skipped. */
@@ -426,6 +434,10 @@ interface Sink {
   describeForm(): void;
   /** A describe callback was read. */
   describe(call: ts.CallExpression, title: string): void;
+  /** A test, hook or describe registration, or a call in its chain, was met. */
+  registration(call: ts.CallExpression): void;
+  /** A function the walk does not enter where it is written. */
+  passed(fn: ts.Node): void;
   stopped(): boolean;
 }
 
@@ -481,7 +493,11 @@ export function scanCollection(
     verdict && { kind: verdict.kind, text: `${name} -> ${verdict.text}` };
 
   const walk = (node: ts.Node, scope: string, sink: Sink): void => {
-    if (sink.stopped() || ts.isFunctionLike(node)) return;
+    if (sink.stopped()) return;
+    if (ts.isFunctionLike(node)) {
+      sink.passed(node);
+      return;
+    }
     if (isCallLike(node)) {
       walkCall(node, scope, sink);
       return;
@@ -497,15 +513,24 @@ export function scanCollection(
     scope: string,
     sink: Sink,
   ): void => {
+    sink.registration(call);
+    for (const inner of registration.inner) sink.registration(inner);
     for (const inner of registration.inner)
       for (const argument of inner.arguments) walk(argument, scope, sink);
     for (const argument of call.arguments)
       if (!isFunctionValue(argument)) walk(argument, scope, sink);
+    const callback = call.arguments.find(isFunctionValue);
+    /** Every function argument but the one the walk enters. */
+    const passOver = (entered?: ts.Node): void => {
+      for (const argument of call.arguments)
+        if (isFunctionValue(argument) && argument !== entered)
+          sink.passed(argument);
+    };
     const inner = (title: string): string =>
       scope === MODULE_SCOPE ? title : `${scope} > ${title}`;
     if (registration.name === 'beforeAll') {
-      const hook = call.arguments.find(isFunctionValue);
-      if (hook) walk(hook.body, inner('beforeAll'), sink);
+      passOver(callback);
+      if (callback) walk(callback.body, inner('beforeAll'), sink);
       else
         sink.unread(
           call,
@@ -513,20 +538,27 @@ export function scanCollection(
         );
       return;
     }
-    if (registration.name !== 'describe') return;
+    if (registration.name !== 'describe') {
+      passOver();
+      return;
+    }
     sink.describeForm();
     const { form } = registration;
     if (!registration.members.every((member) => DESCRIBE_MEMBERS.has(member))) {
+      passOver();
       sink.unread(call, `${form} is not a known describe form`);
       return;
     }
-    if (registration.members.some((member) => NO_CALLBACK.has(member))) return;
+    if (registration.members.some((member) => NO_CALLBACK.has(member))) {
+      passOver();
+      return;
+    }
     const title = titleOf(sf, call);
-    const callback = call.arguments.find(isFunctionValue);
     if (!callback) {
       sink.unread(call, `${form}('${title}') has no inline callback to read`);
       return;
     }
+    passOver(callback);
     sink.describe(call, title);
     walk(callback.body, inner(title), sink);
   };
@@ -548,6 +580,7 @@ export function scanCollection(
     for (const argument of argumentsOf(call)) {
       if (!isFunctionValue(argument)) walk(argument, scope, sink);
       else if (runsNow) walk(argument.body, scope, sink);
+      else sink.passed(argument);
     }
   };
 
@@ -568,6 +601,8 @@ export function scanCollection(
       },
       describeForm: () => undefined,
       describe: () => undefined,
+      registration: () => undefined,
+      passed: () => undefined,
       stopped: () => found !== null,
     });
     return found;
@@ -625,11 +660,18 @@ export function scanCollection(
   const describeCallbacks: string[] = [];
   let describeForms = 0;
   let judged = 0;
+  const calls: string[] = [];
+  const met = (call: CallLike, how: string): void => {
+    calls.push(
+      `line ${String(lineOf(call))}: ${textOf(calleeOf(call))} (${how})`,
+    );
+  };
   const refused: RefusedCall[] = [];
   const unclassified: string[] = [];
   walk(sf, MODULE_SCOPE, {
     judge: (call, scope) => {
       judged += 1;
+      met(call, 'judged');
       const verdict = judge(call, new Set());
       if (verdict?.kind === 'reaches')
         refused.push({
@@ -650,6 +692,16 @@ export function scanCollection(
     describe: (call, title) => {
       describeCallbacks.push(`line ${String(lineOf(call))}: ${title}`);
     },
+    registration: (call) => {
+      met(call, 'registration');
+    },
+    passed: (fn) => {
+      const visit = (node: ts.Node): void => {
+        if (isCallLike(node)) met(node, 'in a function');
+        ts.forEachChild(node, visit);
+      };
+      ts.forEachChild(fn, visit);
+    },
     stopped: () => false,
   });
   return {
@@ -657,6 +709,7 @@ export function scanCollection(
     describeCallbacks,
     describeForms,
     judged,
+    calls,
     refused,
     unclassified,
   };

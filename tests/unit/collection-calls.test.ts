@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import ts from 'typescript';
 import { floorBreach } from '../floors';
 import { searched } from '../searched';
-import { minus } from './burn-down';
 import {
   scanCollection,
   type CollectionScan,
@@ -34,6 +34,22 @@ const IMPORTS =
 const read = (body: string): CollectionScan =>
   scanCollection(IMPORTS + body, 'fixture.test.ts');
 const refused = (body: string): readonly RefusedCall[] => read(body).refused;
+
+/** The calls in a file's parse tree, counted apart from the detector's walk (#371). */
+const callsInTree = (source: string, fileName: string): number => {
+  let calls = 0;
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isCallExpression(node) ||
+      ts.isNewExpression(node) ||
+      ts.isTaggedTemplateExpression(node)
+    )
+      calls += 1;
+    ts.forEachChild(node, visit);
+  };
+  visit(ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true));
+  return calls;
+};
 
 describe('the detector refuses a call that reaches workspace code', () => {
   it('in a describe body, with its scope, line, call and the import it reaches', () => {
@@ -534,7 +550,8 @@ const t = String(LIMIT);`,
     [
       'a workspace value read but not called',
       `import { START } from '../src/clock';
-const t = START;`,
+const t = START;
+it('t', () => expect(t).toBe(1));`,
       0,
     ],
   ];
@@ -544,8 +561,18 @@ const t = START;`,
       expect(scan.judged, 'the calls evaluated at collection were read').toBe(
         judged,
       );
-      expect(scan.refused).toEqual([]);
-      expect(scan.unclassified).toEqual([]);
+      expect(scan.calls, 'every call in the fixture was listed').toHaveLength(
+        callsInTree(IMPORTS + body, 'fixture.test.ts'),
+      );
+      expect(
+        searched(scan.refused, { of: scan.calls, what: 'calls it met' }),
+      ).toEqual([]);
+      expect(
+        searched(scan.unclassified, { of: scan.calls, what: 'calls it met' }),
+      ).toEqual([]);
+      expect(
+        floorBreach(`collection-calls/allowed/${what}`, scan.calls.length),
+      ).toBeUndefined();
     });
 });
 
@@ -570,6 +597,50 @@ describe.skip('d', function () {});`).describeCallbacks,
     ).toEqual(['line 2: a', 'line 3: b', 'line 4: c %s', 'line 6: d']);
   });
 
+  it('lists every call it meets: a registration, a call in a function it does not enter (#371)', () => {
+    expect(
+      read(`describe('d', () => {
+  const make = () => integrate(1);
+  it('t', () => expect(make()).toBe(String(2)));
+});`).calls,
+    ).toEqual([
+      'line 2: describe (registration)',
+      'line 3: integrate (in a function)',
+      'line 4: it (registration)',
+      'line 4: expect(make()).toBe (in a function)',
+      'line 4: expect (in a function)',
+      'line 4: make (in a function)',
+      'line 4: String (in a function)',
+    ]);
+  });
+
+  it('lists every call it judges, and each call of a registration chain (#371)', () => {
+    expect(
+      read(`const a = String(1);
+it.each([[integrate(2)]])('t %s', (n) => expect(n).toBe(1));`).calls,
+    ).toEqual([
+      'line 2: String (judged)',
+      'line 3: it.each([[integrate(2)]]) (registration)',
+      'line 3: it.each (registration)',
+      'line 3: integrate (judged)',
+      'line 3: expect(n).toBe (in a function)',
+      'line 3: expect (in a function)',
+    ]);
+  });
+
+  it('lists a callback run later apart from one run now (#371)', () => {
+    expect(
+      read(`import { createServer } from 'node:http';
+const server = createServer(() => integrate(1));
+const xs = [1].map((x) => String(x));`).calls,
+    ).toEqual([
+      'line 3: createServer (judged)',
+      'line 3: integrate (in a function)',
+      'line 4: [1].map (judged)',
+      'line 4: String (judged)',
+    ]);
+  });
+
   it('counts the calls evaluated at collection, refused or allowed', () => {
     expect(
       read(`const a = String(1);
@@ -591,7 +662,12 @@ describe('d', () => {
     expect(
       floorBreach('collection-calls/configure-forms', scan.describeForms),
     ).toBeUndefined();
-    expect(scan.unclassified).toEqual([]);
+    expect(
+      searched(scan.unclassified, {
+        of: scan.describeForms,
+        what: 'describe forms',
+      }),
+    ).toEqual([]);
   });
 
   it('reads describe.todo as no callback, refusing nothing', () => {
@@ -605,7 +681,12 @@ describe('d', () => {
     expect(
       floorBreach('collection-calls/todo-forms', scan.describeForms),
     ).toBeUndefined();
-    expect(scan.unclassified).toEqual([]);
+    expect(
+      searched(scan.unclassified, {
+        of: scan.describeForms,
+        what: 'describe forms',
+      }),
+    ).toEqual([]);
   });
 });
 
@@ -730,16 +811,6 @@ suite();`).unclassified,
   });
 });
 
-/**
- * Every call that reached workspace code at collection on the day #97's guard
- * landed (12, in four files), converted by #97 and empty since.
- * `file :: scope :: call -> reaches`. The guard fails on a site missing from
- * this list AND on an entry that no longer matches a site. Never add an
- * entry: compute the value inside the test, or in a `beforeEach` (a throwing
- * `beforeAll` skips its tests instead of failing them).
- */
-const BURN_DOWN: readonly string[] = [];
-
 const TEST_FILE = /\.(test|spec)\.ts$/;
 
 /** A describe call in raw text: `describe(`, `describe.each(`, `test.describe(`. */
@@ -759,6 +830,15 @@ const scan = () => {
     files,
     describes: read.reduce((n, { scan }) => n + scan.describes, 0),
     judged: read.reduce((n, { scan }) => n + scan.judged, 0),
+    calls: read.flatMap(({ file, scan }) =>
+      scan.calls.map((call) => `${file} ${call}`),
+    ),
+    uncounted: read
+      .filter(
+        ({ file, source, scan }) =>
+          scan.calls.length !== callsInTree(source, file),
+      )
+      .map(({ file }) => file),
     sites: read.flatMap(({ file, scan }) =>
       scan.refused.map(
         (site) => `${file} :: ${site.scope} :: ${site.call} -> ${site.reaches}`,
@@ -798,18 +878,42 @@ describe('the suite', () => {
     const { withDescribe, unread } = scan();
     // Measured 43 at T2's head (#97).
     expect(withDescribe).toBeGreaterThan(42);
-    expect(unread).toEqual([]);
+    expect(
+      searched(unread, {
+        of: withDescribe,
+        what: 'files whose text holds a describe call',
+      }),
+    ).toEqual([]);
+    expect(
+      floorBreach('collection-calls/files-with-describe', withDescribe),
+    ).toBeUndefined();
+  });
+
+  it('lists every call in each file, as its parse tree counts them (#371)', () => {
+    const { files, uncounted } = scan();
+    expect(searched(uncounted, { of: files, what: 'test files' })).toEqual([]);
+    expect(
+      floorBreach('collection-calls/call-counted-files', files.length),
+    ).toBeUndefined();
   });
 
   it('classifies every call evaluated at collection, refusing by name what it cannot follow', () => {
-    expect(scan().unclassified).toEqual([]);
+    const { calls, unclassified } = scan();
+    expect(
+      searched(unclassified, { of: calls, what: 'calls in test files' }),
+    ).toEqual([]);
+    expect(
+      floorBreach('collection-calls/corpus-calls', calls.length),
+    ).toBeUndefined();
   });
 
-  it('reaches no workspace code at collection beyond the burn-down list', () => {
-    expect(minus(scan().sites, BURN_DOWN)).toEqual([]);
-  });
-
-  it('keeps no burn-down entry that has already been converted', () => {
-    expect(minus(BURN_DOWN, scan().sites)).toEqual([]);
+  it('reaches no workspace code at collection', () => {
+    const { judged, sites } = scan();
+    expect(
+      searched(sites, { of: judged, what: 'calls evaluated at collection' }),
+    ).toEqual([]);
+    expect(
+      floorBreach('collection-calls/corpus-judged', judged),
+    ).toBeUndefined();
   });
 });
