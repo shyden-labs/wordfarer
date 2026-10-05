@@ -11,6 +11,8 @@ import { apply } from '../../packages/core/src/log';
 import { advance } from '../../packages/core/src/sim';
 import type { GameState } from '../../packages/core/src/state';
 import { view, type Shop } from '../../packages/core/src/view';
+import { floorBreach } from '../floors';
+import { searched } from '../searched';
 
 /**
  * The shop can never disagree with `apply` (#35 AC3). Along the golden log,
@@ -179,7 +181,17 @@ describe(
   { timeout: 600_000 },
   () => {
     it.each(KINDS)('every %s offer’s affordable is apply’s answer', (kind) => {
-      expect(walk()[kind].disagreements).toEqual([]);
+      const judged = walk()[kind];
+      const offers = judged.accepted + judged.refused;
+      expect(
+        searched(judged.disagreements, {
+          of: offers,
+          what: `judged ${kind} offers`,
+        }),
+      ).toEqual([]);
+      expect(
+        floorBreach(`shop-agreement/judged/${kind}`, offers),
+      ).toBeUndefined();
     });
 
     it.each(KINDS)(
