@@ -6,7 +6,7 @@ import {
   type CollectionScan,
   type RefusedCall,
 } from './collection-calls';
-import { trackedFiles } from './tracked-files';
+import { committableFiles } from './tracked-files';
 
 /**
  * No workspace code at collection (Refs #97).
@@ -719,7 +719,7 @@ const RAW_DESCRIBE_CALL = /(^|[^\w.$])((it|test)\.)?describe(\.\w+)*\s*\(/m;
 
 /** Every tracked test file and what the detector read in it, scanned inside each test, never at collection. */
 const scan = () => {
-  const files = trackedFiles().filter((path) => TEST_FILE.test(path));
+  const files = committableFiles().filter((path) => TEST_FILE.test(path));
   const read = files.map((file) => {
     const source = readFileSync(file, 'utf8');
     return { file, source, scan: scanCollection(source, file) };
@@ -747,7 +747,7 @@ const scan = () => {
 };
 
 describe('the suite', () => {
-  it('scans every tracked test file, this one included', () => {
+  it('scans every committable test file, this one included', () => {
     const { files } = scan();
     expect(files).toContain('tests/unit/collection-calls.test.ts');
     expect(files).toContain('packages/core/test/grammar.test.ts');

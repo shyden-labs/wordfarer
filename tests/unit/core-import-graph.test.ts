@@ -7,7 +7,7 @@ import {
   rawRelativeImports,
   scanModule,
 } from './core-import-graph';
-import { trackedFiles } from './tracked-files';
+import { committableFiles } from './tracked-files';
 
 /**
  * packages/core/src keeps an acyclic graph of value imports (#92).
@@ -435,7 +435,7 @@ describe('packages/core/src holds no value-import cycle', () => {
   // time fails the file as "no tests" instead of naming the broken assertion.
   const ROOT = 'packages/core/src/';
   const corePaths = () =>
-    trackedFiles().filter((path) => path.startsWith(ROOT));
+    committableFiles().filter((path) => path.startsWith(ROOT));
   const coreGraph = () =>
     importGraph(
       new Map(

@@ -3,7 +3,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'yaml';
 import { withoutYamlComments, withoutYamlQuotes } from './source-text';
-import { trackedFiles } from './tracked-files';
+import { committableFiles } from './tracked-files';
 import { isRecord } from './workflow-secrets';
 
 /**
@@ -142,7 +142,7 @@ describe('the CI supply chain is pinned', () => {
   });
 
   it('reads every file that can hold a uses: line (Refs #82)', () => {
-    const tracked = trackedFiles();
+    const tracked = committableFiles();
     expect(tracked, 'positive control').toContain('.github/workflows/ci.yml');
     expect(
       tracked.filter((path) => /(^|\/)action\.ya?ml$/.test(path)),
@@ -369,9 +369,9 @@ describe('the install is reproducible', () => {
     expect(lock.packages['']?.devDependencies).toEqual(pkg().devDependencies);
   });
 
-  it('nothing under node_modules is tracked', () => {
-    const tracked = trackedFiles();
-    expect(tracked, 'positive control: git ls-files sees this repo').toContain(
+  it('nothing under node_modules is tracked or committable', () => {
+    const tracked = committableFiles();
+    expect(tracked, 'positive control: the walk sees this repo').toContain(
       'package.json',
     );
     expect(tracked.filter((path) => /(^|\/)node_modules\//.test(path))).toEqual(
