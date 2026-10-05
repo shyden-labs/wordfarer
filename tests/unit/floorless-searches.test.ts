@@ -1,11 +1,20 @@
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { absencesWritten, callOpening, testsWritten } from './absence-text';
+import { readFileSync } from 'node:fs';
 import {
+  burnDownFindings,
+  scopeKey,
   searchSitesIn,
+  walkDisagreements,
+  type FiledSite,
   type Form,
   type SearchReading,
 } from './floorless-searches';
+import { UNPROVED } from './floorless-searches.burn-down';
+import { floorBreach } from '../floors';
+import { searched } from '../searched';
+import { committableFiles } from './tracked-files';
 import { codeWithoutLiterals } from './source-text';
 
 /**
@@ -530,5 +539,281 @@ describe('the text counts', () => {
     ['unbalanced type arguments', 'f<A(1)', 1, -1],
   ])('finds the parenthesis that calls %s', (_what, code, at, open) => {
     expect(callOpening(code, at)).toBe(open);
+  });
+});
+
+/**
+ * Planted by hand: every form, in each kind of file the walk reads (a vitest
+ * test, a Playwright spec, a helper's named function), must be read as one
+ * unproved site, counted as written, and turned into a finding.
+ */
+const PLANTED_FORMS = [
+  'expect(xs).toEqual([]);',
+  'expect(xs).toStrictEqual([]);',
+  'expect(o).toEqual({});',
+  'expect(o).toStrictEqual({});',
+  'expect(xs).toHaveLength(0);',
+  'expect(xs.length).toBe(0);',
+  'expect(s.size).toBe(0);',
+  'expect(xs.some((x) => x)).toBe(false);',
+  'expect(xs.every((x) => x)).toBe(true);',
+  'expect(text).not.toContain("<");',
+  'expect(xs).not.toContainEqual(1);',
+  'expect(text).not.toMatch(/x/);',
+  "expect(searched(f, { of: p, what: 'w' })).toEqual([]);",
+  'expect(againstControl(f, { input: NONE, control: ONE })).toEqual([]);',
+];
+const PLANTED_KINDS = [
+  ['a vitest test', 'planted.test.ts', 't', "it('t', () => {\n", '\n});'],
+  [
+    'a Playwright spec',
+    'planted.spec.ts',
+    't',
+    "test('t', async () => {\n",
+    '\n});',
+  ],
+  ['a helper', 'planted.ts', 'check', 'export function check() {\n', '\n}'],
+] as const;
+const PLANTED = PLANTED_KINDS.flatMap(([kind, file, label, before, after]) =>
+  PLANTED_FORMS.map(
+    (form) => [kind, form, file, label, before, after] as const,
+  ),
+);
+
+describe('the meta-guard sees every form planted in every kind of file', () => {
+  it.each(PLANTED)('%s: %s', (_kind, form, file, label, before, after) => {
+    const sf = ts.createSourceFile(
+      file,
+      `${before}${form}${after}`,
+      ts.ScriptTarget.Latest,
+      true,
+    );
+    const { sites } = searchSitesIn(sf);
+    expect({
+      read: sites.length,
+      written: absencesWritten(codeWithoutLiterals(sf)),
+      findings: burnDownFindings(
+        sites.map((site) => ({ file, ...site })),
+        {},
+      ),
+    }).toEqual({
+      read: 1,
+      written: 1,
+      findings: [
+        `${scopeKey(file, label)}: 1 unproved, 0 listed. Check a recorded ` +
+          "floor on each search's population in the same test (searched + " +
+          'floorBreach), or use againstControl for an input left empty on purpose.',
+      ],
+    });
+  });
+});
+
+const at = (label: string, proved = false): FiledSite => ({
+  file: 'a.test.ts',
+  label,
+  proved,
+});
+
+describe('burnDownFindings', () => {
+  it('finds nothing when every unproved scope is listed at its count', () => {
+    const sites = [at('t'), at('t'), at('u', true)];
+    expect(
+      searched(burnDownFindings(sites, { 'a.test.ts › t': 2 }), {
+        of: sites,
+        what: 'planted sites',
+      }),
+    ).toEqual([]);
+    expect(
+      floorBreach('floorless-searches/fixture-listed', sites.length),
+    ).toBeUndefined();
+  });
+
+  it.each([
+    [
+      'more unproved than listed',
+      [at('t'), at('t')],
+      { 'a.test.ts › t': 1 },
+      '2 unproved, 1 listed. Check',
+    ],
+    [
+      'an unproved scope not listed',
+      [at('t')],
+      {},
+      '1 unproved, 0 listed. Check',
+    ],
+    [
+      'fewer unproved than listed',
+      [at('t')],
+      { 'a.test.ts › t': 2 },
+      '1 unproved, 2 listed. Lower',
+    ],
+    [
+      'a listed scope with none left',
+      [at('t', true)],
+      { 'a.test.ts › t': 1 },
+      '0 unproved, 1 listed. Lower',
+    ],
+    [
+      'an entry of zero',
+      [at('t', true)],
+      { 'a.test.ts › t': 0 },
+      'listed as 0, not a count',
+    ],
+    [
+      'a fractional entry',
+      [at('t')],
+      { 'a.test.ts › t': 1.5 },
+      'listed as 1.5, not a count',
+    ],
+  ])('finds %s', (_what, sites, listed, message) => {
+    expect(burnDownFindings(sites, listed)).toEqual([
+      expect.stringContaining(`a.test.ts › t: ${message}`),
+    ]);
+  });
+});
+
+describe('walkDisagreements', () => {
+  it('names a path on either side alone', () => {
+    expect(walkDisagreements(['a.ts', 'b.ts'], ['b.ts', 'c.ts'])).toEqual([
+      "a.ts: walked, not in git's list",
+      "c.ts: in git's list, not walked",
+    ]);
+  });
+
+  it('finds nothing when both lists hold the same paths', () => {
+    const walked = ['a.ts', 'b.ts'];
+    expect(
+      searched(walkDisagreements(walked, ['b.ts', 'a.ts']), {
+        of: walked,
+        what: 'planted paths',
+      }),
+    ).toEqual([]);
+    expect(
+      floorBreach('floorless-searches/fixture-walk', walked.length),
+    ).toBeUndefined();
+  });
+});
+
+/**
+ * Every TypeScript file git has, walked with a regex over its whole list,
+ * and what the reader made of each. Read once, on first use inside a test:
+ * nothing reaches workspace code while the file is collected.
+ */
+let walked:
+  | {
+      files: string[];
+      readings: (SearchReading & { file: string; code: string })[];
+      sites: (FiledSite & { form: Form })[];
+      tests: string[];
+    }
+  | undefined;
+const repository = () => {
+  if (walked !== undefined) return walked;
+  const files = committableFiles().filter((path) => /\.[cm]?ts$/.test(path));
+  const readings = files.map((file) => {
+    const sf = ts.createSourceFile(
+      file,
+      readFileSync(file, 'utf8'),
+      ts.ScriptTarget.Latest,
+      true,
+    );
+    return { file, code: codeWithoutLiterals(sf), ...searchSitesIn(sf) };
+  });
+  walked = {
+    files,
+    readings,
+    sites: readings.flatMap(({ file, sites }) =>
+      sites.map((site) => ({ file, ...site })),
+    ),
+    tests: readings.flatMap(({ file, tests }) =>
+      tests.map((title) => scopeKey(file, title)),
+    ),
+  };
+  return walked;
+};
+
+/** The burn-down list's size when the meta-guard landed (#361): it only shrinks. */
+const CEILING_SITES = 155;
+const CEILING_SCOPES = 141;
+
+describe('every absence search is proved, or listed (#361)', () => {
+  it('finds every scope holding exactly the unproved searches listed', () => {
+    const { readings, sites: SITES } = repository();
+    const refused = readings.flatMap(({ refused }) => refused);
+    const findings = burnDownFindings(SITES, UNPROVED);
+    expect(
+      searched(refused, { of: SITES, what: 'absence sites' }),
+      refused.join('\n'),
+    ).toEqual([]);
+    expect(
+      searched(findings, { of: SITES, what: 'absence sites' }),
+      findings.join('\n'),
+    ).toEqual([]);
+    expect(
+      floorBreach('floorless-searches/sites', SITES.length),
+    ).toBeUndefined();
+  });
+
+  it('only shrinks the burn-down list', () => {
+    // Measured when the meta-guard landed (#361). A conversion lowers these
+    // with the list; nothing raises them.
+    const counts = Object.values(UNPROVED);
+    expect(counts.reduce((sum, n) => sum + n, 0)).toBeLessThanOrEqual(
+      CEILING_SITES,
+    );
+    expect(counts.length).toBeLessThanOrEqual(CEILING_SCOPES);
+  });
+});
+
+describe('the reader proves what it read (#361)', () => {
+  it('reads as many absence sites in each file as its text writes, over every file git has', () => {
+    const { readings, files: FILES } = repository();
+    // Independent of the parse tree (control c): the constructs counted in
+    // each file's code with literals and comments removed, against what the
+    // reader returned for that file. The walk is checked against git's own
+    // globs, a second reading of the same list.
+    const misread = readings
+      .filter(
+        ({ code, sites, refusalChecks, unplaced }) =>
+          absencesWritten(code) !== sites.length + refusalChecks + unplaced,
+      )
+      .map(
+        ({ file, code, sites, refusalChecks, unplaced }) =>
+          `${file}: ${String(absencesWritten(code))} written, ${String(sites.length + refusalChecks + unplaced)} read`,
+      );
+    const walk = walkDisagreements(
+      FILES,
+      committableFiles(['*.ts', '*.mts', '*.cts']),
+    );
+    expect(
+      searched(misread, { of: FILES, what: 'TypeScript files' }),
+      misread.join('\n'),
+    ).toEqual([]);
+    expect(
+      searched(walk, { of: FILES, what: 'TypeScript files' }),
+      walk.join('\n'),
+    ).toEqual([]);
+    expect(
+      floorBreach('floorless-searches/files', FILES.length),
+    ).toBeUndefined();
+  });
+
+  it('reads as many tests in each file as its text writes', () => {
+    const { readings, tests: TESTS } = repository();
+    // A site's scope is the test around it, so a test form the reader cannot
+    // see sends its sites elsewhere.
+    const misread = readings
+      .filter(({ code, tests }) => testsWritten(code) !== tests.length)
+      .map(
+        ({ file, code, tests }) =>
+          `${file}: ${String(testsWritten(code))} written, ${String(tests.length)} read`,
+      );
+    expect(
+      searched(misread, { of: TESTS, what: 'tests read' }),
+      misread.join('\n'),
+    ).toEqual([]);
+    expect(
+      floorBreach('floorless-searches/tests', TESTS.length),
+    ).toBeUndefined();
   });
 });

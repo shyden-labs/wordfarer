@@ -444,3 +444,67 @@ export function searchSitesIn(sf: ts.SourceFile): SearchReading {
     refused,
   };
 }
+
+/** A site with the file it was read in. */
+export interface FiledSite {
+  readonly file: string;
+  readonly label: string;
+  readonly proved: boolean;
+}
+
+/** The burn-down key of a scope: `file › test title as written`. */
+export const scopeKey = (file: string, label: string): string =>
+  `${file} › ${label}`;
+
+/**
+ * Every scope whose unproved sites differ from the burn-down list, both
+ * ways, and every entry that is not a whole number of at least one: a site
+ * added without its proof fails, and so does one proved without the list
+ * being lowered, so the list only shrinks.
+ */
+export function burnDownFindings(
+  sites: readonly FiledSite[],
+  listed: Readonly<Record<string, number>>,
+): string[] {
+  const now = new Map<string, number>();
+  for (const { file, label, proved } of sites)
+    if (!proved) {
+      const key = scopeKey(file, label);
+      now.set(key, (now.get(key) ?? 0) + 1);
+    }
+  const keys = [...new Set([...now.keys(), ...Object.keys(listed)])].sort();
+  return keys.flatMap((key) => {
+    const read = now.get(key) ?? 0;
+    const entry = listed[key];
+    if (entry !== undefined && (!Number.isInteger(entry) || entry < 1))
+      return [`${key}: listed as ${String(entry)}, not a count of at least 1`];
+    const count = entry ?? 0;
+    if (read > count)
+      return [
+        `${key}: ${String(read)} unproved, ${String(count)} listed. Check a ` +
+          `recorded floor on each search's population in the same test ` +
+          `(searched + floorBreach), or use againstControl for an input left ` +
+          `empty on purpose.`,
+      ];
+    if (read < count)
+      return [
+        `${key}: ${String(read)} unproved, ${String(count)} listed. Lower ` +
+          `the entry in tests/unit/floorless-searches.burn-down.ts: the list ` +
+          `only shrinks.`,
+      ];
+    return [];
+  });
+}
+
+/** Paths one list holds and the other does not, both ways. */
+export const walkDisagreements = (
+  walked: readonly string[],
+  known: readonly string[],
+): string[] => [
+  ...walked
+    .filter((path) => !known.includes(path))
+    .map((path) => `${path}: walked, not in git's list`),
+  ...known
+    .filter((path) => !walked.includes(path))
+    .map((path) => `${path}: in git's list, not walked`),
+];
