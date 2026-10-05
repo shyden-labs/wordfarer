@@ -1,0 +1,9 @@
+{
+  "verify-dev/broken-site-problems": 14,
+  "verify-dev/gate-checks": 3,
+  "verify-dev/health-checks": 4,
+  "verify-dev/healthy-site-probes": 5,
+  "verify-dev/robots-checks": 2,
+  "verify-dev/stale-site-probes": 13,
+  "verify-dev/web-checks": 3
+}

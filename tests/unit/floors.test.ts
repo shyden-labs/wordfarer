@@ -1,8 +1,8 @@
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { FLOORS_FILE, RECORD_ENV, floorBreach, readFloors } from '../floors';
+import { FLOORS_DIR, RECORD_ENV, floorBreach, readFloors } from '../floors';
 import type { Observation } from '../../scripts/record-floors';
 
 /**
@@ -21,7 +21,7 @@ describe('floorBreach, judging', () => {
   it('names a count below the figure as a reader that lost units', () => {
     expect(judge(3)).toBe(
       'guard/units: read 3, recorded 5. The reader lost 2, or the corpus ' +
-        'shrank: if it shrank, lower the figure in tests/floors.json by hand ' +
+        'shrank: if it shrank, lower the figure in tests/floors/guard.json by hand ' +
         'and say why in the commit.',
     );
   });
@@ -29,7 +29,7 @@ describe('floorBreach, judging', () => {
   it('names a count above the figure as a population that grew', () => {
     expect(judge(8)).toBe(
       'guard/units: read 8, recorded 5. The population grew by 3: run npm ' +
-        'run floors:record, read what it moved, and commit tests/floors.json.',
+        'run floors:record, read what it moved, and commit tests/floors/guard.json.',
     );
   });
 
@@ -37,7 +37,7 @@ describe('floorBreach, judging', () => {
     expect(
       floorBreach('guard/other', 1, { floors: FLOORS, record: null }),
     ).toBe(
-      'guard/other is not recorded in tests/floors.json: run npm run floors:record',
+      'guard/other is not recorded in tests/floors/guard.json: run npm run floors:record',
     );
   });
 
@@ -61,7 +61,30 @@ describe('floorBreach, judging', () => {
     } finally {
       process.chdir(was);
     }
-    expect(FLOORS_FILE).toBe('tests/floors.json');
+    expect(FLOORS_DIR).toBe('tests/floors');
+  });
+});
+
+/** Each recorded file of the real directory, by guard, with its raw text (#406). */
+const recordedFiles = () =>
+  readdirSync(FLOORS_DIR)
+    .filter((name) => name.endsWith('.json'))
+    .map((name) => ({
+      guard: name.slice(0, -'.json'.length),
+      text: readFileSync(join(FLOORS_DIR, name), 'utf8'),
+    }));
+
+describe('the recorded floors, one file per guard (#406)', () => {
+  // A positive cross-check rather than a floored search: a floor on this
+  // directory's own size would change with every floor any ticket adds,
+  // and lag one recording behind what the recorder writes. A misplaced id
+  // or a bad figure makes readFloors throw, which fails this test.
+  it('reads every id the files hold, as their raw text spells them', () => {
+    const raw = recordedFiles().flatMap(({ text }) =>
+      [...text.matchAll(/^ {2}"([^"\n]+)": /gm)].map(([, id]) => id),
+    );
+    expect(raw.length, 'the floors directory holds ids').toBeGreaterThan(0);
+    expect(Object.keys(readFloors()).sort()).toEqual(raw.sort());
   });
 });
 
