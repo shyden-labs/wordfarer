@@ -12,9 +12,11 @@
   "name": "yawelo-idle-site-dev",
   "main": "worker/index.ts",
   "compatibility_date": "2026-09-30",
-  // Deployed to the "Shyden Labs Dev" account, which holds dev only (#395):
-  // no Custom Domain, served at its workers.dev address alone, and no
-  // preview URLs: one address, the one verify knows.
+  // Deployed to the "Shyden Labs Dev" account, which holds dev only (#395),
+  // with no Custom Domain: dev.yawelo-idle.shyden.co.uk reaches it through
+  // the Pages adapter's SITE binding (apps/dev-hosts, #429), and its
+  // workers.dev address stays as a second way in, behind the same gate, that
+  // tells an adapter fault from a Worker fault. No preview URLs.
   "workers_dev": true,
   "preview_urls": false,
   "assets": {

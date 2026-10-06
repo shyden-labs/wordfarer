@@ -96,6 +96,14 @@ const configs = wranglerConfigs().map((path) => ({
   config: readDeployConfig(path),
 }));
 
+/** The dev hostname that reaches a binding (apps/dev-hosts/hosts.ts). */
+function devHost(binding: string): string {
+  const found = [...DEV_HOSTS].find(([, each]) => each === binding);
+  if (found === undefined)
+    throw new Error(`no dev hostname reaches ${binding}`);
+  return found[0];
+}
+
 function byName(name: string): DeployConfig {
   const found = configs.find(({ config }) => config.name === name);
   if (found === undefined) throw new Error(`no wrangler config named ${name}`);
@@ -142,7 +150,7 @@ describe('the dev Workers’ deploy configs', () => {
     expect(byName('yawelo-idle-sync-dev').routes).toBeUndefined();
   });
 
-  it('serves each public dev Worker at its workers.dev address only, and the game at none, with no preview URLs (#395, #332, #429)', () => {
+  it('keeps each public dev Worker’s workers.dev address, and the game at none, with no preview URLs (#395, #332, #429)', () => {
     // The Pages adapter sets neither key: Pages has no workers.dev address,
     // and its own pages.dev address answers 404 (apps/dev-hosts/test).
     expect(
@@ -161,17 +169,25 @@ describe('the dev Workers’ deploy configs', () => {
     ]);
   });
 
-  it('verifies each dev Worker at its workers.dev address in the dev account (#395)', () => {
+  it('verifies dev at its dev hostnames, and the game’s own address in the dev account (#429, #332)', () => {
     const verify = verifySteps().find(
       (step) => runOf(step) === 'node scripts/verify-dev.ts',
     );
-    const address = (name: string) =>
-      `https://${byName(name).name}.${DEV_WORKERS_SUBDOMAIN}.workers.dev`;
+    const game = `https://${byName('yawelo-idle-web-dev').name}.${DEV_WORKERS_SUBDOMAIN}.workers.dev`;
     expect(verify?.env).toMatchObject({
-      DEV_WEB_URL: `${address('yawelo-idle-site-dev')}/`,
-      DEV_SYNC_URL: address('yawelo-idle-sync-dev'),
-      DEV_GAME_URL: `${address('yawelo-idle-web-dev')}/`,
+      DEV_WEB_URL: `https://${devHost('SITE')}/`,
+      DEV_SYNC_URL: `https://${devHost('SYNC')}`,
+      DEV_GAME_URL: `${game}/`,
     });
+  });
+
+  it('names the site’s dev hostname as the dev environment’s address, in both jobs (#429)', () => {
+    const workflow = parse(
+      readFileSync(join(ROOT, '.github/workflows/deploy-dev.yml'), 'utf8'),
+    ) as { jobs: Record<string, { environment?: unknown }> };
+    const dev = { name: 'dev', url: `https://${devHost('SITE')}` };
+    expect(workflow.jobs['deploy']?.environment).toEqual(dev);
+    expect(workflow.jobs['verify']?.environment).toEqual(dev);
   });
 
   it('serves the dev hostnames through a Pages project bound to the site and sync Workers (#429)', () => {
@@ -346,6 +362,9 @@ describe('the dev Cloudflare token, proven and held only where it is used (#395)
       holds(
         'npx wrangler deploy --secrets-file "$RUNNER_TEMP/site-secrets.json"',
       ),
+      holds(
+        'npx wrangler pages deploy --branch main --commit-hash "$GITHUB_SHA"',
+      ),
     ]);
   });
 
@@ -379,6 +398,39 @@ describe('the dev password, uploaded by the deploy (#357)', () => {
     });
     expect(deploy).toBeGreaterThan(write);
     expect(steps[deploy]?.['working-directory']).toBe('apps/site');
+  });
+});
+
+describe('the hostname adapter, deployed after the Workers it binds (#429)', () => {
+  const DEPLOY =
+    'npx wrangler pages deploy --branch main --commit-hash "$GITHUB_SHA"';
+
+  it('deploys to the project’s production branch from apps/dev-hosts, after the site and sync Workers', () => {
+    const steps = deploySteps();
+    const adapter = steps.findIndex((step) => runOf(step) === DEPLOY);
+    const workerIn = (dir: string) =>
+      steps.findIndex(
+        (step) =>
+          step['working-directory'] === dir &&
+          runOf(step).startsWith('npx wrangler deploy'),
+      );
+    const site = workerIn('apps/site');
+    const sync = workerIn('apps/sync-worker');
+    expect(steps[adapter]?.['working-directory']).toBe('apps/dev-hosts');
+    expect(site).toBeGreaterThanOrEqual(0);
+    expect(sync).toBeGreaterThanOrEqual(0);
+    expect(adapter).toBeGreaterThan(site);
+    expect(adapter).toBeGreaterThan(sync);
+  });
+
+  it('makes the empty static directory it uploads, holding no token, just before', () => {
+    const steps = deploySteps();
+    const adapter = steps.findIndex((step) => runOf(step) === DEPLOY);
+    expect(steps[adapter - 1]).toMatchObject({
+      'working-directory': 'apps/dev-hosts',
+      run: 'mkdir -p public',
+    });
+    expect(steps[adapter - 1]?.env).toBeUndefined();
   });
 });
 
