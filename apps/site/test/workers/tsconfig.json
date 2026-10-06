@@ -1,0 +1,13 @@
+{
+  // The site Worker's workerd tests (#341): the Workers runtime and the pool's
+  // `cloudflare:test` module, nothing from Node or the DOM. The Node-side
+  // fake GitHub is typed by ../../tsconfig.json with the rest of the site.
+  "extends": "../../worker/tsconfig.json",
+  "compilerOptions": {
+    "types": [
+      "../../worker/worker-configuration.d.ts",
+      "@cloudflare/vitest-pool-workers/types"
+    ]
+  },
+  "include": ["*.ts", "../../worker/*.ts"]
+}

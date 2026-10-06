@@ -10,6 +10,8 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     include: ['test/**/*.test.ts'],
+    // The roadmap's workerd tests run under vitest.workers.config.ts (#341).
+    exclude: ['test/workers/**'],
     hookTimeout: 60_000,
   },
 });
