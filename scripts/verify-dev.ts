@@ -12,6 +12,13 @@
  *    and the noindex header.
  * 4. The sync API's /health reports ok, that SHA and db "ok", with the
  *    noindex header (the API is not password-gated, by operator decision).
+ * 5. The site's other pages (`SITE_PAGES`: Indonesian, the roadmap and the
+ *    game at /play/, forwarded by service binding) each carry that SHA and
+ *    noindex with the password, the game refuses a caller without it, and
+ *    the script the game shell loads is served as JavaScript (#332).
+ * 6. The game Worker's own workers.dev address serves nothing: the site
+ *    Worker's binding is its only way in, so nothing reaches the game
+ *    around the gate (#332).
  *
  * Nothing is retried (Refs #83). The one wait is for a named condition: both
  * hosts serving the expected commit, since the previous deploy can be served
@@ -35,6 +42,8 @@ export interface Probe {
 export interface Target {
   webUrl: string;
   syncUrl: string;
+  /** The game Worker's own workers.dev address, retired by #332. */
+  gameUrl: string;
   sha: string;
   password: string;
 }
@@ -42,6 +51,12 @@ export interface Target {
 export const NO_INDEX = 'noindex, nofollow, noarchive';
 
 const COMMIT_STAMP = /<meta name="yawelo-idle-commit" content="([^"]*)"/;
+
+/** The script a game shell loads, under /play/assets/. */
+const GAME_SCRIPT = /<script[^>]+src="(\/play\/assets\/[^"]+\.js)"/;
+
+/** The pages checked once the home page serves the expected commit (#332). */
+export const SITE_PAGES: readonly string[] = ['/id/', '/roadmap', '/play/'];
 
 /** Any sign that a response carries the app rather than a challenge. */
 const APP_MARKUP = /<(?:!doctype|html|meta|script)\b/i;
@@ -152,7 +167,11 @@ const noIndexCheck = (label: string, probe: Probe): Check => ({
   },
 });
 
-export function webJudgement(probe: Probe, sha: string): Judgement {
+export function webJudgement(
+  probe: Probe,
+  sha: string,
+  label = 'web',
+): Judgement {
   return judge([
     {
       name: 'status',
@@ -160,25 +179,85 @@ export function webJudgement(probe: Probe, sha: string): Judgement {
       problem: () =>
         probe.status === 200
           ? undefined
-          : `web: status ${String(probe.status)} with the password, expected 200`,
+          : `${label}: status ${String(probe.status)} with the password, expected 200`,
     },
     {
       name: 'commit',
       problem: () => {
         const stamp = COMMIT_STAMP.exec(probe.body)?.[1];
         if (stamp === undefined)
-          return 'web: no yawelo-idle-commit meta tag in the page';
+          return `${label}: no yawelo-idle-commit meta tag in the page`;
         return stamp === sha
           ? undefined
-          : `web: serves commit ${stamp}, expected ${sha}`;
+          : `${label}: serves commit ${stamp}, expected ${sha}`;
       },
     },
-    noIndexCheck('web', probe),
+    noIndexCheck(label, probe),
   ]);
 }
 
-export function webProblems(probe: Probe, sha: string): string[] {
-  return [...webJudgement(probe, sha).problems];
+export function webProblems(
+  probe: Probe,
+  sha: string,
+  label = 'web',
+): string[] {
+  return [...webJudgement(probe, sha, label).problems];
+}
+
+/** A script the game shell loads, read with the password (#332). */
+export function scriptJudgement(label: string, probe: Probe): Judgement {
+  return judge([
+    {
+      name: 'status',
+      gate: true,
+      problem: () =>
+        probe.status === 200
+          ? undefined
+          : `${label}: status ${String(probe.status)} with the password, expected 200`,
+    },
+    {
+      name: 'content type',
+      problem: () => {
+        const type = probe.headers.get('content-type');
+        return /^text\/javascript\b/.test(type ?? '')
+          ? undefined
+          : `${label}: Content-Type is ${JSON.stringify(type)}, expected text/javascript`;
+      },
+    },
+    noIndexCheck(label, probe),
+  ]);
+}
+
+export function scriptProblems(label: string, probe: Probe): string[] {
+  return [...scriptJudgement(label, probe).problems];
+}
+
+/**
+ * The game Worker's own address, which must serve nothing (#332): any
+ * success or redirect, or the game's commit stamp in the body, means the
+ * game is reachable without passing the site Worker's gate.
+ */
+export function retiredJudgement(probe: Probe): Judgement {
+  return judge([
+    {
+      name: 'status',
+      problem: () =>
+        probe.status >= 400
+          ? undefined
+          : `game address: answered ${String(probe.status)}; the game is reachable around the site's gate`,
+    },
+    {
+      name: 'no game',
+      problem: () =>
+        COMMIT_STAMP.test(probe.body)
+          ? 'game address: the response carries the game'
+          : undefined,
+    },
+  ]);
+}
+
+export function retiredProblems(probe: Probe): string[] {
+  return [...retiredJudgement(probe).problems];
 }
 
 export function healthJudgement(probe: Probe, sha: string): Judgement {
@@ -400,9 +479,13 @@ export async function verifyDev(
         {},
         robotsProblems,
       );
-      return [...gate, robots, web, sync].flatMap(
-        (outcome) => outcome.problems,
-      );
+      return [
+        ...gate,
+        robots,
+        web,
+        sync,
+        ...(await lookAtTheRest(look, target, right)),
+      ].flatMap((outcome) => outcome.problems);
     }
     waiting = hosts.flatMap((h) => (h.kind === 'waiting' ? [h.problem] : []));
     if (poll < polls)
@@ -412,6 +495,50 @@ export async function verifyDev(
     `the expected commit ${target.sha} was not served on both hosts after ${String(polls)} looks ${String(pollMs)} ms apart`,
     ...waiting,
   ];
+}
+
+type Look = (
+  host: 'web' | 'sync',
+  label: string,
+  url: string,
+  headers: Record<string, string>,
+  judge: (probe: Probe) => string[],
+) => Promise<Outcome & { unanswered: boolean }>;
+
+/**
+ * Checks 5 and 6, once the home page serves the expected commit: each of
+ * `SITE_PAGES`, the game's script, the gate in front of the game, and the
+ * game's retired address.
+ */
+async function lookAtTheRest(
+  look: Look,
+  target: Target,
+  right: Record<string, string>,
+): Promise<Outcome[]> {
+  const at = (path: string) => new URL(path, target.webUrl).href;
+  const outcomes: Outcome[] = [];
+  for (const path of SITE_PAGES) {
+    const label = `web ${path}`;
+    outcomes.push(
+      await look('web', label, at(path), right, (p) =>
+        webProblems(p, target.sha, label),
+      ),
+    );
+  }
+  const shell = outcomes.at(-1)?.answer?.body ?? '';
+  const script = GAME_SCRIPT.exec(shell)?.[1];
+  outcomes.push(
+    script === undefined
+      ? { problems: ['web /play/: no game script in the page'], answer: null }
+      : await look('web', `web ${script}`, at(script), right, (p) =>
+          scriptProblems(`web ${script}`, p),
+        ),
+    await look('web', 'game without credentials', at('/play/'), {}, (p) =>
+      gateProblems('game without credentials', p),
+    ),
+    await check('game address', target.gameUrl, {}, retiredProblems),
+  );
+  return outcomes;
 }
 
 function required(name: string): string {
@@ -426,6 +553,7 @@ if (import.meta.main) {
     {
       webUrl: required('DEV_WEB_URL'),
       syncUrl: required('DEV_SYNC_URL'),
+      gameUrl: required('DEV_GAME_URL'),
       sha: required('EXPECTED_SHA'),
       password: required('DEV_BASIC_AUTH_PASSWORD'),
     },
@@ -436,6 +564,6 @@ if (import.meta.main) {
     process.exit(1);
   }
   console.log(
-    '✓ dev is password-gated, blocks crawlers, serves the expected commit, and D1 answers',
+    '✓ dev is password-gated, blocks crawlers, serves the expected commit on every page and the game, keeps the game behind the site, and D1 answers',
   );
 }

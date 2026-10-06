@@ -160,6 +160,7 @@ describe('the dev Workers’ deploy configs', () => {
     expect(verify?.env).toMatchObject({
       DEV_WEB_URL: `${address('yawelo-idle-site-dev')}/`,
       DEV_SYNC_URL: address('yawelo-idle-sync-dev'),
+      DEV_GAME_URL: `${address('yawelo-idle-web-dev')}/`,
     });
   });
 

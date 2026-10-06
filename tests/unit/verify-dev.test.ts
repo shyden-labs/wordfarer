@@ -9,8 +9,13 @@ import {
   healthJudgement,
   healthProblems,
   leaked,
+  retiredJudgement,
+  retiredProblems,
   robotsJudgement,
   robotsProblems,
+  scriptJudgement,
+  scriptProblems,
+  SITE_PAGES,
   verifyDev,
   webJudgement,
   webProblems,
@@ -31,6 +36,14 @@ const probe = (
   headers: Record<string, string> = {},
 ): Probe => ({ status, body, headers: new Headers(headers) });
 const challenge = { 'www-authenticate': 'Basic realm="Yawelo Idle Non-Prod"' };
+const SCRIPT = '/play/assets/app.js';
+const JAVASCRIPT = 'text/javascript; charset=utf-8';
+/** A page as the fake site serves it: every page names the game's script. */
+const shell = (sha: string) =>
+  page(sha).replace(
+    '</head>',
+    `<script type="module" src="${SCRIPT}"></script></head>`,
+  );
 const noindex = { 'x-robots-tag': NO_INDEX };
 
 describe('basicAuthorization', () => {
@@ -160,6 +173,67 @@ describe('webProblems', () => {
   });
 });
 
+describe('scriptProblems (#332)', () => {
+  it('accepts JavaScript with noindex, judging every check', () => {
+    const ok = probe(200, 'export {};', {
+      'content-type': JAVASCRIPT,
+      ...noindex,
+    });
+    expect(scriptJudgement('web /x.js', ok)).toEqual({
+      checked: ['status', 'content type', 'noindex'],
+      problems: [],
+    });
+  });
+
+  it('fails a non-200 and judges nothing after it', () => {
+    expect(scriptJudgement('web /x.js', probe(404))).toEqual({
+      checked: ['status'],
+      problems: ['web /x.js: status 404 with the password, expected 200'],
+    });
+  });
+
+  it.each([
+    ['HTML', 'text/html; charset=utf-8'],
+    ['a look-alike type', 'text/javascriptish'],
+  ])('fails a script served as %s', (_case, type) => {
+    const wrongType = probe(200, '', { 'content-type': type, ...noindex });
+    expect(scriptProblems('web /x.js', wrongType)).toEqual([
+      `web /x.js: Content-Type is ${JSON.stringify(type)}, expected text/javascript`,
+    ]);
+  });
+
+  it('fails a script without the noindex header', () => {
+    const bare = probe(200, '', { 'content-type': JAVASCRIPT });
+    expect(scriptProblems('web /x.js', bare)).toEqual([
+      'web /x.js: X-Robots-Tag is null, expected "noindex, nofollow, noarchive"',
+    ]);
+  });
+});
+
+describe('retiredProblems (#332)', () => {
+  it('accepts a not-found that carries no game, judging both checks', () => {
+    expect(retiredJudgement(probe(404, 'There is nothing here yet'))).toEqual({
+      checked: ['status', 'no game'],
+      problems: [],
+    });
+  });
+
+  it.each([200, 301, 307, 399])(
+    'fails a %s, which reaches past the gate',
+    (status) => {
+      expect(retiredProblems(probe(status))).toEqual([
+        `game address: answered ${String(status)}; the game is reachable around the site's gate`,
+      ]);
+    },
+  );
+
+  it('fails an error page that still carries the game', () => {
+    expect(retiredProblems(probe(500, page(SHA)))).toEqual([
+      'game address: the response carries the game',
+    ]);
+  });
+});
+
 describe('healthProblems', () => {
   const healthy = JSON.stringify({ ok: true, commit: SHA, db: 'ok' });
 
@@ -222,6 +296,17 @@ describe('verifyDev', () => {
   let authorisedStatus = 200;
   let requests = 0;
   let authorisedRequests = 0;
+  /** The retired game address still serves the game (#332). */
+  let retiredServes = false;
+  /** The Content-Type the game's script is served with. */
+  let scriptType = JAVASCRIPT;
+  /** A page path that keeps serving OLD after the home page turns current. */
+  let stalePath = '';
+  /** A page path served to anyone, as if the gate did not cover it. */
+  let ungatedPath = '';
+  /** The game shell names no script. */
+  let noScript = false;
+  const seenUrls: string[] = [];
   let webStale = 0;
   let healthStale = 0;
   const seenAuthorization: string[] = [];
@@ -229,6 +314,7 @@ describe('verifyDev', () => {
   beforeAll(async () => {
     server = createServer((req, res) => {
       requests += 1;
+      seenUrls.push(req.url ?? '');
       const tag: Record<string, string> = tagged
         ? { 'x-robots-tag': NO_INDEX }
         : {};
@@ -240,6 +326,18 @@ describe('verifyDev', () => {
         const commit = healthStale <= staleLooks ? OLD : served;
         res.writeHead(200, { 'content-type': 'application/json', ...tag });
         res.end(JSON.stringify({ ok: true, commit, db: 'ok' }));
+        return;
+      }
+      if (req.url === '/retired-game/') {
+        res.writeHead(retiredServes ? 200 : 404, {
+          'content-type': 'text/html',
+        });
+        res.end(retiredServes ? shell(served) : 'There is nothing here yet');
+        return;
+      }
+      if (req.url === SCRIPT && authorised) {
+        res.writeHead(200, { 'content-type': scriptType, ...tag });
+        res.end('export {};');
         return;
       }
       if (req.url === '/robots.txt') {
@@ -258,7 +356,7 @@ describe('verifyDev', () => {
           return;
         }
       }
-      if (gated && !authorised) {
+      if (gated && !authorised && req.url !== ungatedPath) {
         if (redirectGateOnce && authorization === '') {
           redirectGateOnce = false;
           res.writeHead(302, { location: '/login', ...tag });
@@ -274,7 +372,9 @@ describe('verifyDev', () => {
         'content-type': 'text/html',
         ...tag,
       });
-      res.end(page(webStale <= staleLooks ? OLD : served));
+      const commit =
+        webStale <= staleLooks || req.url === stalePath ? OLD : served;
+      res.end(noScript && req.url === '/play/' ? page(commit) : shell(commit));
     });
     await new Promise<void>((resolve) =>
       server.listen(0, '127.0.0.1', resolve),
@@ -289,6 +389,7 @@ describe('verifyDev', () => {
   const target = () => ({
     webUrl: `${base}/`,
     syncUrl: base,
+    gameUrl: `${base}/retired-game/`,
     sha: SHA,
     password: PASSWORD,
   });
@@ -304,6 +405,12 @@ describe('verifyDev', () => {
     authorisedStatus = 200;
     requests = 0;
     authorisedRequests = 0;
+    retiredServes = false;
+    scriptType = JAVASCRIPT;
+    stalePath = '';
+    ungatedPath = '';
+    noScript = false;
+    seenUrls.length = 0;
     webStale = 0;
     healthStale = 0;
     seenAuthorization.length = 0;
@@ -315,21 +422,84 @@ describe('verifyDev', () => {
   it('passes a gated site serving the expected commit, judging each check once', async () => {
     reset();
     const problems = await verifyDev(target(), { polls: 3, pollMs: 0 });
-    expect(searched(problems, { of: requests, what: 'probes' })).toEqual([]);
-    expect(
-      floorBreach('verify-dev/healthy-site-probes', requests),
-    ).toBeUndefined();
-    expect(
-      requests,
-      'no credentials, wrong password, web, health, robots: one look',
-    ).toBe(5);
+    // The exact requests first: a floor that moved would otherwise stop the
+    // test before they were checked (measured on #332).
+    expect(seenUrls).toEqual([
+      '/',
+      '/',
+      '/',
+      '/health',
+      '/robots.txt',
+      ...SITE_PAGES,
+      SCRIPT,
+      '/play/',
+      '/retired-game/',
+    ]);
     expect(seenAuthorization).toEqual([
       '',
       basicAuthorization(`${PASSWORD}x`),
       basicAuthorization(PASSWORD),
       '',
       '',
+      ...SITE_PAGES.map(() => basicAuthorization(PASSWORD)),
+      basicAuthorization(PASSWORD),
+      '',
+      '',
     ]);
+    expect(searched(problems, { of: requests, what: 'probes' })).toEqual([]);
+    expect(
+      floorBreach('verify-dev/healthy-site-probes', requests),
+    ).toBeUndefined();
+  });
+
+  it('checks Indonesian, the roadmap and the game at /play/ (#332 AC7)', () => {
+    expect(SITE_PAGES).toEqual(['/id/', '/roadmap', '/play/']);
+  });
+
+  it('fails when the retired game address still serves the game (#332)', async () => {
+    reset();
+    retiredServes = true;
+    const problems = await verifyDev(target(), { polls: 3, pollMs: 0 });
+    expect(problems).toEqual([
+      "game address: answered 200; the game is reachable around the site's gate",
+      'game address: the response carries the game',
+    ]);
+  });
+
+  it('fails a page that still serves an old commit once the home page is current', async () => {
+    reset();
+    stalePath = '/roadmap';
+    const problems = await verifyDev(target(), { polls: 3, pollMs: 0 });
+    expect(problems).toEqual([
+      `web /roadmap: serves commit ${OLD}, expected ${SHA}`,
+    ]);
+  });
+
+  it('fails a game the gate does not cover', async () => {
+    reset();
+    ungatedPath = '/play/';
+    const problems = await verifyDev(target(), { polls: 3, pollMs: 0 });
+    expect(problems).toEqual([
+      'game without credentials: answered 200, expected 401; the password gate is not in front of it',
+      'game without credentials: no Basic WWW-Authenticate challenge',
+      'game without credentials: the response carries app markup',
+    ]);
+  });
+
+  it('fails a game script served as something other than JavaScript', async () => {
+    reset();
+    scriptType = 'text/html; charset=utf-8';
+    const problems = await verifyDev(target(), { polls: 3, pollMs: 0 });
+    expect(problems).toEqual([
+      `web ${SCRIPT}: Content-Type is "text/html; charset=utf-8", expected text/javascript`,
+    ]);
+  });
+
+  it('fails a game shell that names no script', async () => {
+    reset();
+    noScript = true;
+    const problems = await verifyDev(target(), { polls: 3, pollMs: 0 });
+    expect(problems).toEqual(['web /play/: no game script in the page']);
   });
 
   it('fails at once, without another look, when the gate is gone', async () => {
@@ -349,13 +519,15 @@ describe('verifyDev', () => {
     reset();
     staleLooks = 2;
     const problems = await verifyDev(target(), { polls: 5, pollMs: 0 });
+    // The exact count first: a floor that moved would otherwise stop the
+    // test before it ran (measured on #332).
+    expect(requests, 'two stale looks of four probes, then one of eleven').toBe(
+      19,
+    );
     expect(searched(problems, { of: requests, what: 'probes' })).toEqual([]);
     expect(
       floorBreach('verify-dev/stale-site-probes', requests),
     ).toBeUndefined();
-    expect(requests, 'two stale looks of four probes, then one of five').toBe(
-      13,
-    );
   });
 
   it('fails a deploy still stale after the last look, naming each host’s commit', async () => {
@@ -397,7 +569,7 @@ describe('verifyDev', () => {
       'web without credentials: answered 302, expected 401; the password gate is not in front of it',
       'web without credentials: no Basic WWW-Authenticate challenge',
     ]);
-    expect(requests, 'one look of five probes').toBe(5);
+    expect(requests, 'one look of eleven probes').toBe(11);
   });
 
   it('fails at once when a host that has answered drops a connection', async () => {
@@ -420,7 +592,7 @@ describe('verifyDev', () => {
         new RegExp(`^robots\\.txt: request to ${base}/robots\\.txt failed: `),
       ),
     ]);
-    expect(requests, 'one look of five probes').toBe(5);
+    expect(requests, 'one look of eleven probes').toBe(11);
   });
 
   it('fails when the noindex header is missing everywhere', async () => {
@@ -429,6 +601,11 @@ describe('verifyDev', () => {
     expect(await verifyDev(target(), { polls: 1, pollMs: 0 })).toEqual([
       'web: X-Robots-Tag is null, expected "noindex, nofollow, noarchive"',
       'sync: X-Robots-Tag is null, expected "noindex, nofollow, noarchive"',
+      ...SITE_PAGES.map(
+        (path) =>
+          `web ${path}: X-Robots-Tag is null, expected "noindex, nofollow, noarchive"`,
+      ),
+      `web ${SCRIPT}: X-Robots-Tag is null, expected "noindex, nofollow, noarchive"`,
     ]);
   });
 
@@ -484,7 +661,7 @@ describe('verifyDev', () => {
     // Every kind of message: a judged leak, a wait, judged answers, failed requests.
     expect(leaking).toHaveLength(6);
     expect(stale).toHaveLength(3);
-    expect(untagged).toHaveLength(2);
+    expect(untagged).toHaveLength(6);
     expect(unreachable).toHaveLength(3);
     const reported = [...leaking, ...stale, ...untagged, ...unreachable];
     const credential = basicAuthorization(PASSWORD).slice(6);
