@@ -10,15 +10,14 @@ import { readFileSync } from 'node:fs';
 import {
   burnDownFindings,
   scalarZerosIn,
-  scopeKey,
   searchSitesIn,
-  walkDisagreements,
   type FiledSite,
   type Form,
   type SearchReading,
   type ZeroReading,
 } from './floorless-searches';
 import { UNPROVED } from './floorless-searches.burn-down';
+import { scopeKey, walkDisagreements } from './burn-down';
 import { floorBreach } from '../floors';
 import { searched } from '../searched';
 import { committableFiles } from './tracked-files';

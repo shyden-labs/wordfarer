@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { floorBreach } from '../floors';
 import { searched } from '../searched';
-import { walkDisagreements } from './floorless-searches';
+import { walkDisagreements } from './burn-down';
 import {
   ALLOWANCE_KEYS,
   ALLOWANCES,
