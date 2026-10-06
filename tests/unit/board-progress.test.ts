@@ -11,6 +11,7 @@ import {
 } from '../../packages/progress/src/index';
 import {
   boardPages,
+  FIXTURE_REPO,
   FIXTURE_TITLE,
 } from '../../packages/progress/test/board-fixture';
 
@@ -82,19 +83,19 @@ describe('scripts/board-progress.ts (#340)', () => {
   it('prints the same two lines as a direct module call on the shared fixture', () => {
     const before = utcDay();
     const pages = boardPages(before);
-    const run = runWrapper([NODE_ID, FIXTURE_TITLE], { pages });
+    const run = runWrapper([NODE_ID, FIXTURE_TITLE, FIXTURE_REPO], { pages });
     const after = utcDay();
     // The script reads the clock itself, so a run that crosses midnight UTC
     // may print either day's lines; both are computed the direct way.
     const direct = (today: string) =>
-      `${formatLines(progress(parseItems(pages), today), today).join('\n')}\n`;
+      `${formatLines(progress(parseItems(pages, FIXTURE_REPO), today), today).join('\n')}\n`;
     expect(run.stderr).toBe('');
     expect(run.status).toBe(0);
     expect([direct(before), direct(after)]).toContain(run.stdout);
   });
 
   it('asks gh for every page of the board it was given, slurped into one array', () => {
-    const run = runWrapper([NODE_ID, FIXTURE_TITLE], {
+    const run = runWrapper([NODE_ID, FIXTURE_TITLE, FIXTURE_REPO], {
       pages: boardPages(utcDay()),
     });
     expect(run.status).toBe(0);
@@ -121,18 +122,31 @@ describe('scripts/board-progress.ts (#340)', () => {
     );
   });
 
+  it('reads shyden-labs/yawelo-idle when no repository is given (#341)', () => {
+    const run = runWrapper([NODE_ID, FIXTURE_TITLE], {
+      pages: boardPages(utcDay()),
+    });
+    expect(run.status).not.toBe(0);
+    expect(run.stdout).toBe('');
+    expect(run.stderr).toContain(
+      '#1 is an issue of shyden-labs/fixture, not shyden-labs/yawelo-idle: remove it from the board',
+    );
+  });
+
   it('refuses to run without a node id and a title, before calling gh', () => {
     const run = runWrapper([NODE_ID]);
     expect(run.status).not.toBe(0);
     expect(run.stdout).toBe('');
     expect(run.stderr).toContain(
-      'usage: node scripts/board-progress.ts <board-node-id> "<board title>"',
+      'usage: node scripts/board-progress.ts <board-node-id> "<board title>" [owner/repo]',
     );
     expect(run.ghArgs).toThrow('ENOENT');
   });
 
   it('fails, printing no line, when gh fails', () => {
-    const run = runWrapper([NODE_ID, FIXTURE_TITLE], { fail: true });
+    const run = runWrapper([NODE_ID, FIXTURE_TITLE, FIXTURE_REPO], {
+      fail: true,
+    });
     expect(run.status).not.toBe(0);
     expect(run.stdout).toBe('');
     expect(run.stderr).toContain('gh: HTTP 502');

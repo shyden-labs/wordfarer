@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   assertTitle,
+  BOARD_QUERY,
   closeOutLines,
   formatLines,
   inScope,
   parseItems,
   progress,
+  roadmapItems,
   type BoardItem,
 } from '../src/index';
-import { boardPages, FIXTURE_TITLE } from './board-fixture';
+import { boardPages, FIXTURE_REPO, FIXTURE_TITLE } from './board-fixture';
 
 /**
  * Progress from the board, never from feel: every session close-out states
@@ -312,25 +314,29 @@ describe('formatLines', () => {
   });
 });
 
+const REPO = 'shyden-labs/example';
+const page = (nodes: unknown[]) => ({
+  data: { node: { title: 'Example Stories', items: { nodes } } },
+});
+const issue = (over: Record<string, unknown> = {}) => ({
+  __typename: 'Issue',
+  number: 8,
+  title: 'Story',
+  state: 'OPEN',
+  stateReason: null,
+  createdAt: '2026-10-01T00:00:00Z',
+  closedAt: null,
+  labels: { totalCount: 0, nodes: [] },
+  repository: { nameWithOwner: REPO },
+  ...over,
+});
+
 describe('parseItems', () => {
-  const page = (nodes: unknown[]) => ({
-    data: { node: { title: 'Example Stories', items: { nodes } } },
-  });
-  const issue = (over: Record<string, unknown> = {}) => ({
-    __typename: 'Issue',
-    number: 8,
-    title: 'Story',
-    state: 'OPEN',
-    stateReason: null,
-    createdAt: '2026-10-01T00:00:00Z',
-    closedAt: null,
-    labels: { totalCount: 0, nodes: [] },
-    ...over,
-  });
+  const parse = (pages: unknown[]) => parseItems(pages, REPO);
 
   it('reads an issue with its Estimate, state, close time and labels', () => {
     expect(
-      parseItems([
+      parse([
         page([
           {
             estimate: { number: 5 },
@@ -359,18 +365,18 @@ describe('parseItems', () => {
   });
 
   it('reads an unset Estimate as null', () => {
-    const [read] = parseItems([page([{ estimate: null, content: issue() }])]);
+    const [read] = parse([page([{ estimate: null, content: issue() }])]);
     expect(read?.estimate).toBeNull();
   });
 
   it('reads an open issue’s state reason as null', () => {
-    const [read] = parseItems([page([{ estimate: null, content: issue() }])]);
+    const [read] = parse([page([{ estimate: null, content: issue() }])]);
     expect(read?.stateReason).toBeNull();
   });
 
   it('refuses a draft item by name, never skipping it', () => {
     expect(() =>
-      parseItems([
+      parse([
         page([
           {
             estimate: null,
@@ -385,7 +391,7 @@ describe('parseItems', () => {
 
   it('refuses a pull request by name', () => {
     expect(() =>
-      parseItems([
+      parse([
         page([
           {
             estimate: null,
@@ -399,16 +405,14 @@ describe('parseItems', () => {
   });
 
   it('refuses an item whose content cannot be read, such as a deleted issue', () => {
-    expect(() =>
-      parseItems([page([{ estimate: null, content: null }])]),
-    ).toThrow(
+    expect(() => parse([page([{ estimate: null, content: null }])])).toThrow(
       'item "(no content)" is not an issue: convert it, or remove it from the board',
     );
   });
 
   it('refuses an issue that came back without its creation time', () => {
     expect(() =>
-      parseItems([
+      parse([
         page([{ estimate: null, content: issue({ createdAt: undefined }) }]),
       ]),
     ).toThrow(
@@ -421,7 +425,7 @@ describe('parseItems', () => {
       name: `label-${String(i)}`,
     }));
     expect(() =>
-      parseItems([
+      parse([
         page([
           {
             estimate: null,
@@ -435,14 +439,39 @@ describe('parseItems', () => {
   });
 
   it('refuses a page that holds no board items', () => {
-    expect(() => parseItems([{ data: { node: null } }])).toThrow(
+    expect(() => parse([{ data: { node: null } }])).toThrow(
       'a page came back without the board’s items: is the node id a project board?',
     );
   });
 
+  it('refuses another repository’s issue by name (#341)', () => {
+    expect(() =>
+      parse([
+        page([
+          {
+            estimate: null,
+            content: issue({
+              repository: { nameWithOwner: 'shyden-labs/other' },
+            }),
+          },
+        ]),
+      ]),
+    ).toThrow(
+      '#8 is an issue of shyden-labs/other, not shyden-labs/example: remove it from the board',
+    );
+  });
+
+  it('refuses an issue that came back without its repository (#341)', () => {
+    expect(() =>
+      parse([
+        page([{ estimate: null, content: issue({ repository: undefined }) }]),
+      ]),
+    ).toThrow('#8 came back without its repository');
+  });
+
   it('reads every page', () => {
     expect(
-      parseItems([
+      parse([
         page([{ estimate: null, content: issue({ number: 1 }) }]),
         page([
           { estimate: null, content: issue({ number: 2 }) },
@@ -451,6 +480,142 @@ describe('parseItems', () => {
       ]).map((i) => i.number),
     ).toEqual([1, 2, 3]);
   });
+});
+
+describe('roadmapItems (#341)', () => {
+  const read = (nodes: unknown[]) => roadmapItems([page(nodes)], REPO);
+
+  it('keeps the repository’s issues exactly as parseItems reads them', () => {
+    const pages = boardPages(TODAY);
+    expect(roadmapItems(pages, FIXTURE_REPO)).toEqual({
+      items: parseItems(pages, FIXTURE_REPO),
+      dropped: [],
+    });
+  });
+
+  it('drops a draft item, naming it', () => {
+    expect(
+      read([
+        {
+          estimate: null,
+          content: { __typename: 'DraftIssue', title: 'Idea' },
+        },
+      ]),
+    ).toEqual({ items: [], dropped: [{ kind: 'draft', label: 'Idea' }] });
+  });
+
+  it('drops a pull request, naming it', () => {
+    expect(
+      read([
+        {
+          estimate: null,
+          content: { __typename: 'PullRequest', title: 'Fix' },
+        },
+      ]),
+    ).toEqual({ items: [], dropped: [{ kind: 'pull request', label: 'Fix' }] });
+  });
+
+  it('drops another repository’s issue, naming it with its repository', () => {
+    expect(
+      read([
+        {
+          estimate: null,
+          content: issue({
+            repository: { nameWithOwner: 'shyden-labs/other' },
+          }),
+        },
+      ]),
+    ).toEqual({
+      items: [],
+      dropped: [
+        { kind: 'another repository', label: 'shyden-labs/other#8 Story' },
+      ],
+    });
+  });
+
+  it('keeps an issue beside the items it drops', () => {
+    const { items, dropped } = read([
+      { estimate: null, content: { __typename: 'DraftIssue', title: 'Idea' } },
+      { estimate: 3, content: issue({ number: 9 }) },
+    ]);
+    expect(items.map((i) => i.number)).toEqual([9]);
+    expect(dropped).toEqual([{ kind: 'draft', label: 'Idea' }]);
+  });
+
+  it('refuses an item whose content cannot be read, such as a deleted issue', () => {
+    expect(() => read([{ estimate: null, content: null }])).toThrow(
+      'item "(no content)" is not an issue: convert it, or remove it from the board',
+    );
+  });
+
+  it('refuses a kind of item it does not know, by name', () => {
+    expect(() =>
+      read([
+        { estimate: null, content: { __typename: 'Mystery', title: 'Odd' } },
+      ]),
+    ).toThrow(
+      'item "Odd" is not an issue: convert it, or remove it from the board',
+    );
+  });
+
+  it('refuses an issue that came back without its creation time', () => {
+    expect(() =>
+      read([{ estimate: null, content: issue({ createdAt: undefined }) }]),
+    ).toThrow(
+      'an issue on the board came back without its number, title, state or creation time',
+    );
+  });
+
+  it('refuses an issue that came back without its repository', () => {
+    expect(() =>
+      read([{ estimate: null, content: issue({ repository: undefined }) }]),
+    ).toThrow('#8 came back without its repository');
+  });
+
+  it('refuses a page that holds no board items', () => {
+    expect(() => roadmapItems([{ data: { node: null } }], REPO)).toThrow(
+      'a page came back without the board’s items: is the node id a project board?',
+    );
+  });
+
+  it('reads every page', () => {
+    expect(
+      roadmapItems(
+        [
+          page([{ estimate: null, content: issue({ number: 1 }) }]),
+          page([{ estimate: null, content: issue({ number: 2 }) }]),
+        ],
+        REPO,
+      ).items.map((i) => i.number),
+    ).toEqual([1, 2]);
+  });
+});
+
+describe('BOARD_QUERY', () => {
+  // Every field the parser reads (#341). The fixtures hand these over
+  // whatever the query asks, so only this pins that GitHub is asked for them.
+  const FIELDS = [
+    'title',
+    'estimate',
+    '__typename',
+    'number',
+    'state',
+    'stateReason',
+    'createdAt',
+    'closedAt',
+    'repository',
+    'nameWithOwner',
+    'labels',
+    'totalCount',
+    'name',
+    'endCursor',
+    'hasNextPage',
+  ];
+  for (const field of FIELDS) {
+    it(`asks GitHub for ${field}`, () => {
+      expect(BOARD_QUERY).toMatch(new RegExp(`\\b${field}\\b`));
+    });
+  }
 });
 
 describe('assertTitle', () => {
@@ -471,7 +636,9 @@ describe('assertTitle', () => {
 
 describe('closeOutLines', () => {
   it('gives both close-out lines for the shared fixture', () => {
-    expect(closeOutLines(boardPages(TODAY), FIXTURE_TITLE, TODAY)).toEqual([
+    expect(
+      closeOutLines(boardPages(TODAY), FIXTURE_TITLE, FIXTURE_REPO, TODAY),
+    ).toEqual([
       'By tickets: 50% complete (3 of 6 in-scope stories closed; 1 epic, 1 post-launch and 1 closed as not planned left out). ' +
         'Measured pace 0.29 a day over the last 7 days (0, 0, 0, 1, 0, 1, 0). ' +
         'ETA at that pace: 2026-10-15, before outside waits.',
@@ -488,7 +655,9 @@ describe('closeOutLines', () => {
     const second = pages[1];
     expect(second).toBeDefined();
     if (second !== undefined) second.data.node.title = 'ShyTalk Stories';
-    expect(() => closeOutLines(pages, FIXTURE_TITLE, TODAY)).toThrow(
+    expect(() =>
+      closeOutLines(pages, FIXTURE_TITLE, FIXTURE_REPO, TODAY),
+    ).toThrow(
       'the board is "ShyTalk Stories", not "Fixture Stories": nothing read',
     );
   });

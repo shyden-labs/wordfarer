@@ -225,6 +225,7 @@ export const BOARD_QUERY = `query($id: ID!, $endCursor: String) {
           ... on DraftIssue { title }
           ... on PullRequest { title }
           ... on Issue { number title state stateReason createdAt closedAt
+            repository { nameWithOwner }
             labels(first: ${String(LABELS_PER_ISSUE)}) { totalCount nodes { name } } }
         } } } } } }`;
 
@@ -239,6 +240,7 @@ interface RawNode {
     createdAt?: string;
     closedAt?: string | null;
     labels?: { totalCount: number; nodes: { name: string }[] };
+    repository?: { nameWithOwner: string };
   } | null;
 }
 interface RawPage {
@@ -261,13 +263,44 @@ function boardOf(page: unknown): RawPage['data']['node'] {
   return board as RawPage['data']['node'];
 }
 
-function parseNode(node: RawNode): BoardItem {
+/** A board item the roadmap leaves off (#341), by kind, with what it is called. */
+export interface Dropped {
+  kind: 'draft' | 'pull request' | 'another repository';
+  label: string;
+}
+
+/** Why an item is not one of `repo`'s issues: the message `parseItems` refuses it with. */
+type NotAnIssue = Dropped & { refusal: string };
+
+const notAnIssue = (title: string, kind: 'draft item' | 'item'): string =>
+  `${kind} "${title}" is not an issue: convert it, or remove it from the board`;
+
+/**
+ * One reading of a board item for both policies (#341): one of `repo`'s
+ * issues, or something the close-out script refuses and the roadmap drops.
+ * Anything else (no content, a kind GitHub may add, a malformed issue) is
+ * refused by name here, under either policy.
+ */
+function classify(node: RawNode, repo: string): BoardItem | NotAnIssue {
   const c = node.content;
+  if (c?.__typename === 'DraftIssue') {
+    const title = c.title ?? '';
+    return {
+      kind: 'draft',
+      label: title,
+      refusal: notAnIssue(title, 'draft item'),
+    };
+  }
+  if (c?.__typename === 'PullRequest') {
+    const title = c.title ?? '';
+    return {
+      kind: 'pull request',
+      label: title,
+      refusal: notAnIssue(title, 'item'),
+    };
+  }
   if (c?.__typename !== 'Issue') {
-    const kind = c?.__typename === 'DraftIssue' ? 'draft item' : 'item';
-    throw new Error(
-      `${kind} "${c?.title ?? '(no content)'}" is not an issue: convert it, or remove it from the board`,
-    );
+    throw new Error(notAnIssue(c?.title ?? '(no content)', 'item'));
   }
   if (
     c.number === undefined ||
@@ -278,6 +311,17 @@ function parseNode(node: RawNode): BoardItem {
     throw new Error(
       'an issue on the board came back without its number, title, state or creation time',
     );
+  }
+  if (c.repository === undefined) {
+    throw new Error(`#${String(c.number)} came back without its repository`);
+  }
+  const owner = c.repository.nameWithOwner;
+  if (owner !== repo) {
+    return {
+      kind: 'another repository',
+      label: `${owner}#${String(c.number)} ${c.title}`,
+      refusal: `#${String(c.number)} is an issue of ${owner}, not ${repo}: remove it from the board`,
+    };
   }
   const labels = c.labels ?? { totalCount: 0, nodes: [] };
   if (labels.totalCount > labels.nodes.length) {
@@ -297,9 +341,44 @@ function parseNode(node: RawNode): BoardItem {
   };
 }
 
-/** Board items from the GraphQL pages; anything that is not an issue is refused by name. */
-export function parseItems(pages: unknown[]): BoardItem[] {
-  return pages.flatMap((page) => boardOf(page).items.nodes.map(parseNode));
+const isIssue = (read: BoardItem | NotAnIssue): read is BoardItem =>
+  !('refusal' in read);
+
+/**
+ * `repo`'s issues on the board, for the close-out script: anything else is
+ * refused by name, so the operator fixes the board rather than reading a
+ * count that quietly left something out.
+ */
+export function parseItems(pages: unknown[], repo: string): BoardItem[] {
+  return pages.flatMap((page) =>
+    boardOf(page).items.nodes.map((node) => {
+      const read = classify(node, repo);
+      if (isIssue(read)) return read;
+      throw new Error(read.refusal);
+    }),
+  );
+}
+
+/**
+ * `repo`'s issues on the board, for the public roadmap (#341): drafts, pull
+ * requests and other repositories' issues are left off and listed, so one
+ * stray card never takes the page down; anything unclassifiable is still
+ * refused by name. On a board `parseItems` accepts, both give the same items.
+ */
+export function roadmapItems(
+  pages: unknown[],
+  repo: string,
+): { items: BoardItem[]; dropped: Dropped[] } {
+  const items: BoardItem[] = [];
+  const dropped: Dropped[] = [];
+  for (const page of pages) {
+    for (const node of boardOf(page).items.nodes) {
+      const read = classify(node, repo);
+      if (isIssue(read)) items.push(read);
+      else dropped.push({ kind: read.kind, label: read.label });
+    }
+  }
+  return { items, dropped };
 }
 
 /** Refuse to read a board other than the one asked for. */
@@ -318,8 +397,9 @@ export function assertTitle(actual: string, expected: string): void {
 export function closeOutLines(
   pages: unknown[],
   title: string,
+  repo: string,
   today: string,
 ): [string, string] {
   for (const page of pages) assertTitle(boardOf(page).title, title);
-  return formatLines(progress(parseItems(pages), today), today);
+  return formatLines(progress(parseItems(pages, repo), today), today);
 }
