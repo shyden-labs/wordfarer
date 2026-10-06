@@ -9,7 +9,8 @@
  * Section 10 names no platform, only the browser (operator, 17:02 UTC, W9
  * amended). A change to any line is approved again before it ships.
  */
-import { line } from './copy-line';
+import { line, t } from './copy-line';
+import { digits, duration, rankList, rankName, words } from './figures';
 
 export const COPY_EN = {
   devStrip: line(
@@ -62,7 +63,7 @@ export const COPY_EN = {
       line('Night falls over the islands.', 'site §4'),
       line('Your ship sets sail for the next destination.', 'parent §4.4'),
       line(
-        'Every word you pick up is a card that climbs from Heard to Mastered.',
+        t`Every word you pick up is a card that climbs from ${rankName('RANKS.0')} to ${rankName('RANKS.-1')}.`,
         'parent §3.3',
         'parent §3.4',
       ),
@@ -93,14 +94,14 @@ export const COPY_EN = {
       ),
     },
     ranks: line(
-      'Every card climbs five ranks: Heard, Recognised, Recalled, Fluent and Mastered.',
+      t`Every card climbs ${words('RANKS.length', { '5': 'five' })} ranks: ${rankList('RANKS')}.`,
       'parent §3.3',
       'parent §3.4',
     ),
     reviews: {
       title: line('Reviews that respect your time', 'parent §3.4'),
       body: line(
-        'When a word is due, answer one quick question about it. Remember it and you earn Insight, and the word comes back later, spaced out the way memory works. A wrong answer costs nothing: the word drops one rank and is simply rescheduled. You never see more than 10 reviews at once, and never a backlog.',
+        t`When a word is due, answer one quick question about it. Remember it and you earn Insight, and the word comes back later, spaced out the way memory works. A wrong answer costs nothing: the word drops one rank and is simply rescheduled. You never see more than ${digits('BALANCE.memory.queueSize')} reviews at once, and never a backlog.`,
         'parent §3.4',
         'parent §3.1',
         'DN16',
@@ -108,7 +109,7 @@ export const COPY_EN = {
       ),
     },
     optional: line(
-      'Reviews are optional. A word you never review keeps at least four fifths of its bonus, so a pure idler can still reach the end. Learners just get there faster.',
+      t`Reviews are optional. A word you never review keeps at least ${words('BALANCE.words.floorShare', { '0.8': 'four fifths' })} of its bonus, so a pure idler can still reach the end. Learners just get there faster.`,
       'D1',
       'parent §3.3',
       'parent §1',
@@ -121,7 +122,7 @@ export const COPY_EN = {
     journeys: {
       title: line('Journeys and culture cards', 'parent §4.2'),
       body: line(
-        'Send out Journeys that last from 30 minutes to a day. Each one brings back a culture card (a festival, a food, a custom, a place or a motif) with new words to pick up and a bonus that lasts.',
+        t`Send out Journeys that last from ${duration('BALANCE.journeys.durationsMs.0')} to ${words('BALANCE.journeys.durationsMs.-1', { '86400000': 'a day' })}. Each one brings back a culture card (a festival, a food, a custom, a place or a motif) with new words to pick up and a bonus that lasts.`,
         'parent §4.2',
       ),
     },
@@ -135,6 +136,7 @@ export const COPY_EN = {
       body: line(
         'Unlock Indonesian affixes or English endings with Insight. Each one boosts every word it attaches to and teaches the words it builds: ajar grows into belajar, mengajar, pelajar and pelajaran.',
         'parent §4.3',
+        'parent §1',
       ),
     },
     setSail: {
@@ -146,8 +148,9 @@ export const COPY_EN = {
       ),
     },
     guide: line(
-      'From the second region, a guide called Pemandu buys Encounters for you, so idling really works.',
+      t`From the ${words('BALANCE.automation.opensAtRegion', { '2': 'second' })} region, a guide called Pemandu buys Encounters for you, so idling really works.`,
       'parent §4.6',
+      'parent §3.2',
       'DN10',
     ),
   },
@@ -156,6 +159,7 @@ export const COPY_EN = {
     heading: line('A year of adventure', 'site §3'),
     intro: line(
       'Yawelo Idle is designed for about a year of play, in four layers, and nothing you learn is ever reset.',
+      'site §3',
       '#328',
       'DN3',
     ),
@@ -166,33 +170,40 @@ export const COPY_EN = {
     ),
     homecoming: line(
       'Homecoming: reach the Mudik finale, come home with souvenirs, and spend them on a tree with four branches: Trade, Travel, Scholar and Culture.',
+      'site §3',
       '#328',
       'parent §4.7',
     ),
     later: line(
       'Generations and Tour Guide: two more layers, arriving as free updates before anyone could reach them.',
+      'site §3',
       '#328',
       'D2',
     ),
     story: line(
       'A family story grows with every homecoming, and your story book lets you rewatch every chapter you have unlocked.',
+      'site §3',
       '#328',
     ),
     lottery: line(
       'Spend Insight on a lottery of cosmetics, collectibles and small boosts. The odds are always shown, and it can never be bought with money.',
+      'site §3',
       '#328',
     ),
     shards: line(
       'Duplicates and big moments drop shards of items you do not own yet, so nothing is wasted.',
+      'site §3',
       '#328',
     ),
     dailyGift: line(
       'A small gift on each day you play, counted in total days, never as a streak: missing a day costs you nothing.',
+      'site §3',
       '#328',
       'DN16',
     ),
     varieties: line(
       'Choose British, American or Australian English, or standard Indonesian with colloquial Jakartan alongside, from day one. Local dialects unlock as you go.',
+      'site §3',
       '#328',
     ),
   },
@@ -224,6 +235,7 @@ export const COPY_EN = {
       'Yawelo Idle will be free to play in your browser, with an optional supporter pack that is cosmetic only, never progress.',
       'W9',
       'D2',
+      'D16',
     ),
   },
 
@@ -246,7 +258,7 @@ export const COPY_EN = {
       'D17',
       'file:TRADEMARKS.md',
     ),
-    link: line('Read the code on GitHub', 'D17'),
+    link: line('Read the code on GitHub', 'D17', 'site §3'),
   },
 
   getReady: {
@@ -323,6 +335,7 @@ export const COPY_EN = {
     body: line(
       'Yawelo Idle will be playable here at launch. Until then, watch the roadmap or join the launch list.',
       'site §7.2',
+      'D16',
     ),
   },
 

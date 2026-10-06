@@ -10,6 +10,7 @@
     "types": "wrangler types worker/worker-configuration.d.ts --strict-vars=false"
   },
   "dependencies": {
+    "@yawelo-idle/core": "*",
     "@yawelo-idle/lockdown": "*",
     "@yawelo-idle/web": "*"
   },
