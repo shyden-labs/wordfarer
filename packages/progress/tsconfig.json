@@ -1,0 +1,21 @@
+{
+  // @yawelo-idle/progress is pure maths over a board snapshot. It runs in Node
+  // (scripts/board-progress.ts and its unit tests) and, from #341, in workerd
+  // (the site Worker's roadmap), so `types: []` keeps the hoisted @types/node
+  // out and a Node-only API cannot typecheck here.
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2023"],
+    "types": [],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

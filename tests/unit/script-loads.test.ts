@@ -27,6 +27,7 @@ const hasMain = (path: string) =>
  * the population from git twice and fails on any difference, either way.
  */
 const SCRIPTS = [
+  'scripts/board-progress.ts',
   'scripts/ci-scope.ts',
   'scripts/d1-binding.ts',
   'scripts/dev-secrets.ts',
