@@ -229,6 +229,17 @@ export const SUITES: readonly Suite[] = [
     run: ['npm', 'run', 'test'],
   },
   {
+    name: 'site Worker suite',
+    cwd: 'apps/site',
+    list: [...VITEST_LIST, '-c', 'vitest.workers.config.ts'],
+    files: vitestListed,
+    run: {
+      unrecordable:
+        'it runs inside workerd, which has no file system for floorBreach ' +
+        'to record to (#341)',
+    },
+  },
+  {
     name: 'dev hosts harness',
     cwd: 'apps/dev-hosts',
     list: [...VITEST_LIST, '-c', 'vitest.harness.config.ts'],

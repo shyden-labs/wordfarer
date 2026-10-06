@@ -39,6 +39,9 @@ interface DeployConfig {
   vars: Record<string, unknown>;
   d1_databases: unknown;
   services: unknown;
+  durable_objects: unknown;
+  migrations: unknown;
+  triggers: unknown;
   /** Pages only (#429); wrangler resolves it to an absolute path. */
   pages_build_output_dir: unknown;
 }
@@ -59,6 +62,9 @@ function readDeployConfig(path: string): DeployConfig {
     vars,
     d1_databases,
     services,
+    durable_objects,
+    migrations,
+    triggers,
     pages_build_output_dir,
   } = raw;
   if (typeof name !== 'string') throw new Error(`${path}: no name`);
@@ -77,6 +83,9 @@ function readDeployConfig(path: string): DeployConfig {
     vars,
     d1_databases,
     services,
+    durable_objects,
+    migrations,
+    triggers,
     pages_build_output_dir,
   };
 }
@@ -129,6 +138,22 @@ describe('the dev Workers’ deploy configs', () => {
       run_worker_first: true,
       not_found_handling: '404-page',
     });
+  });
+
+  it('reads the roadmap from the one board, into a SQLite Durable Object, every 10 minutes (#341)', () => {
+    const site = byName('yawelo-idle-site-dev');
+    expect(site.vars).toMatchObject({
+      ROADMAP_BOARD_ID: 'PVT_kwDOEOcG584BlRWb',
+      ROADMAP_BOARD_TITLE: 'Yawelo Idle Stories',
+      ROADMAP_REPO: 'shyden-labs/yawelo-idle',
+    });
+    expect(site.durable_objects).toEqual({
+      bindings: [{ name: 'ROADMAP', class_name: 'Roadmap' }],
+    });
+    expect(site.migrations).toEqual([
+      { tag: 'v1', new_sqlite_classes: ['Roadmap'] },
+    ]);
+    expect(site.triggers).toEqual({ crons: ['*/10 * * * *'] });
   });
 
   it('reaches the game only through the site Worker’s GAME binding (#332)', () => {
@@ -381,7 +406,7 @@ describe('the dev Cloudflare token, proven and held only where it is used (#395)
   });
 });
 
-describe('the dev password, uploaded by the deploy (#357)', () => {
+describe('the dev secrets, uploaded by the deploy (#357, #341)', () => {
   const FILE = '"$RUNNER_TEMP/site-secrets.json"';
 
   it('is written from the dev environment secret, then deployed with the site Worker (#332)', () => {
@@ -395,6 +420,8 @@ describe('the dev password, uploaded by the deploy (#357)', () => {
     expect(write).toBeGreaterThanOrEqual(0);
     expect(steps[write]?.env).toEqual({
       DEV_PASSWORD: '${{ secrets.DEV_BASIC_AUTH_PASSWORD }}',
+      ROADMAP_WEBHOOK_SECRET: '${{ secrets.ROADMAP_WEBHOOK_SECRET }}',
+      ROADMAP_APP_KEY: '${{ secrets.ROADMAP_APP_KEY }}',
     });
     expect(deploy).toBeGreaterThan(write);
     expect(steps[deploy]?.['working-directory']).toBe('apps/site');

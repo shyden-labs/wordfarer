@@ -7,6 +7,8 @@
  * the Worker's (#341), so they can be held to identical output.
  */
 export const FIXTURE_TITLE = 'Fixture Stories';
+/** The repository whose issues the fixture's board holds (#341). */
+export const FIXTURE_REPO = 'shyden-labs/fixture';
 
 const DAY_MS = 86_400_000;
 
@@ -44,6 +46,7 @@ function node(today: string, story: Story): unknown {
         totalCount: labels.length,
         nodes: labels.map((name) => ({ name })),
       },
+      repository: { nameWithOwner: FIXTURE_REPO },
     },
   };
 }

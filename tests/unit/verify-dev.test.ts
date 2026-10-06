@@ -9,6 +9,8 @@ import {
   healthJudgement,
   healthProblems,
   leaked,
+  roadmapJudgement,
+  roadmapProblems,
   retiredJudgement,
   retiredProblems,
   robotsJudgement,
@@ -273,6 +275,106 @@ describe('healthProblems', () => {
   });
 });
 
+describe('roadmapProblems (#341)', () => {
+  const NOW = Date.parse('2026-10-06T13:00:00Z');
+  const healthy = {
+    lastEventAt: '2026-10-06T12:58:00.000Z',
+    lastCheckAt: '2026-10-06T12:51:00.000Z',
+    version: 3,
+    drift: 0,
+    driftTotal: 0,
+    pendingDriftSince: null,
+    readFailingSince: null,
+    readError: null,
+  };
+  const health = (over: Record<string, unknown> = {}) =>
+    probe(200, JSON.stringify({ ...healthy, ...over }), noindex);
+
+  it('accepts a read board with no drift, no failing reads and a recent check', () => {
+    const judged = roadmapJudgement(health(), NOW);
+    expect(
+      searched(judged.problems, { of: judged.checked, what: 'roadmap checks' }),
+    ).toEqual([]);
+    expect(
+      floorBreach('verify-dev/roadmap-checks', judged.checked.length),
+    ).toBeUndefined();
+  });
+
+  it('fails a board never read', () => {
+    expect(roadmapProblems(health({ version: 0 }), NOW)).toEqual([
+      'roadmap: version 0: the board has never been read',
+    ]);
+  });
+
+  it('fails drift, naming a missed webhook, however old it is', () => {
+    expect(roadmapProblems(health({ drift: 1, driftTotal: 1 }), NOW)).toEqual([
+      'roadmap: drift 1 since a webhook last delivered a change: a board change reached the roadmap only through the 10-minute check, so a webhook was missed',
+    ]);
+  });
+
+  it('fails reads that are failing, with the reason', () => {
+    expect(
+      roadmapProblems(
+        health({
+          readFailingSince: '2026-10-06T12:40:00.000Z',
+          readError: 'GitHub refused POST /graphql: HTTP 502',
+        }),
+        NOW,
+      ),
+    ).toEqual([
+      'roadmap: reads failing since 2026-10-06T12:40:00.000Z: GitHub refused POST /graphql: HTTP 502',
+    ]);
+  });
+
+  it('fails a last check more than 20 minutes old', () => {
+    expect(
+      roadmapProblems(health({ lastCheckAt: '2026-10-06T12:39:59.000Z' }), NOW),
+    ).toEqual([
+      'roadmap: last check 2026-10-06T12:39:59.000Z, more than 20 minutes ago: the cron is not running',
+    ]);
+  });
+
+  it('accepts a last check exactly 20 minutes old, at the recorded floor', () => {
+    const judged = roadmapJudgement(
+      health({ lastCheckAt: '2026-10-06T12:40:00.000Z' }),
+      NOW,
+    );
+    expect(
+      searched(judged.problems, { of: judged.checked, what: 'roadmap checks' }),
+    ).toEqual([]);
+    expect(
+      floorBreach(
+        'verify-dev/roadmap-checks-at-the-bound',
+        judged.checked.length,
+      ),
+    ).toBeUndefined();
+  });
+
+  it('fails a check that never ran', () => {
+    expect(roadmapProblems(health({ lastCheckAt: null }), NOW)).toEqual([
+      'roadmap: last check null, more than 20 minutes ago: the cron is not running',
+    ]);
+  });
+
+  it('fails a non-JSON body and a non-200', () => {
+    expect(roadmapProblems(probe(200, 'oops', noindex), NOW)).toEqual([
+      'roadmap: /api/roadmap/health did not return JSON',
+    ]);
+    expect(roadmapProblems(probe(401, '', noindex), NOW)).toEqual([
+      'roadmap: /api/roadmap/health status 401, expected 200',
+    ]);
+  });
+
+  it('fails a healthy answer without the noindex header', () => {
+    expect(
+      roadmapProblems(
+        probe(200, JSON.stringify(healthy), { 'x-robots-tag': 'noindex' }),
+        NOW,
+      ),
+    ).toEqual([`roadmap: X-Robots-Tag is "noindex", expected "${NO_INDEX}"`]);
+  });
+});
+
 /**
  * verifyDev end to end over real HTTP: a local server stands in for both dev
  * hosts. `/health` is the ungated sync API; every other path is the web host,
@@ -310,6 +412,8 @@ describe('verifyDev', () => {
   let webStale = 0;
   let healthStale = 0;
   const seenAuthorization: string[] = [];
+  /** What /api/roadmap/health answers to an authorised request (#341). */
+  let roadmap: Record<string, unknown> = {};
 
   beforeAll(async () => {
     server = createServer((req, res) => {
@@ -326,6 +430,11 @@ describe('verifyDev', () => {
         const commit = healthStale <= staleLooks ? OLD : served;
         res.writeHead(200, { 'content-type': 'application/json', ...tag });
         res.end(JSON.stringify({ ok: true, commit, db: 'ok' }));
+        return;
+      }
+      if (req.url === '/api/roadmap/health' && authorised) {
+        res.writeHead(200, { 'content-type': 'application/json', ...tag });
+        res.end(JSON.stringify(roadmap));
         return;
       }
       if (req.url === '/retired-game/') {
@@ -414,7 +523,25 @@ describe('verifyDev', () => {
     webStale = 0;
     healthStale = 0;
     seenAuthorization.length = 0;
+    roadmap = {
+      lastEventAt: null,
+      lastCheckAt: new Date().toISOString(),
+      version: 1,
+      drift: 0,
+      driftTotal: 0,
+      pendingDriftSince: null,
+      readFailingSince: null,
+      readError: null,
+    };
   };
+
+  it('fails a site whose roadmap missed a webhook (#341)', async () => {
+    reset();
+    roadmap = { ...roadmap, drift: 1, driftTotal: 1 };
+    expect(await verifyDev(target(), { polls: 1, pollMs: 0 })).toEqual([
+      'roadmap: drift 1 since a webhook last delivered a change: a board change reached the roadmap only through the 10-minute check, so a webhook was missed',
+    ]);
+  });
 
   const notServed = (polls: number) =>
     `the expected commit ${SHA} was not served on both hosts after ${String(polls)} looks 0 ms apart`;
@@ -434,6 +561,7 @@ describe('verifyDev', () => {
       SCRIPT,
       '/play/',
       '/retired-game/',
+      '/api/roadmap/health',
     ]);
     expect(seenAuthorization).toEqual([
       '',
@@ -445,6 +573,7 @@ describe('verifyDev', () => {
       basicAuthorization(PASSWORD),
       '',
       '',
+      basicAuthorization(PASSWORD),
     ]);
     expect(searched(problems, { of: requests, what: 'probes' })).toEqual([]);
     expect(
@@ -521,8 +650,8 @@ describe('verifyDev', () => {
     const problems = await verifyDev(target(), { polls: 5, pollMs: 0 });
     // The exact count first: a floor that moved would otherwise stop the
     // test before it ran (measured on #332).
-    expect(requests, 'two stale looks of four probes, then one of eleven').toBe(
-      19,
+    expect(requests, 'two stale looks of four probes, then one of twelve').toBe(
+      20,
     );
     expect(searched(problems, { of: requests, what: 'probes' })).toEqual([]);
     expect(
@@ -569,7 +698,7 @@ describe('verifyDev', () => {
       'web without credentials: answered 302, expected 401; the password gate is not in front of it',
       'web without credentials: no Basic WWW-Authenticate challenge',
     ]);
-    expect(requests, 'one look of eleven probes').toBe(11);
+    expect(requests, 'one look of twelve probes').toBe(12);
   });
 
   it('fails at once when a host that has answered drops a connection', async () => {
@@ -592,7 +721,7 @@ describe('verifyDev', () => {
         new RegExp(`^robots\\.txt: request to ${base}/robots\\.txt failed: `),
       ),
     ]);
-    expect(requests, 'one look of eleven probes').toBe(11);
+    expect(requests, 'one look of twelve probes').toBe(12);
   });
 
   it('fails when the noindex header is missing everywhere', async () => {
@@ -606,6 +735,7 @@ describe('verifyDev', () => {
           `web ${path}: X-Robots-Tag is null, expected "noindex, nofollow, noarchive"`,
       ),
       `web ${SCRIPT}: X-Robots-Tag is null, expected "noindex, nofollow, noarchive"`,
+      'roadmap: X-Robots-Tag is null, expected "noindex, nofollow, noarchive"',
     ]);
   });
 
@@ -661,7 +791,7 @@ describe('verifyDev', () => {
     // Every kind of message: a judged leak, a wait, judged answers, failed requests.
     expect(leaking).toHaveLength(6);
     expect(stale).toHaveLength(3);
-    expect(untagged).toHaveLength(6);
+    expect(untagged).toHaveLength(7);
     expect(unreachable).toHaveLength(3);
     const reported = [...leaking, ...stale, ...untagged, ...unreachable];
     const credential = basicAuthorization(PASSWORD).slice(6);

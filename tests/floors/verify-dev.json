@@ -1,9 +1,11 @@
 {
-  "verify-dev/broken-site-problems": 18,
+  "verify-dev/broken-site-problems": 19,
   "verify-dev/gate-checks": 3,
   "verify-dev/health-checks": 4,
-  "verify-dev/healthy-site-probes": 11,
+  "verify-dev/healthy-site-probes": 12,
+  "verify-dev/roadmap-checks": 7,
+  "verify-dev/roadmap-checks-at-the-bound": 7,
   "verify-dev/robots-checks": 2,
-  "verify-dev/stale-site-probes": 19,
+  "verify-dev/stale-site-probes": 20,
   "verify-dev/web-checks": 3
 }
