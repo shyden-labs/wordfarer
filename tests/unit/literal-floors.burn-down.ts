@@ -1,0 +1,71 @@
+/**
+ * Every scope holding a literal minimum of two or more, by `file › test title
+ * as written` (or the named function), with how many (#378). Measured when
+ * the meta-guard landed: 62 numbers written in place and 9 written another
+ * way (a const, a table look-up, a test table, arithmetic). Each becomes a
+ * figure recorded in `tests/floors/` and checked with `floorBreach`.
+ *
+ * Checked for equality both ways by `literal-floors.test.ts`: a new literal
+ * minimum fails, and so does a converted one until its entry is lowered. It
+ * only shrinks.
+ */
+export const LITERAL_MINIMUMS: Readonly<Record<string, number>> = {
+  'apps/web/test/gate.test.ts › found a real built script to probe (liveness)': 1,
+  'packages/bots/pacing/pacing.test.ts › (e) every open of %s offers a meaningful decision': 1,
+  'packages/bots/pacing/pacing.test.ts › (h) %s meets no NaN, negative or infinite value': 1,
+  'packages/bots/test/player.test.ts › buys until nothing is affordable': 1,
+  'packages/bots/test/player.test.ts › taps Listen while it owns nothing and nothing is affordable, then buys': 1,
+  'packages/bots/test/player.test.ts › the Capped Buyer makes 5 purchases in a check where the Casual Learner makes more': 1,
+  'packages/bots/test/player.test.ts › the Clicker taps Listen 10 times a second through the open': 1,
+  'packages/bots/test/player.test.ts › the Random Buyer buys until nothing is affordable, in its own order': 1,
+  'packages/bots/test/run.test.ts › ends after the open in which the asked-for sails landed': 1,
+  'packages/bots/test/run.test.ts › finds the second production meets the goal between two actions': 1,
+  'packages/bots/test/run.test.ts › looks between the last action and the sail when no action meets the goal': 1,
+  'packages/bots/test/run.test.ts › plays the Casual Learner’s first day: 3 opens, sails timed from the first open': 1,
+  'packages/bots/test/run.test.ts › times each goal from when the Understanding earned that run reached it: after the sail before, no later than its own sail, and for the Idler hours before an open lets it sail': 2,
+  'packages/core/test/automation.test.ts › equals buying tick by tick with bestPayback and buyEncounter, over generated states': 1,
+  'packages/core/test/balance.test.ts › holds only finite, non-negative numbers': 1,
+  'packages/core/test/balance.test.ts › is frozen all the way down': 1,
+  'packages/core/test/grammar.test.ts › changes only the anchor, Insight and grammar': 1,
+  'packages/core/test/grammar.test.ts › leaves an Encounter whose words no owned node covers unchanged: no grammar line': 1,
+  'packages/core/test/hash.test.ts › changes when any numeric field moves by one ulp': 1,
+  'packages/core/test/journeys.test.ts › lets a pack word be picked up, and it pays like any word': 1,
+  'packages/core/test/log.test.ts › for any event at any point of the scenario, apply never throws and never writes to its input': 4,
+  'packages/core/test/pemandu-perf.test.ts › is credited in full and buys on the way, in under 1,000 ms': 1,
+  'packages/core/test/pemandu-tick.test.ts › equals a tick-by-tick scan over 10,000 generated states, checking at most one more tick than it walks segments': 4,
+  'packages/core/test/review.test.ts › never lowers a rank on a correct answer, over random review histories': 1,
+  'packages/core/test/rng.test.ts › are independent: drawing the others never changes ${name}': 1,
+  'packages/core/test/sail.test.ts › changes nothing else: every other key is deep-equal': 1,
+  'packages/core/test/sim.test.ts › integrate(integrate(s, a), b) deep-equals integrate(s, a + b) with Pemandu buying (#33 AC4)': 1,
+  'packages/core/test/sim.test.ts › over random sequences of listens, purchases and returns': 1,
+  'packages/core/test/synthetic-course.test.ts › region ${String(index)} has 4 destinations, 150 lexicon items, 6 Encounters, 12 cards in sets and 4 grammar nodes': 2,
+  'packages/core/test/unfold.test.ts › ${flag} never turns off over seeded walks from a new game and from one near its goal': 3,
+  'packages/core/test/words.test.ts › over random sequences of pick-ups, answers, purchases and returns': 2,
+  'tests/unit/collection-calls.test.ts › judges the calls they evaluate at collection, counted as calls': 1,
+  'tests/unit/collection-calls.test.ts › reads a describe callback in every file whose text holds a describe call': 1,
+  'tests/unit/collection-calls.test.ts › reads the describe callbacks in them, counted as callbacks, not files': 1,
+  'tests/unit/collection-calls.test.ts › scans every committable test file, this one included': 1,
+  'tests/unit/core-import-graph.test.ts › draws an edge for every module a value is imported from (liveness)': 1,
+  'tests/unit/core-import-graph.test.ts › judges every relative import and export declaration (liveness)': 1,
+  'tests/unit/core-import-graph.test.ts › reads every module (liveness)': 1,
+  'tests/unit/golden-log.test.ts › accepts %s events, at least the floor': 1,
+  'tests/unit/golden-log.test.ts › refuses %s events, at least the floor': 1,
+  'tests/unit/golden-log.test.ts › steps the device clock back once a day (AC3): 35 measured': 1,
+  'tests/unit/licences.test.ts › no committable file names the dissolved company or its old org handle': 1,
+  'tests/unit/one-test-per-case.test.ts › reads at least one test in every file whose text holds a test call': 1,
+  'tests/unit/one-test-per-case.test.ts › reads the tests in them, counted as tests, not files (Refs #82)': 1,
+  'tests/unit/one-test-per-case.test.ts › scans every committable test file, this one included': 1,
+  'tests/unit/shop-agreement.test.ts › judged %s offers apply accepted, at least the floor': 1,
+  'tests/unit/shop-agreement.test.ts › judged %s offers apply refused, at least the floor': 1,
+  'tests/unit/state-hash.test.ts › the long key spans more than one SHA-256 block': 1,
+  'tests/unit/supply-chain.test.ts › opens every PR against develop, never straight at main': 1,
+  'tests/unit/supply-chain.test.ts › reads every action repo the workflows use (Refs #82)': 1,
+  'tests/unit/supply-chain.test.ts › there is something to check': 1,
+  'tests/unit/third-party-notices.test.ts › ${workspace} has direct dependencies to check': 1,
+  'tests/unit/third-party-notices.test.ts › has bundled Apache-2.0 @stdlib packages to name': 1,
+  'tests/unit/third-party-notices.test.ts › names every package of the closure, which is larger than the direct list': 2,
+  'tests/unit/workflow-secrets.test.ts › finds the deploy secrets it is guarding (liveness)': 1,
+  'tests/unit/workflow-secrets.test.ts › judges every job, counted as jobs, not files (Refs #82)': 1,
+  'tests/unit/workflow-secrets.test.ts › scans every workflow, and every one has jobs': 1,
+  'tests/unit/workflow-timeouts.test.ts › checks every job it finds (liveness)': 2,
+};

@@ -1,5 +1,12 @@
 import ts from 'typescript';
-import { callbackOf, chainRoot, kindOf, titleOf } from './one-test-per-case';
+import { listFindings } from './burn-down';
+import { chainRoot } from './one-test-per-case';
+import {
+  expectationOf,
+  isFunction,
+  placeOf,
+  testBodiesIn,
+} from './test-scopes';
 
 /**
  * Every absence search, where it sits, and whether a floor is checked on its
@@ -87,40 +94,6 @@ const FLOOR = 'floorBreach';
 const EQUALITY = new Set(['toEqual', 'toStrictEqual']);
 /** Matchers that, negated, say "no such member". */
 const MEMBERSHIP = new Set(['toContain', 'toContainEqual', 'toMatch']);
-
-const isFunction = (
-  node: ts.Node,
-): node is ts.ArrowFunction | ts.FunctionExpression =>
-  ts.isArrowFunction(node) || ts.isFunctionExpression(node);
-
-/** Every test body in `sf` to its title, in source order. */
-function testBodiesIn(sf: ts.SourceFile): Map<ts.Node, string> {
-  const bodies = new Map<ts.Node, string>();
-  const visit = (node: ts.Node): void => {
-    if (ts.isCallExpression(node) && kindOf(node) === 'test') {
-      const callback = callbackOf(node);
-      if (callback) bodies.set(callback, titleOf(sf, node));
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(sf);
-  return bodies;
-}
-
-/** A function's own name, when it has one to be listed by. */
-function nameOf(node: ts.Node): string | undefined {
-  if (ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node))
-    return node.name && ts.isIdentifier(node.name) ? node.name.text : undefined;
-  if (!isFunction(node)) return undefined;
-  const holder = node.parent;
-  if (
-    (ts.isVariableDeclaration(holder) || ts.isPropertyAssignment(holder)) &&
-    holder.initializer === node &&
-    ts.isIdentifier(holder.name)
-  )
-    return holder.name.text;
-  return undefined;
-}
 
 /** The population a search names in `of:`, as written, or undefined. */
 function populationOf(call: ts.CallExpression): ts.Expression | undefined {
@@ -254,31 +227,6 @@ const isCallTo = (node: ts.Node, name: string): node is ts.CallExpression =>
   ts.isIdentifier(node.expression) &&
   node.expression.text === name;
 
-/**
- * The `expect(…)` call an assertion starts from, and whether `.not` sits
- * between it and the matcher: `expect(x).not.toContain(y)`, or
- * `expect.soft(x)`. Undefined for any other callee.
- */
-function expectationOf(
-  matcher: ts.PropertyAccessExpression,
-): { expectation: ts.CallExpression; negated: boolean } | undefined {
-  let target = matcher.expression;
-  let negated = false;
-  if (ts.isPropertyAccessExpression(target) && target.name.text === 'not') {
-    negated = true;
-    target = target.expression;
-  }
-  if (!ts.isCallExpression(target)) return undefined;
-  const callee = target.expression;
-  const isExpect =
-    (ts.isIdentifier(callee) && callee.text === EXPECT) ||
-    (ts.isPropertyAccessExpression(callee) &&
-      ts.isIdentifier(callee.expression) &&
-      callee.expression.text === EXPECT &&
-      callee.name.text === 'soft');
-  return isExpect ? { expectation: target, negated } : undefined;
-}
-
 /** `xs.method(…)` for one of `methods`. */
 const isMethodCall = (node: ts.Node, methods: readonly string[]): boolean =>
   ts.isCallExpression(node) &&
@@ -369,28 +317,23 @@ export function searchSitesIn(sf: ts.SourceFile): SearchReading {
   };
 
   const site = (at: ts.Node, form: Form, call?: ts.CallExpression): void => {
-    for (let scope = at.parent; ; scope = scope.parent) {
-      if (ts.isSourceFile(scope)) {
-        unplaced += 1;
-        refuse(at, 'a search in no test and no named function');
-        return;
-      }
-      const title = bodies.get(scope);
-      const name = title === undefined ? nameOf(scope) : undefined;
-      if (title === undefined && name === undefined) continue;
-      sites.push({
-        line: lineOf(at),
-        form,
-        scope: title === undefined ? 'function' : 'test',
-        label: title ?? (name as string),
-        proved:
-          call !== undefined &&
-          (form === 'control'
-            ? isBoundControl(call)
-            : floorsPopulation(sf, scope, call)),
-      });
+    const place = placeOf(at, bodies);
+    if (place === undefined) {
+      unplaced += 1;
+      refuse(at, 'a search in no test and no named function');
       return;
     }
+    sites.push({
+      line: lineOf(at),
+      form,
+      scope: place.scope,
+      label: place.label,
+      proved:
+        call !== undefined &&
+        (form === 'control'
+          ? isBoundControl(call)
+          : floorsPopulation(sf, place.node, call)),
+    });
   };
 
   const visit = (node: ts.Node): void => {
@@ -502,59 +445,23 @@ export interface FiledSite {
   readonly proved: boolean;
 }
 
-/** The burn-down key of a scope: `file › test title as written`. */
-export const scopeKey = (file: string, label: string): string =>
-  `${file} › ${label}`;
-
 /**
  * Every scope whose unproved sites differ from the burn-down list, both
- * ways, and every entry that is not a whole number of at least one: a site
- * added without its proof fails, and so does one proved without the list
- * being lowered, so the list only shrinks.
+ * ways: see `listFindings`.
  */
-export function burnDownFindings(
+export const burnDownFindings = (
   sites: readonly FiledSite[],
   listed: Readonly<Record<string, number>>,
-): string[] {
-  const now = new Map<string, number>();
-  for (const { file, label, proved } of sites)
-    if (!proved) {
-      const key = scopeKey(file, label);
-      now.set(key, (now.get(key) ?? 0) + 1);
-    }
-  const keys = [...new Set([...now.keys(), ...Object.keys(listed)])].sort();
-  return keys.flatMap((key) => {
-    const read = now.get(key) ?? 0;
-    const entry = listed[key];
-    if (entry !== undefined && (!Number.isInteger(entry) || entry < 1))
-      return [`${key}: listed as ${String(entry)}, not a count of at least 1`];
-    const count = entry ?? 0;
-    if (read > count)
-      return [
-        `${key}: ${String(read)} unproved, ${String(count)} listed. Check a ` +
-          `recorded floor on each search's population in the same test ` +
-          `(searched + floorBreach), or use againstControl for an input left ` +
-          `empty on purpose.`,
-      ];
-    if (read < count)
-      return [
-        `${key}: ${String(read)} unproved, ${String(count)} listed. Lower ` +
-          `the entry in tests/unit/floorless-searches.burn-down.ts: the list ` +
-          `only shrinks.`,
-      ];
-    return [];
-  });
-}
-
-/** Paths one list holds and the other does not, both ways. */
-export const walkDisagreements = (
-  walked: readonly string[],
-  known: readonly string[],
-): string[] => [
-  ...walked
-    .filter((path) => !known.includes(path))
-    .map((path) => `${path}: walked, not in git's list`),
-  ...known
-    .filter((path) => !walked.includes(path))
-    .map((path) => `${path}: in git's list, not walked`),
-];
+): string[] =>
+  listFindings(
+    sites.filter(({ proved }) => !proved),
+    listed,
+    {
+      noun: 'unproved',
+      fix:
+        "Check a recorded floor on each search's population in the same " +
+        'test (searched + floorBreach), or use againstControl for an input ' +
+        'left empty on purpose.',
+      list: 'tests/unit/floorless-searches.burn-down.ts',
+    },
+  );
