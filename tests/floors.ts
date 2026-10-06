@@ -42,7 +42,7 @@ export type Floors = Readonly<Record<string, number>>;
 
 /**
  * The repository root, from this file's own place rather than the working
- * directory: the web gate's suite runs from `apps/web`, where a relative
+ * directory: the harness suites run from `apps/web` and `apps/site`, where a relative
  * `tests/floors` names nothing.
  */
 const ROOT = fileURLToPath(new URL('..', import.meta.url));

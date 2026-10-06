@@ -10,8 +10,6 @@
  * lowered. It only shrinks.
  */
 export const UNPROVED: Readonly<Record<string, number>> = {
-  'apps/web/test/gate.test.ts › refuses a real built asset %s and sends none of its bytes': 1,
-  'apps/web/test/gate.test.ts › refuses the page %s without credentials': 1,
   'packages/bots/pacing/pacing.test.ts › (a) %s sets sail for the first time after 30 to 60 minutes': 1,
   'packages/bots/pacing/pacing.test.ts › (b) the Casual Learner reaches each later destination 1 to 3 days after the one before': 1,
   'packages/bots/pacing/pacing.test.ts › (c) the Casual Learner reaches the finale in 3 to 5 weeks': 1,

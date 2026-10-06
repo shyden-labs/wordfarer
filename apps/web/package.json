@@ -3,10 +3,13 @@
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
+  "exports": {
+    "./commit-stamp": "./commit-stamp.ts"
+  },
   "scripts": {
     "build": "vite build",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc --noEmit -p worker",
-    "test": "vite build && vitest run -c vitest.gate.config.ts",
+    "test": "vite build && vitest run -c vitest.harness.config.ts",
     "types": "wrangler types worker/worker-configuration.d.ts --strict-vars=false"
   },
   "devDependencies": {

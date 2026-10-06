@@ -1,29 +1,21 @@
-// The DEV web app: a Worker with static assets (spec D9, as amended
-// 2026-10-01: Cloudflare now folds Pages into Workers), served at
-// yawelo-idle-web-dev.shyden-labs-dev.workers.dev behind the shared dev
-// password (#39, #395).
+// The DEV game: a Worker with static assets (spec D9, as amended 2026-10-01:
+// Cloudflare now folds Pages into Workers), built under /play/ and reached
+// only through the site Worker's service binding (website spec §7.2, #332).
 //
-// Cloudflare serves a matching asset WITHOUT invoking a Worker unless
-// `run_worker_first` is set, so the gate in worker/index.ts would never see
-// the request. Here it is set, and every request pays one invocation; the
-// future production config can stay script-less and keep asset requests free.
+// No address of its own: `workers_dev: false` and no route, so nobody can
+// reach the game around the site Worker's dev gate. Deployed to the
+// "Shyden Labs Dev" account, which holds dev only (#395).
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "yawelo-idle-web-dev",
   "main": "worker/index.ts",
   "compatibility_date": "2026-09-30",
-  // Deployed to the "Shyden Labs Dev" account, which holds dev only (#395):
-  // the shyden.co.uk zone sits in the production account, and no dev
-  // credential may reach it, so dev has no Custom Domain and is served at its
-  // workers.dev address alone. The gate in worker/index.ts guards every host
-  // but production's. No preview URLs: one address, the one verify knows.
-  "workers_dev": true,
+  "workers_dev": false,
   "preview_urls": false,
   "assets": {
+    // Vite writes the game to dist/play (vite.config.ts), so /play/x maps to
+    // dist/play/x with no prefix to strip.
     "directory": "./dist",
     "binding": "ASSETS",
-    "run_worker_first": true,
-    // A PWA routes on the client, so an unknown path serves index.html.
-    "not_found_handling": "single-page-application",
   },
 }

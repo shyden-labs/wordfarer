@@ -1,0 +1,30 @@
+// The DEV site Worker, the front door (website spec §7.2, #332): the
+// prerendered pages from ./dist, and /play/* forwarded to the game Worker by
+// service binding, all behind the shared dev password (#39, W15).
+//
+// Cloudflare serves a matching asset WITHOUT invoking a Worker unless
+// `run_worker_first` is set, so the gate in worker/index.ts would never see
+// the request. Here it is set, and every request pays one invocation;
+// production can serve its pages without the Worker and keep them free
+// (#425 AC2).
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "yawelo-idle-site-dev",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-09-30",
+  // Deployed to the "Shyden Labs Dev" account, which holds dev only (#395):
+  // no Custom Domain, served at its workers.dev address alone, and no
+  // preview URLs: one address, the one verify knows.
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    // An unknown path gets the nearest 404.html: /id/… the Indonesian one.
+    "not_found_handling": "404-page",
+  },
+  // The game Worker has no address of its own; this binding is its only way
+  // in, so it is deployed first.
+  "services": [{ "binding": "GAME", "service": "yawelo-idle-web-dev" }],
+}

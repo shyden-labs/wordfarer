@@ -1,0 +1,21 @@
+{
+  "name": "@yawelo-idle/site",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "build": "astro build",
+    "typecheck": "astro check --minimumSeverity hint && tsc --noEmit -p worker",
+    "test": "astro build && vitest run -c vitest.harness.config.ts",
+    "types": "wrangler types worker/worker-configuration.d.ts --strict-vars=false"
+  },
+  "dependencies": {
+    "@yawelo-idle/lockdown": "*",
+    "@yawelo-idle/web": "*"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@astrojs/svelte": "^9.0.1",
+    "astro": "^7.3.5"
+  }
+}

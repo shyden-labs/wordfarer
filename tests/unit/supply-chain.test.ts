@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { parse } from 'yaml';
 import { withoutYamlComments, withoutYamlQuotes } from './source-text';
 import { committableFiles } from './tracked-files';
@@ -417,6 +418,29 @@ describe('the install is reproducible', () => {
     expect(lock.lockfileVersion).toBe(3);
     expect(lock.name).toBe(pkg().name);
     expect(lock.packages['']?.devDependencies).toEqual(pkg().devDependencies);
+  });
+
+  it('every package.json below the root is a workspace, so the root npm entry covers it (#332)', () => {
+    // Dependabot's one npm entry reads the root manifest and its lock file,
+    // which hold every workspace's dependencies. A manifest outside the
+    // workspaces would have its own dependencies and nothing to update them.
+    // Two readings: git's files, and npm's own list of workspaces.
+    const manifests = committableFiles()
+      .filter((path) => /(^|\/)package\.json$/.test(path))
+      .filter((path) => path !== 'package.json')
+      .map((path) => dirname(path))
+      .sort();
+    const query = spawnSync('npm', ['query', '.workspace'], {
+      encoding: 'utf8',
+    });
+    expect(query.status, query.stderr).toBe(0);
+    const workspaces = (JSON.parse(query.stdout) as { location: string }[])
+      .map(({ location }) => location)
+      .sort();
+    expect(workspaces, 'positive control: the site is one').toContain(
+      'apps/site',
+    );
+    expect(manifests).toEqual(workspaces);
   });
 
   it('nothing under node_modules is tracked or committable', () => {

@@ -22,7 +22,7 @@ export function stampCommit(html: string, commit: string | undefined): string {
   const occurrences = html.split(PLACEHOLDER).length - 1;
   if (occurrences !== 1) {
     throw new Error(
-      `index.html must carry ${PLACEHOLDER} exactly once, found ${String(occurrences)}`,
+      `a page must carry ${PLACEHOLDER} exactly once, found ${String(occurrences)}`,
     );
   }
   return html.replace(PLACEHOLDER, value);

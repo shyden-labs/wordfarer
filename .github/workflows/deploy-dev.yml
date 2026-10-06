@@ -35,7 +35,7 @@ jobs:
     timeout-minutes: 10
     environment:
       name: dev
-      url: https://yawelo-idle-web-dev.shyden-labs-dev.workers.dev
+      url: https://yawelo-idle-site-dev.shyden-labs-dev.workers.dev
     # The Cloudflare token is NOT here: it is given only to the steps that call
     # Cloudflare (#395), so npm ci's install scripts and the build never hold it.
     env:
@@ -85,23 +85,36 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy --config wrangler.deploy.jsonc --var "COMMIT:${GITHUB_SHA}"
-      - name: Build the web app, stamped with this commit
+      - name: Build the game, stamped with this commit
         env:
           YAWELO_IDLE_COMMIT: ${{ github.sha }}
         run: npm run build --workspace @yawelo-idle/web
-      # The dev password reaches the Worker from the dev environment secret,
-      # uploaded with the version itself, so no one types it into Cloudflare
-      # (#357). The file lives in the runner's temp, outside the checkout.
-      - name: Write the web app's secrets file (the dev password)
-        env:
-          DEV_PASSWORD: ${{ secrets.DEV_BASIC_AUTH_PASSWORD }}
-        run: node scripts/dev-secrets.ts "$RUNNER_TEMP/web-secrets.json"
-      - name: Deploy the web app with its secrets
+      # The game first: the site Worker's GAME binding names it (#332). It
+      # has no address of its own (`workers_dev: false`), so it holds no
+      # password: the site Worker's gate stands in front of it.
+      - name: Deploy the game Worker
         working-directory: apps/web
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx wrangler deploy --secrets-file "$RUNNER_TEMP/web-secrets.json"
+        run: npx wrangler deploy
+      - name: Build the site, stamped with this commit
+        env:
+          YAWELO_IDLE_COMMIT: ${{ github.sha }}
+        run: npm run build --workspace @yawelo-idle/site
+      # The dev password reaches the Worker from the dev environment secret,
+      # uploaded with the version itself, so no one types it into Cloudflare
+      # (#357). The file lives in the runner's temp, outside the checkout.
+      - name: Write the site's secrets file (the dev password)
+        env:
+          DEV_PASSWORD: ${{ secrets.DEV_BASIC_AUTH_PASSWORD }}
+        run: node scripts/dev-secrets.ts "$RUNNER_TEMP/site-secrets.json"
+      - name: Deploy the site Worker with its secrets
+        working-directory: apps/site
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --secrets-file "$RUNNER_TEMP/site-secrets.json"
 
   verify:
     needs: deploy
@@ -111,7 +124,7 @@ jobs:
     timeout-minutes: 10
     environment:
       name: dev
-      url: https://yawelo-idle-web-dev.shyden-labs-dev.workers.dev
+      url: https://yawelo-idle-site-dev.shyden-labs-dev.workers.dev
     permissions:
       contents: read
       statuses: write
@@ -122,8 +135,10 @@ jobs:
           node-version-file: '.nvmrc'
       - name: Verify dev is password-gated, serves this commit, and D1 answers
         env:
-          DEV_WEB_URL: https://yawelo-idle-web-dev.shyden-labs-dev.workers.dev/
+          DEV_WEB_URL: https://yawelo-idle-site-dev.shyden-labs-dev.workers.dev/
           DEV_SYNC_URL: https://yawelo-idle-sync-dev.shyden-labs-dev.workers.dev
+          # The game's own address, which must serve nothing (#332).
+          DEV_GAME_URL: https://yawelo-idle-web-dev.shyden-labs-dev.workers.dev/
           EXPECTED_SHA: ${{ github.sha }}
           DEV_BASIC_AUTH_PASSWORD: ${{ secrets.DEV_BASIC_AUTH_PASSWORD }}
         run: node scripts/verify-dev.ts
@@ -133,5 +148,5 @@ jobs:
         run: >-
           gh api "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}"
           -f state=success -f context=dev-verified
-          -f description="Live on dev: password-gated, this commit, D1 answers"
+          -f description="Live on dev: password-gated, this commit, game behind the site, D1 answers"
           -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"

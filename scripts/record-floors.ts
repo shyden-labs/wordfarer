@@ -21,8 +21,8 @@
  *   (the sync Worker's suite runs inside workerd, which has no file system);
  * - any suite failed or did not start.
  *
- * Yawelo Idle runs five suites, and the root unit suite skips four of them
- * (pacing, the web gate, the sync Worker, the engines), so each suite is
+ * Yawelo Idle runs six suites, and the root unit suite skips five of them
+ * (pacing, the game and site harnesses, the sync Worker, the engines), so each suite is
  * asked for its own file list rather than the recorder copying their globs.
  *
  * CI never records: a run that can rewrite the figure it checks against
@@ -213,11 +213,19 @@ export const SUITES: readonly Suite[] = [
     run: ['npm', 'run', 'test:pacing'],
   },
   {
-    name: 'web gate',
+    name: 'game harness',
     cwd: 'apps/web',
-    list: [...VITEST_LIST, '-c', 'vitest.gate.config.ts'],
+    list: [...VITEST_LIST, '-c', 'vitest.harness.config.ts'],
     files: vitestListed,
-    // Its `test` script builds first: the gate serves the built ./dist.
+    // Its `test` script builds first: the Worker serves the built ./dist.
+    run: ['npm', 'run', 'test'],
+  },
+  {
+    name: 'site harness',
+    cwd: 'apps/site',
+    list: [...VITEST_LIST, '-c', 'vitest.harness.config.ts'],
+    files: vitestListed,
+    // Its `test` script builds first: the Worker serves the built ./dist.
     run: ['npm', 'run', 'test'],
   },
   {

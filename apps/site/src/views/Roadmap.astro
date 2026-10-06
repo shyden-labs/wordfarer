@@ -1,0 +1,16 @@
+---
+import Base from '../layouts/Base.astro';
+import { COPY } from '../copy';
+import type { Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const copy = COPY[locale];
+---
+
+<Base locale={locale} page="roadmap" title={copy.titles.roadmap}>
+  <h1>{copy.titles.roadmap}</h1>
+  <p>{copy.roadmapSoon}</p>
+</Base>
