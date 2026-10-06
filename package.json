@@ -11,6 +11,7 @@
     "packages/*"
   ],
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks",
     "postinstall": "npm run types --workspace @yawelo-idle/sync-worker --workspace @yawelo-idle/web --workspace @yawelo-idle/site --workspace @yawelo-idle/dev-hosts",
     "test:unit": "vitest run",
     "floors:record": "node scripts/record-floors.ts",

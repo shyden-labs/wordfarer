@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# The static gates, run before every push (#123, Shyden 2026-10-06): format,
+# lint and typecheck (tsc and svelte-check), the checks that need no test lock
+# and fail in seconds to a minute. Unit, Worker and browser suites stay in CI.
+# `npm install` installs this hook: the root `prepare` script points git's
+# core.hooksPath at .githooks.
+set -euo pipefail
+
+npm run --silent format:check
+npm run --silent lint
+npm run --silent typecheck
