@@ -1,0 +1,11 @@
+{
+  "name": "@yawelo-idle/dev-hosts",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit && tsc --noEmit -p functions",
+    "test": "wrangler pages functions build --outdir .build && vitest run -c vitest.harness.config.ts",
+    "types": "wrangler types functions/worker-configuration.d.ts --strict-vars=false"
+  }
+}

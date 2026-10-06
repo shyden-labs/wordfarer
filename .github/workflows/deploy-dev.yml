@@ -1,9 +1,10 @@
 # Deploys develop to the dev environment on every merge (spec §13): the D1
 # database (created on the first deploy, #357, bound by id, #391) and its
-# migrations, then the sync Worker, then the web app (a static-assets Worker
-# with the password gate in front, spec D9 and #39), then a verify that reads
-# all three back from their live workers.dev addresses in the dev-only
-# "Shyden Labs Dev" account (#395).
+# migrations, then the sync Worker, then the game and the site Worker (the
+# password gate in front, spec D9, #39, #332), then the Pages hostname adapter
+# that serves them at dev.yawelo-idle.shyden.co.uk and
+# dev-api.yawelo-idle.shyden.co.uk (#429), all in the dev-only "Shyden Labs
+# Dev" account (#395), then a verify that reads them back at those names.
 #
 # Every Cloudflare secret is a `dev` ENVIRONMENT secret, and `dev` admits only
 # the develop branch, so a fork PR or any other branch cannot reach them
@@ -35,7 +36,7 @@ jobs:
     timeout-minutes: 10
     environment:
       name: dev
-      url: https://yawelo-idle-site-dev.shyden-labs-dev.workers.dev
+      url: https://dev.yawelo-idle.shyden.co.uk
     # The Cloudflare token is NOT here: it is given only to the steps that call
     # Cloudflare (#395), so npm ci's install scripts and the build never hold it.
     env:
@@ -115,6 +116,23 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy --secrets-file "$RUNNER_TEMP/site-secrets.json"
+      # The dev hostnames (#429): a Pages project whose one Function forwards
+      # each request to the site or the sync Worker by host, so it goes after
+      # both. Its custom domains were attached once and are read back by the
+      # verify below. Git keeps no empty directory, so the empty static one
+      # Pages uploads is made here.
+      - name: Make the hostname adapter's empty static directory
+        working-directory: apps/dev-hosts
+        run: mkdir -p public
+      # The project's production branch is `main` (read 2026-10-06, #429).
+      # Wrangler otherwise takes the branch from git, `develop` here, and
+      # makes a preview deployment, which the custom domains do not serve.
+      - name: Deploy the hostname adapter to production on Pages
+        working-directory: apps/dev-hosts
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler pages deploy --branch main --commit-hash "$GITHUB_SHA"
 
   verify:
     needs: deploy
@@ -124,7 +142,7 @@ jobs:
     timeout-minutes: 10
     environment:
       name: dev
-      url: https://yawelo-idle-site-dev.shyden-labs-dev.workers.dev
+      url: https://dev.yawelo-idle.shyden.co.uk
     permissions:
       contents: read
       statuses: write
@@ -135,8 +153,9 @@ jobs:
           node-version-file: '.nvmrc'
       - name: Verify dev is password-gated, serves this commit, and D1 answers
         env:
-          DEV_WEB_URL: https://yawelo-idle-site-dev.shyden-labs-dev.workers.dev/
-          DEV_SYNC_URL: https://yawelo-idle-sync-dev.shyden-labs-dev.workers.dev
+          # The dev hostnames, through the Pages adapter (#429).
+          DEV_WEB_URL: https://dev.yawelo-idle.shyden.co.uk/
+          DEV_SYNC_URL: https://dev-api.yawelo-idle.shyden.co.uk
           # The game's own address, which must serve nothing (#332).
           DEV_GAME_URL: https://yawelo-idle-web-dev.shyden-labs-dev.workers.dev/
           EXPECTED_SHA: ${{ github.sha }}
