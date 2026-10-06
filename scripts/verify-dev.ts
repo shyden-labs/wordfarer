@@ -295,6 +295,88 @@ export function healthJudgement(probe: Probe, sha: string): Judgement {
   ]);
 }
 
+/** Two of the roadmap's 10-minute checks (website spec §5.2 item 6). */
+const ROADMAP_CHECK_MAX_AGE_MS = 20 * 60_000;
+
+/** A health field in a message: a string as it is, anything else as JSON. */
+const shown = (value: unknown): string =>
+  typeof value === 'string' ? value : JSON.stringify(value);
+
+/** The fields of `/api/roadmap/health` this judges (#341). */
+interface RoadmapHealth {
+  version?: unknown;
+  drift?: unknown;
+  readFailingSince?: unknown;
+  readError?: unknown;
+  lastCheckAt?: unknown;
+}
+
+/**
+ * The live roadmap's health (#341): the board has been read, no missed webhook
+ * is outstanding (drift stays until a webhook is seen delivering a change
+ * again, operator decision 2026-10-06), reads are not failing, and the
+ * 10-minute check ran within two intervals.
+ */
+export function roadmapJudgement(probe: Probe, nowMs: number): Judgement {
+  let body: RoadmapHealth = {};
+  return judge([
+    {
+      name: 'status',
+      gate: true,
+      problem: () =>
+        probe.status === 200
+          ? undefined
+          : `roadmap: /api/roadmap/health status ${String(probe.status)}, expected 200`,
+    },
+    {
+      name: 'JSON',
+      gate: true,
+      problem: () => {
+        try {
+          body = JSON.parse(probe.body) as RoadmapHealth;
+          return undefined;
+        } catch {
+          return 'roadmap: /api/roadmap/health did not return JSON';
+        }
+      },
+    },
+    {
+      name: 'version',
+      problem: () =>
+        typeof body.version === 'number' && body.version >= 1
+          ? undefined
+          : `roadmap: version ${shown(body.version)}: the board has never been read`,
+    },
+    {
+      name: 'drift',
+      problem: () =>
+        body.drift === 0
+          ? undefined
+          : `roadmap: drift ${shown(body.drift)} since a webhook last delivered a change: a board change reached the roadmap only through the 10-minute check, so a webhook was missed`,
+    },
+    {
+      name: 'reads',
+      problem: () =>
+        body.readFailingSince === null
+          ? undefined
+          : `roadmap: reads failing since ${shown(body.readFailingSince)}: ${shown(body.readError)}`,
+    },
+    {
+      name: 'check age',
+      problem: () => {
+        const at = Date.parse(String(body.lastCheckAt));
+        return Number.isFinite(at) && nowMs - at <= ROADMAP_CHECK_MAX_AGE_MS
+          ? undefined
+          : `roadmap: last check ${shown(body.lastCheckAt)}, more than 20 minutes ago: the cron is not running`;
+      },
+    },
+    noIndexCheck('roadmap', probe),
+  ]);
+}
+export function roadmapProblems(probe: Probe, nowMs: number): string[] {
+  return [...roadmapJudgement(probe, nowMs).problems];
+}
+
 export function healthProblems(probe: Probe, sha: string): string[] {
   return [...healthJudgement(probe, sha).problems];
 }
@@ -507,8 +589,8 @@ type Look = (
 
 /**
  * Checks 5 and 6, once the home page serves the expected commit: each of
- * `SITE_PAGES`, the game's script, the gate in front of the game, and the
- * game's retired address.
+ * `SITE_PAGES`, the game's script, the gate in front of the game, the
+ * game's retired address, and the live roadmap's health (#341).
  */
 async function lookAtTheRest(
   look: Look,
@@ -537,6 +619,9 @@ async function lookAtTheRest(
       gateProblems('game without credentials', p),
     ),
     await check('game address', target.gameUrl, {}, retiredProblems),
+    await look('web', 'roadmap health', at('/api/roadmap/health'), right, (p) =>
+      roadmapProblems(p, Date.now()),
+    ),
   );
   return outcomes;
 }

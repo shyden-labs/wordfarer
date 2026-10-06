@@ -8,8 +8,9 @@
  *   event.
  * - The scheduled check (`check`, every 10 minutes) reads the whole board on
  *   its own. A difference no event explains is drift, made loud by
- *   `/api/roadmap/health` and dev verify; it is an independent reading of the
- *   source of truth, not a retry.
+ *   `/api/roadmap/health` and dev verify until a webhook is seen delivering a
+ *   change again; it is an independent reading of the source of truth, not a
+ *   retry.
  * - A failed read keeps the last snapshot and says since when reads fail.
  *   Nothing reads again by itself: the next event or check is the next read.
  *
@@ -29,8 +30,6 @@ import { installationToken, readBoardPages } from './github';
 
 /** A late webhook is believed for this long after the check that saw its change. */
 export const GRACE_MS = 120_000;
-/** Drift is reported for a day, then only counted in `driftTotal`. */
-export const DRIFT_WINDOW_MS = 86_400_000;
 
 /** The App's id and key, which `wrangler types` cannot see; the board's vars it can. */
 export interface RoadmapEnv extends Env {
@@ -55,9 +54,14 @@ export interface Health {
   lastEventAt: string | null;
   lastCheckAt: string | null;
   version: number;
-  /** Unexplained differences in the last day. */
+  /**
+   * Unexplained differences since a webhook last delivered a change. It
+   * never expires: only a webhook seen working again clears it (operator
+   * decision 2026-10-06), so a missed webhook stays red until it is fixed.
+   */
   drift: number;
   driftTotal: number;
+  lastDriftAt: string | null;
   pendingDriftSince: string | null;
   readFailingSince: string | null;
   readError: string | null;
@@ -70,8 +74,9 @@ interface State {
   lastEventAt: number | null;
   lastCheckAt: number | null;
   pendingDriftSince: number | null;
-  driftAt: number[];
+  drift: number;
   driftTotal: number;
+  lastDriftAt: number | null;
   readFailingSince: number | null;
   readError: string | null;
 }
@@ -82,8 +87,9 @@ const EMPTY: State = {
   lastEventAt: null,
   lastCheckAt: null,
   pendingDriftSince: null,
-  driftAt: [],
+  drift: 0,
   driftTotal: 0,
+  lastDriftAt: null,
   readFailingSince: null,
   readError: null,
 };
@@ -111,7 +117,10 @@ export class Roadmap extends DurableObject<RoadmapEnv> {
   constructor(ctx: DurableObjectState, env: RoadmapEnv) {
     super(ctx, env);
     void ctx.blockConcurrencyWhile(async () => {
-      this.state = (await ctx.storage.get<State>('state')) ?? { ...EMPTY };
+      this.state = {
+        ...EMPTY,
+        ...(await ctx.storage.get<Partial<State>>('state')),
+      };
     });
   }
 
@@ -152,8 +161,9 @@ export class Roadmap extends DurableObject<RoadmapEnv> {
       lastEventAt: iso(s.lastEventAt),
       lastCheckAt: iso(s.lastCheckAt),
       version: s.snapshot?.version ?? 0,
-      drift: s.driftAt.filter((at) => now - at < DRIFT_WINDOW_MS).length,
+      drift: s.drift,
       driftTotal: s.driftTotal,
+      lastDriftAt: iso(s.lastDriftAt),
       pendingDriftSince: iso(s.pendingDriftSince),
       readFailingSince: iso(s.readFailingSince),
       readError: s.readError,
@@ -242,6 +252,9 @@ export class Roadmap extends DurableObject<RoadmapEnv> {
           lines: formatLines(measured, today),
         };
         if (unexplained) this.state.pendingDriftSince ??= startedAt;
+        // A webhook delivered this change before any check saw it: the
+        // delivery path works, so earlier drift is fixed.
+        if (source === 'event') this.state.drift = 0;
         this.broadcast();
       }
       this.state.lastReadStartedAt = startedAt;
@@ -259,11 +272,9 @@ export class Roadmap extends DurableObject<RoadmapEnv> {
   private promoteStalePending(now: number): void {
     const pending = this.state.pendingDriftSince;
     if (pending === null || now - pending <= GRACE_MS) return;
-    this.state.driftAt = [
-      ...this.state.driftAt.filter((at) => now - at < DRIFT_WINDOW_MS),
-      pending,
-    ];
+    this.state.drift += 1;
     this.state.driftTotal += 1;
+    this.state.lastDriftAt = pending;
     this.state.pendingDriftSince = null;
   }
 

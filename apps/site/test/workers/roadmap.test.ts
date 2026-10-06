@@ -7,12 +7,7 @@ import {
   FIXTURE_REPO,
   FIXTURE_TITLE,
 } from '../../../../packages/progress/test/board-fixture';
-import {
-  DRIFT_WINDOW_MS,
-  GRACE_MS,
-  type Roadmap,
-  type Snapshot,
-} from '../../worker/roadmap';
+import { GRACE_MS, type Roadmap, type Snapshot } from '../../worker/roadmap';
 import { configureFake, resetFake, seenByFake } from './fake';
 
 /**
@@ -42,8 +37,8 @@ async function inRoadmap<T>(
   });
 }
 
-/** The fixture board with one more story, so it hashes differently. */
-function boardWithExtraStory(): unknown[] {
+/** The fixture board with more stories, numbered from 99, so it hashes differently. */
+function boardWithExtraStory(extra = 1): unknown[] {
   const pages = boardPages(today()) as {
     data: {
       node: {
@@ -55,14 +50,15 @@ function boardWithExtraStory(): unknown[] {
   const template = last?.at(-1);
   if (last === undefined || template === undefined)
     throw new Error('the fixture has no story to copy');
-  last.push({
-    ...structuredClone(template),
-    content: {
-      ...structuredClone(template.content),
-      number: 99,
-      title: 'Story ninety-nine',
-    },
-  });
+  for (let n = 0; n < extra; n += 1)
+    last.push({
+      ...structuredClone(template),
+      content: {
+        ...structuredClone(template.content),
+        number: 99 + n,
+        title: `Extra story ${String(99 + n)}`,
+      },
+    });
   return pages;
 }
 
@@ -282,16 +278,32 @@ describe('drift', () => {
     expect(health.pendingDriftSince).toBeNull();
   });
 
-  it('reports drift for a day, then only in driftTotal', async () => {
+  it('keeps drift with no expiry while no webhook has delivered a change', async () => {
     const health = await inRoadmap(async (r, clock) => {
       await r.check();
       await configureFake({ pages: boardWithExtraStory() });
       clock.at += 600_000;
       await r.check();
       const found = clock.at;
-      clock.at = found + GRACE_MS + 1;
+      clock.at = found + 30 * 86_400_000;
+      return r.health();
+    });
+    expect(health.drift).toBe(1);
+    expect(health.driftTotal).toBe(1);
+    expect(health.lastDriftAt).toBe(new Date(T0 + 600_000).toISOString());
+  });
+
+  it('clears drift once a webhook delivers a change before the check finds it', async () => {
+    const health = await inRoadmap(async (r, clock) => {
+      await r.check();
+      await configureFake({ pages: boardWithExtraStory(1) });
+      clock.at += 600_000;
+      await r.check();
+      clock.at += GRACE_MS + 1;
       expect((await r.health()).drift).toBe(1);
-      clock.at = found + DRIFT_WINDOW_MS;
+      await configureFake({ pages: boardWithExtraStory(2) });
+      clock.at += 60_000;
+      await r.changed();
       return r.health();
     });
     expect(health.drift).toBe(0);

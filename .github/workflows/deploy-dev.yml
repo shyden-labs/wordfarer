@@ -103,12 +103,16 @@ jobs:
         env:
           YAWELO_IDLE_COMMIT: ${{ github.sha }}
         run: npm run build --workspace @yawelo-idle/site
-      # The dev password reaches the Worker from the dev environment secret,
-      # uploaded with the version itself, so no one types it into Cloudflare
-      # (#357). The file lives in the runner's temp, outside the checkout.
-      - name: Write the site's secrets file (the dev password)
+      # The site's secrets reach the Worker from the dev environment's
+      # secrets, uploaded with the version itself, so no one types one into
+      # Cloudflare (#357): the dev password, and the roadmap's webhook secret
+      # and App key (#341). The file lives in the runner's temp, outside the
+      # checkout.
+      - name: Write the site's secrets file (the dev password, the roadmap's webhook secret and App key)
         env:
           DEV_PASSWORD: ${{ secrets.DEV_BASIC_AUTH_PASSWORD }}
+          ROADMAP_WEBHOOK_SECRET: ${{ secrets.ROADMAP_WEBHOOK_SECRET }}
+          ROADMAP_APP_KEY: ${{ secrets.ROADMAP_APP_KEY }}
         run: node scripts/dev-secrets.ts "$RUNNER_TEMP/site-secrets.json"
       - name: Deploy the site Worker with its secrets
         working-directory: apps/site

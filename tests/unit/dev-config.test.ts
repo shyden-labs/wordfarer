@@ -406,7 +406,7 @@ describe('the dev Cloudflare token, proven and held only where it is used (#395)
   });
 });
 
-describe('the dev password, uploaded by the deploy (#357)', () => {
+describe('the dev secrets, uploaded by the deploy (#357, #341)', () => {
   const FILE = '"$RUNNER_TEMP/site-secrets.json"';
 
   it('is written from the dev environment secret, then deployed with the site Worker (#332)', () => {
@@ -420,6 +420,8 @@ describe('the dev password, uploaded by the deploy (#357)', () => {
     expect(write).toBeGreaterThanOrEqual(0);
     expect(steps[write]?.env).toEqual({
       DEV_PASSWORD: '${{ secrets.DEV_BASIC_AUTH_PASSWORD }}',
+      ROADMAP_WEBHOOK_SECRET: '${{ secrets.ROADMAP_WEBHOOK_SECRET }}',
+      ROADMAP_APP_KEY: '${{ secrets.ROADMAP_APP_KEY }}',
     });
     expect(deploy).toBeGreaterThan(write);
     expect(steps[deploy]?.['working-directory']).toBe('apps/site');
