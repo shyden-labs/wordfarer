@@ -23,6 +23,10 @@ The global `~/.claude/CLAUDE.md` rules all apply here. This file adds what is sp
 - One test per case: a population known before the run is generated as one test each, never looped inside a test body. `tests/unit/one-test-per-case.test.ts` refuses the loop unless it carries `// runtime population: <why>` or `// one scenario: <why>`, and its `BURN_DOWN` list only shrinks (#58).
 - Write `Refs #N` in commit messages and PR bodies, never close/fix/resolve next to an issue number unless you mean it.
 
+## Website follows the game
+
+The coming-soon site (`apps/site`, epic #331, spec `docs/superpowers/specs/2026-10-04-website-design.md`) keeps advertising the game as it grows (operator, 2026-10-06, website spec W16). When a player-facing story or epic closes, file a `Website: announce <feature>` story in the same session: 1–3 points, full ACs, Estimate set, copy approved by Shyden before translation, en + id with D18 evidence. Skip it only when the closing story says why there is nothing new to show. Every story's **Website** field (`.github/ISSUE_TEMPLATE/story.yml`) says what it lets the site show, and every close-out checks that session's closed stories against this rule.
+
 ## Stack (decided, spec §6)
 
 npm workspaces · TypeScript · Svelte 5 · Vite · Vitest + fast-check + Stryker · Playwright · break_infinity.js · ts-fsrs · Zod · Cloudflare Workers + D1 (`wrangler`) · Electron + steamworks.js · Capacitor.
