@@ -3,6 +3,9 @@
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
+  "exports": {
+    "./commit-stamp": "./commit-stamp.ts"
+  },
   "scripts": {
     "build": "vite build",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc --noEmit -p worker",

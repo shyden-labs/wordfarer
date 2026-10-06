@@ -3,6 +3,8 @@ node_modules/
 dist/
 build/
 .vite/
+# Astro's generated types (`astro sync`, run by build and check)
+.astro/
 coverage/
 reports/mutation/
 

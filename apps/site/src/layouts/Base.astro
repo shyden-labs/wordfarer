@@ -1,0 +1,54 @@
+---
+/**
+ * Every page's frame: the language, the development strip (website spec §3
+ * item 1), the language switcher, the `hreflang` alternates and the commit
+ * stamp the dev deploy reads back (scripts/verify-dev.ts).
+ */
+import { COPY } from '../copy';
+import {
+  alternates,
+  otherLocale,
+  pagePath,
+  type Locale,
+  type Page,
+} from '../i18n';
+
+interface Props {
+  locale: Locale;
+  /** The page this is, or undefined for the 404, which has no address. */
+  page: Page | undefined;
+  title: string;
+}
+
+const { locale, page, title } = Astro.props;
+const other = otherLocale(locale);
+const switchTo = pagePath(other, page ?? 'home');
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="yawelo-idle-commit" content="%YAWELO_IDLE_COMMIT%" />
+    <title>{title}</title>
+    {page !== undefined &&
+      alternates(page).map(({ hreflang, href }) => (
+        <link rel="alternate" hreflang={hreflang} href={href} />
+      ))}
+  </head>
+  <body>
+    <p class="dev-strip" data-dev-strip>
+      {COPY[locale].devStrip}
+    </p>
+    <nav>
+      <a href={pagePath(locale, 'home')}>Yawelo Idle</a>
+      <a href={switchTo} hreflang={other} lang={other} data-language-switch>
+        {COPY[other].languageName}
+      </a>
+    </nav>
+    <main>
+      <slot />
+    </main>
+  </body>
+</html>

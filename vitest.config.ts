@@ -10,6 +10,7 @@ export default defineConfig({
     include: [
       'tests/**/*.test.ts',
       'apps/web/**/*.test.ts',
+      'apps/site/**/*.test.ts',
       'packages/*/test/**/*.test.ts',
     ],
     // apps/web/test drives the built dev Worker through wrangler's harness,

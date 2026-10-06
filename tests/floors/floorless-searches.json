@@ -1,9 +1,9 @@
 {
-  "floorless-searches/files": 170,
+  "floorless-searches/files": 177,
   "floorless-searches/fixture-listed": 3,
   "floorless-searches/fixture-walk": 2,
-  "floorless-searches/scalar-zeros": 25,
+  "floorless-searches/scalar-zeros": 26,
   "floorless-searches/sites": 194,
-  "floorless-searches/tests": 1300,
-  "floorless-searches/zero-checked-files": 170
+  "floorless-searches/tests": 1312,
+  "floorless-searches/zero-checked-files": 177
 }
