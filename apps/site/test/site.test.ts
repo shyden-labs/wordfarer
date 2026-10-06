@@ -146,12 +146,12 @@ describe('the dev site Worker gate, through the asset router', () => {
 
 describe('the paths exempt from the gate (#341 signs them instead)', () => {
   it.each(EXEMPT_PATHS)(
-    '%s answers without credentials, as not found until its handler exists',
+    '%s reaches its handler without credentials, which takes POST only',
     async (path) => {
       const response = await get(`${DEV}${path}`);
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(405);
+      expect(response.headers.get('Allow')).toBe('POST');
       expect(response.headers.get('WWW-Authenticate')).toBeNull();
-      expect(await response.text()).toBe('Not found');
     },
   );
 

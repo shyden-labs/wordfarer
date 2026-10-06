@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  assertBoard,
   assertTitle,
   BOARD_QUERY,
   closeOutLines,
@@ -630,6 +631,36 @@ describe('assertTitle', () => {
       assertTitle('ShyTalk Stories', 'Example Stories');
     }).toThrow(
       'the board is "ShyTalk Stories", not "Example Stories": nothing read',
+    );
+  });
+});
+
+describe('assertBoard (#341)', () => {
+  it('passes every page of the board it was asked for', () => {
+    expect(() => {
+      assertBoard(boardPages(TODAY), FIXTURE_TITLE);
+    }).not.toThrow();
+  });
+
+  it('refuses when any page names another board, the second included', () => {
+    const pages = boardPages(TODAY) as {
+      data: { node: { title: string } };
+    }[];
+    const second = pages[1];
+    expect(second).toBeDefined();
+    if (second !== undefined) second.data.node.title = 'ShyTalk Stories';
+    expect(() => {
+      assertBoard(pages, FIXTURE_TITLE);
+    }).toThrow(
+      'the board is "ShyTalk Stories", not "Fixture Stories": nothing read',
+    );
+  });
+
+  it('refuses a page that holds no board', () => {
+    expect(() => {
+      assertBoard([{ data: { node: null } }], FIXTURE_TITLE);
+    }).toThrow(
+      'a page came back without the board’s items: is the node id a project board?',
     );
   });
 });

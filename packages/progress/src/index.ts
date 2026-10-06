@@ -381,6 +381,15 @@ export function roadmapItems(
   return { items, dropped };
 }
 
+/**
+ * Refuse pages that are not all of the board asked for (#341): each page's
+ * title is checked, the second and later included, before anything is read
+ * from them. The close-out script and the roadmap Worker both call it.
+ */
+export function assertBoard(pages: unknown[], title: string): void {
+  for (const page of pages) assertTitle(boardOf(page).title, title);
+}
+
 /** Refuse to read a board other than the one asked for. */
 export function assertTitle(actual: string, expected: string): void {
   if (actual !== expected) {
@@ -400,6 +409,6 @@ export function closeOutLines(
   repo: string,
   today: string,
 ): [string, string] {
-  for (const page of pages) assertTitle(boardOf(page).title, title);
+  assertBoard(pages, title);
   return formatLines(progress(parseItems(pages, repo), today), today);
 }

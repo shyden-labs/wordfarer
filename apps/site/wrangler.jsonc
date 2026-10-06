@@ -29,4 +29,19 @@
   // The game Worker has no address of its own; this binding is its only way
   // in, so it is deployed first.
   "services": [{ "binding": "GAME", "service": "yawelo-idle-web-dev" }],
+  // The live roadmap (#341): the one board it reads, as the read-only App
+  // yawelo-idle-roadmap; its snapshot lives in the Roadmap Durable Object
+  // (SQLite storage, the only kind on the Free plan, spec §10 R1), and the
+  // cron re-reads the whole board every 10 minutes to catch a missed webhook.
+  // The App key and webhook secret are Worker secrets from the deploy.
+  "vars": {
+    "ROADMAP_BOARD_ID": "PVT_kwDOEOcG584BlRWb",
+    "ROADMAP_BOARD_TITLE": "Yawelo Idle Stories",
+    "ROADMAP_REPO": "shyden-labs/yawelo-idle",
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "ROADMAP", "class_name": "Roadmap" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Roadmap"] }],
+  "triggers": { "crons": ["*/10 * * * *"] },
 }
