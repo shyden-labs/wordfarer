@@ -7,9 +7,11 @@ import { parse } from 'yaml';
 import { runOf } from './workflow-steps';
 import { floorBreach } from '../floors';
 import { searched } from '../searched';
+import { DEV_HOSTS } from '../../apps/dev-hosts/hosts';
 
 /**
- * The dev Workers' deploy configs, read the way `wrangler deploy` reads them
+ * The dev deploy configs (three Workers and the Pages hostname adapter,
+ * #429), read the way wrangler reads them
  * (comments stripped, defaults applied), so no comment can satisfy or trip a
  * guard (#39 AC2, AC7).
  */
@@ -37,6 +39,8 @@ interface DeployConfig {
   vars: Record<string, unknown>;
   d1_databases: unknown;
   services: unknown;
+  /** Pages only (#429); wrangler resolves it to an absolute path. */
+  pages_build_output_dir: unknown;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -55,6 +59,7 @@ function readDeployConfig(path: string): DeployConfig {
     vars,
     d1_databases,
     services,
+    pages_build_output_dir,
   } = raw;
   if (typeof name !== 'string') throw new Error(`${path}: no name`);
   if (main !== undefined && typeof main !== 'string')
@@ -72,6 +77,7 @@ function readDeployConfig(path: string): DeployConfig {
     vars,
     d1_databases,
     services,
+    pages_build_output_dir,
   };
 }
 
@@ -97,8 +103,9 @@ function byName(name: string): DeployConfig {
 }
 
 describe('the dev Workers’ deploy configs', () => {
-  it('finds the three dev Workers on disk (liveness)', () => {
+  it('finds the three dev Workers and the hostname adapter on disk (liveness)', () => {
     expect(configs.map(({ file }) => file).sort()).toEqual([
+      'apps/dev-hosts/wrangler.jsonc',
       'apps/site/wrangler.jsonc',
       'apps/sync-worker/wrangler.jsonc',
       'apps/web/wrangler.jsonc',
@@ -135,7 +142,9 @@ describe('the dev Workers’ deploy configs', () => {
     expect(byName('yawelo-idle-sync-dev').routes).toBeUndefined();
   });
 
-  it('serves each public dev Worker at its workers.dev address only, and the game at none, with no preview URLs (#395, #332)', () => {
+  it('serves each public dev Worker at its workers.dev address only, and the game at none, with no preview URLs (#395, #332, #429)', () => {
+    // The Pages adapter sets neither key: Pages has no workers.dev address,
+    // and its own pages.dev address answers 404 (apps/dev-hosts/test).
     expect(
       configs
         .map(({ config }) => [
@@ -145,6 +154,7 @@ describe('the dev Workers’ deploy configs', () => {
         ])
         .sort(),
     ).toEqual([
+      ['yawelo-idle-dev-hosts', undefined, undefined],
       ['yawelo-idle-site-dev', true, false],
       ['yawelo-idle-sync-dev', true, false],
       ['yawelo-idle-web-dev', false, false],
@@ -162,6 +172,27 @@ describe('the dev Workers’ deploy configs', () => {
       DEV_SYNC_URL: address('yawelo-idle-sync-dev'),
       DEV_GAME_URL: `${address('yawelo-idle-web-dev')}/`,
     });
+  });
+
+  it('serves the dev hostnames through a Pages project bound to the site and sync Workers (#429)', () => {
+    const adapter = byName('yawelo-idle-dev-hosts');
+    expect(adapter.main).toBeUndefined();
+    expect(adapter.pages_build_output_dir).toBe(
+      join(ROOT, 'apps/dev-hosts/public'),
+    );
+    expect(adapter.services).toEqual([
+      { binding: 'SITE', service: byName('yawelo-idle-site-dev').name },
+      { binding: 'SYNC', service: byName('yawelo-idle-sync-dev').name },
+    ]);
+  });
+
+  it('binds every Worker a dev hostname names (#429)', () => {
+    const declared = byName('yawelo-idle-dev-hosts').services as {
+      binding: string;
+    }[];
+    expect([...new Set(DEV_HOSTS.values())].sort()).toEqual(
+      declared.map(({ binding }) => binding).sort(),
+    );
   });
 
   it('declares no secret as a plain var (the password is a Worker secret)', () => {

@@ -1,0 +1,24 @@
+// The DEV hostname adapter (#429): a Pages project in the "Shyden Labs Dev"
+// account whose custom domains are dev.yawelo-idle.shyden.co.uk and
+// dev-api.yawelo-idle.shyden.co.uk. Every Shyden product's dev lives at
+// dev.{product}.shyden.co.uk (operator, 2026-10-06), and that zone is in the
+// production account. A Workers Custom Domain must sit in its zone's account,
+// while a Pages custom domain needs only a proxied CNAME there, so dev
+// reaches its name with no dev credential in production (#395).
+//
+// Its one Function, functions/[[path]].ts, forwards each request unchanged
+// to the Worker its host names, through these service bindings. The domains
+// were attached once in the dashboard and are read back by verify-dev on
+// every deploy, so the deploy only uploads the Function.
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "yawelo-idle-dev-hosts",
+  // Nothing static: the Function answers every path. The deploy creates the
+  // directory empty, because git keeps no empty directory.
+  "pages_build_output_dir": "./public",
+  "compatibility_date": "2026-09-30",
+  "services": [
+    { "binding": "SITE", "service": "yawelo-idle-site-dev" },
+    { "binding": "SYNC", "service": "yawelo-idle-sync-dev" },
+  ],
+}

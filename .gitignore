@@ -3,6 +3,10 @@ node_modules/
 dist/
 build/
 .vite/
+# The dev hostname adapter's compiled Function (its `test` script) and the
+# empty static directory its deploy creates (#429)
+apps/dev-hosts/.build/
+apps/dev-hosts/public/
 # Astro's generated types (`astro sync`, run by build and check)
 .astro/
 coverage/
@@ -23,6 +27,7 @@ wrangler.deploy.jsonc
 apps/sync-worker/worker-configuration.d.ts
 apps/web/worker/worker-configuration.d.ts
 apps/site/worker/worker-configuration.d.ts
+apps/dev-hosts/functions/worker-configuration.d.ts
 
 # Session-local agent files (brainstorm mockups, SDD scratch)
 .superpowers/

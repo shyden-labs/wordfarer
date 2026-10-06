@@ -229,6 +229,14 @@ export const SUITES: readonly Suite[] = [
     run: ['npm', 'run', 'test'],
   },
   {
+    name: 'dev hosts harness',
+    cwd: 'apps/dev-hosts',
+    list: [...VITEST_LIST, '-c', 'vitest.harness.config.ts'],
+    files: vitestListed,
+    // Its `test` script compiles the Function first, into ./.build.
+    run: ['npm', 'run', 'test'],
+  },
+  {
     name: 'sync Worker suite',
     cwd: 'apps/sync-worker',
     list: VITEST_LIST,
