@@ -55,6 +55,7 @@
     "@cloudflare/vitest-pool-workers": {
       "wrangler": "$wrangler",
       "miniflare": "5.20260930.0-alpha"
-    }
+    },
+    "sharp": "0.35.5"
   }
 }

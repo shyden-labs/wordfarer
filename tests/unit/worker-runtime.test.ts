@@ -39,3 +39,39 @@ describe('one Workers runtime in the lock', () => {
     },
   );
 });
+
+/**
+ * GHSA-wq5f-xc86-pv6w (#444): sharp below 0.35.5 carries a librsvg flaw.
+ * astro (`^0.35.4`) and miniflare (exactly `0.35.4`) both pull it in, so the
+ * root `overrides` lifts it. When both depend on 0.35.5 or later themselves,
+ * remove the override in the Dependabot PR that lifts them, and this test
+ * with it.
+ */
+const PATCHED_SHARP = [0, 35, 5];
+
+const sharpOverride = (): string | undefined =>
+  (
+    JSON.parse(readFileSync('package.json', 'utf8')) as {
+      overrides?: Record<string, unknown>;
+    }
+  ).overrides?.sharp as string | undefined;
+
+const atLeastPatched = (version: string): boolean => {
+  const parts = version.split('.').map(Number);
+  for (const [i, want] of PATCHED_SHARP.entries()) {
+    const have = parts[i] ?? 0;
+    if (have !== want) return have > want;
+  }
+  return true;
+};
+
+describe('sharp is patched (GHSA-wq5f-xc86-pv6w, #444)', () => {
+  it('the root overrides sharp to 0.35.5 or later', () => {
+    const override = sharpOverride() ?? '(no override)';
+    expect(atLeastPatched(override), override).toBe(true);
+  });
+
+  it('every sharp in the lock is the overridden version', () => {
+    expect(versionsOf('sharp')).toEqual([sharpOverride()]);
+  });
+});
