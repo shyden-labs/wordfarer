@@ -124,18 +124,80 @@ describe('reading the board', () => {
     expect(snapshot?.items.map((i) => i.number)).toContain(99);
   });
 
-  it('drops a draft from the snapshot and lists it', async () => {
-    const pages = boardPages(today()) as {
-      data: { node: { items: { nodes: unknown[] } } };
-    }[];
-    pages[0]?.data.node.items.nodes.push({
-      estimate: null,
-      content: { __typename: 'DraftIssue', title: 'An idea' },
+  // Never shown (spec §5.2 item 1), and in production the snapshot and the
+  // health are public: a dropped card is counted, never named (#341).
+  const STRAYS = [
+    [
+      'a draft',
+      'draft',
+      { __typename: 'DraftIssue', title: 'Secret draft idea' },
+    ],
+    [
+      'a pull request',
+      'pullRequest',
+      { __typename: 'PullRequest', title: 'Secret pull request' },
+    ],
+    [
+      'another repository’s issue',
+      'anotherRepository',
+      {
+        __typename: 'Issue',
+        number: 7,
+        title: 'Secret other-repo issue',
+        state: 'OPEN',
+        stateReason: null,
+        createdAt: '2026-10-01T00:00:00Z',
+        closedAt: null,
+        labels: { totalCount: 0, nodes: [] },
+        repository: { nameWithOwner: 'shyden-labs/elsewhere' },
+      },
+    ],
+  ] as const;
+  for (const [what, key, content] of STRAYS) {
+    it(`leaves ${what} off the published snapshot, counting it in health without its title`, async () => {
+      const pages = boardPages(today()) as {
+        data: { node: { items: { nodes: unknown[] } } };
+      }[];
+      pages[0]?.data.node.items.nodes.push({ estimate: null, content });
+      await configureFake({ pages });
+      const { snapshot, health } = await inRoadmap(async (r) => ({
+        snapshot: await r.snapshot(),
+        health: await r.health(),
+      }));
+      expect(snapshot?.items.map((i) => i.number)).toEqual([
+        1, 2, 3, 4, 5, 6, 7, 8, 9,
+      ]);
+      // Exactly these fields are published: a list naming what was dropped,
+      // or any other new field, fails here before it ships.
+      expect(Object.keys(snapshot ?? {}).sort()).toEqual([
+        'hash',
+        'items',
+        'lines',
+        'progress',
+        'readAt',
+        'version',
+      ]);
+      expect(Object.keys(health).sort()).toEqual([
+        'drift',
+        'driftTotal',
+        'dropped',
+        'lastCheckAt',
+        'lastDriftAt',
+        'lastEventAt',
+        'pendingDriftSince',
+        'readError',
+        'readFailingSince',
+        'version',
+      ]);
+      expect(health.readError).toBeNull();
+      expect(health.dropped).toEqual({
+        draft: 0,
+        pullRequest: 0,
+        anotherRepository: 0,
+        [key]: 1,
+      });
     });
-    await configureFake({ pages });
-    const snapshot = await inRoadmap((r) => r.snapshot());
-    expect(snapshot?.dropped).toEqual([{ kind: 'draft', label: 'An idea' }]);
-  });
+  }
 
   it('refuses a board with another title, keeping nothing from it', async () => {
     const pages = boardPages(today()) as {

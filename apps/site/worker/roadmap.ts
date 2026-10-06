@@ -44,9 +44,35 @@ export interface Snapshot {
   /** SHA-256 of the items: the only thing that makes a new version. */
   hash: string;
   items: BoardItem[];
-  dropped: Dropped[];
   progress: Progress;
   lines: [string, string];
+}
+
+/**
+ * Cards the roadmap leaves off, by kind (#341). Counted, never named: the
+ * snapshot and the health are public in production, and a draft's title or
+ * another repository's issue must never be shown (spec §5.2 item 1).
+ */
+export interface DroppedCounts {
+  draft: number;
+  pullRequest: number;
+  anotherRepository: number;
+}
+
+const KEY_OF: Record<Dropped['kind'], keyof DroppedCounts> = {
+  draft: 'draft',
+  'pull request': 'pullRequest',
+  'another repository': 'anotherRepository',
+};
+
+function countDropped(dropped: Dropped[]): DroppedCounts {
+  const counts: DroppedCounts = {
+    draft: 0,
+    pullRequest: 0,
+    anotherRepository: 0,
+  };
+  for (const { kind } of dropped) counts[KEY_OF[kind]] += 1;
+  return counts;
 }
 
 /** What `/api/roadmap/health` serves. */
@@ -65,6 +91,8 @@ export interface Health {
   pendingDriftSince: string | null;
   readFailingSince: string | null;
   readError: string | null;
+  /** What the last good read left off. */
+  dropped: DroppedCounts;
 }
 
 interface State {
@@ -79,6 +107,7 @@ interface State {
   lastDriftAt: number | null;
   readFailingSince: number | null;
   readError: string | null;
+  dropped: DroppedCounts;
 }
 
 const EMPTY: State = {
@@ -92,6 +121,7 @@ const EMPTY: State = {
   lastDriftAt: null,
   readFailingSince: null,
   readError: null,
+  dropped: { draft: 0, pullRequest: 0, anotherRepository: 0 },
 };
 
 const iso = (ms: number | null): string | null =>
@@ -167,6 +197,7 @@ export class Roadmap extends DurableObject<RoadmapEnv> {
       pendingDriftSince: iso(s.pendingDriftSince),
       readFailingSince: iso(s.readFailingSince),
       readError: s.readError,
+      dropped: s.dropped,
     };
   }
 
@@ -247,7 +278,6 @@ export class Roadmap extends DurableObject<RoadmapEnv> {
           readAt: new Date(startedAt).toISOString(),
           hash,
           items: sorted,
-          dropped,
           progress: measured,
           lines: formatLines(measured, today),
         };
@@ -257,6 +287,7 @@ export class Roadmap extends DurableObject<RoadmapEnv> {
         if (source === 'event') this.state.drift = 0;
         this.broadcast();
       }
+      this.state.dropped = countDropped(dropped);
       this.state.lastReadStartedAt = startedAt;
       this.state.readFailingSince = null;
       this.state.readError = null;

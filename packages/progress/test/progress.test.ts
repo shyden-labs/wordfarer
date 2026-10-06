@@ -543,19 +543,19 @@ describe('roadmapItems (#341)', () => {
     expect(dropped).toEqual([{ kind: 'draft', label: 'Idea' }]);
   });
 
-  it('refuses an item whose content cannot be read, such as a deleted issue', () => {
+  it('refuses an item whose content cannot be read, such as a deleted issue, by its kind', () => {
     expect(() => read([{ estimate: null, content: null }])).toThrow(
-      'item "(no content)" is not an issue: convert it, or remove it from the board',
+      /^an item of kind \(no content\) is on the board, which the roadmap cannot classify: nothing read$/,
     );
   });
 
-  it('refuses a kind of item it does not know, by name', () => {
+  it('refuses a kind of item it does not know by its kind, never its title, which the roadmap publishes', () => {
     expect(() =>
       read([
         { estimate: null, content: { __typename: 'Mystery', title: 'Odd' } },
       ]),
     ).toThrow(
-      'item "Odd" is not an issue: convert it, or remove it from the board',
+      /^an item of kind Mystery is on the board, which the roadmap cannot classify: nothing read$/,
     );
   });
 

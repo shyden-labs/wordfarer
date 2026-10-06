@@ -272,6 +272,22 @@ export interface Dropped {
 /** Why an item is not one of `repo`'s issues: the message `parseItems` refuses it with. */
 type NotAnIssue = Dropped & { refusal: string };
 
+/**
+ * An item no policy can place (no content, or a kind GitHub may add). It
+ * carries the item's kind so the roadmap can refuse it without its title,
+ * which the close-out script's message names.
+ */
+class UnclassifiableItem extends Error {
+  // A declared field, not a parameter property: Node's own TypeScript loader
+  // runs scripts/board-progress.ts, and it strips types without transforming.
+  readonly kind: string;
+
+  constructor(kind: string, message: string) {
+    super(message);
+    this.kind = kind;
+  }
+}
+
 const notAnIssue = (title: string, kind: 'draft item' | 'item'): string =>
   `${kind} "${title}" is not an issue: convert it, or remove it from the board`;
 
@@ -300,7 +316,10 @@ function classify(node: RawNode, repo: string): BoardItem | NotAnIssue {
     };
   }
   if (c?.__typename !== 'Issue') {
-    throw new Error(notAnIssue(c?.title ?? '(no content)', 'item'));
+    throw new UnclassifiableItem(
+      c?.__typename ?? '(no content)',
+      notAnIssue(c?.title ?? '(no content)', 'item'),
+    );
   }
   if (
     c.number === undefined ||
@@ -360,10 +379,30 @@ export function parseItems(pages: unknown[], repo: string): BoardItem[] {
 }
 
 /**
+ * `classify`, refusing an unclassifiable item by its kind alone: the roadmap
+ * publishes its read error, and an item's title must never be shown.
+ */
+function classifyForRoadmap(
+  node: RawNode,
+  repo: string,
+): BoardItem | NotAnIssue {
+  try {
+    return classify(node, repo);
+  } catch (error) {
+    if (error instanceof UnclassifiableItem)
+      throw new Error(
+        `an item of kind ${error.kind} is on the board, which the roadmap cannot classify: nothing read`,
+        { cause: error },
+      );
+    throw error;
+  }
+}
+
+/**
  * `repo`'s issues on the board, for the public roadmap (#341): drafts, pull
  * requests and other repositories' issues are left off and listed, so one
  * stray card never takes the page down; anything unclassifiable is still
- * refused by name. On a board `parseItems` accepts, both give the same items.
+ * refused, by its kind. On a board `parseItems` accepts, both give the same items.
  */
 export function roadmapItems(
   pages: unknown[],
@@ -373,7 +412,7 @@ export function roadmapItems(
   const dropped: Dropped[] = [];
   for (const page of pages) {
     for (const node of boardOf(page).items.nodes) {
-      const read = classify(node, repo);
+      const read = classifyForRoadmap(node, repo);
       if (isIssue(read)) items.push(read);
       else dropped.push({ kind: read.kind, label: read.label });
     }
