@@ -11,10 +11,10 @@
     "packages/*"
   ],
   "scripts": {
-    "postinstall": "npm run types --workspace @yawelo-idle/sync-worker --workspace @yawelo-idle/web",
+    "postinstall": "npm run types --workspace @yawelo-idle/sync-worker --workspace @yawelo-idle/web --workspace @yawelo-idle/site",
     "test:unit": "vitest run",
     "floors:record": "node scripts/record-floors.ts",
-    "test:worker": "npm run test --workspace @yawelo-idle/sync-worker --workspace @yawelo-idle/web",
+    "test:worker": "npm run test --workspace @yawelo-idle/sync-worker --workspace @yawelo-idle/web --workspace @yawelo-idle/site",
     "test:pacing": "vitest run -c vitest.pacing.config.ts",
     "test:engines": "playwright test -c playwright.engines.config.ts",
     "lint": "eslint . --max-warnings 0",

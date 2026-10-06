@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "astro build",
-    "typecheck": "astro check --minimumSeverity hint"
+    "typecheck": "astro check --minimumSeverity hint && tsc --noEmit -p worker",
+    "test": "astro build && vitest run -c vitest.harness.config.ts",
+    "types": "wrangler types worker/worker-configuration.d.ts --strict-vars=false"
   },
   "dependencies": {
     "@yawelo-idle/lockdown": "*",

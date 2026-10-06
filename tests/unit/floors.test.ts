@@ -51,7 +51,7 @@ describe('floorBreach, judging', () => {
   });
 
   it('reads the recorded figures from the repository root, whatever the working directory', () => {
-    // The web gate's suite runs from apps/web, where a relative path to the
+    // The harness suites run from apps/web and apps/site, where a relative path to the
     // floors file names nothing.
     const fromRoot = readFloors();
     const was = process.cwd();

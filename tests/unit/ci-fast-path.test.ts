@@ -56,7 +56,7 @@ const ORDER = [
   'Unit tests',
   'Pacing bots (under 5 minutes)',
   'Upload the pacing report',
-  'Worker tests (sync in workerd + local D1, web gate through the asset router)',
+  'Worker tests (sync in workerd + local D1, site and game through the asset router)',
   'Cross-engine determinism (Node, Chromium, Firefox, WebKit)',
   'Build (a warning fails it)',
 ];
@@ -79,7 +79,7 @@ const SKIPPED: Record<string, string> = {
   // The report uploads even after a failed pacing run, but never on docs-only,
   // where nothing wrote it.
   'Upload the pacing report': `\${{ !cancelled() && ${SKIP} }}`,
-  'Worker tests (sync in workerd + local D1, web gate through the asset router)': `\${{ ${SKIP} }}`,
+  'Worker tests (sync in workerd + local D1, site and game through the asset router)': `\${{ ${SKIP} }}`,
   'Cross-engine determinism (Node, Chromium, Firefox, WebKit)': `\${{ ${SKIP} }}`,
   'Build (a warning fails it)': `\${{ ${SKIP} }}`,
 };

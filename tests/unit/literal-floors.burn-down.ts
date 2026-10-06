@@ -10,7 +10,6 @@
  * only shrinks.
  */
 export const LITERAL_MINIMUMS: Readonly<Record<string, number>> = {
-  'apps/web/test/gate.test.ts › found a real built script to probe (liveness)': 1,
   'packages/bots/pacing/pacing.test.ts › (e) every open of %s offers a meaningful decision': 1,
   'packages/bots/pacing/pacing.test.ts › (h) %s meets no NaN, negative or infinite value': 1,
   'packages/bots/test/player.test.ts › buys until nothing is affordable': 1,

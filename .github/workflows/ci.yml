@@ -84,7 +84,7 @@ jobs:
           name: ${{ inputs.ref && format('pacing-report-{0}', inputs.ref) || 'pacing-report' }}
           path: pacing-report.json
           if-no-files-found: error
-      - name: Worker tests (sync in workerd + local D1, web gate through the asset router)
+      - name: Worker tests (sync in workerd + local D1, site and game through the asset router)
         if: ${{ steps.classify.outputs.scope != 'docs-only' }}
         run: npm run test:worker
       - name: Cross-engine determinism (Node, Chromium, Firefox, WebKit)

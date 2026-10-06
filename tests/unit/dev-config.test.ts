@@ -36,6 +36,7 @@ interface DeployConfig {
   assets: Record<string, unknown> | undefined;
   vars: Record<string, unknown>;
   d1_databases: unknown;
+  services: unknown;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -53,6 +54,7 @@ function readDeployConfig(path: string): DeployConfig {
     assets,
     vars,
     d1_databases,
+    services,
   } = raw;
   if (typeof name !== 'string') throw new Error(`${path}: no name`);
   if (main !== undefined && typeof main !== 'string')
@@ -69,6 +71,7 @@ function readDeployConfig(path: string): DeployConfig {
     assets,
     vars,
     d1_databases,
+    services,
   };
 }
 
@@ -94,28 +97,45 @@ function byName(name: string): DeployConfig {
 }
 
 describe('the dev Workers’ deploy configs', () => {
-  it('finds both dev Workers on disk (liveness)', () => {
+  it('finds the three dev Workers on disk (liveness)', () => {
     expect(configs.map(({ file }) => file).sort()).toEqual([
+      'apps/site/wrangler.jsonc',
       'apps/sync-worker/wrangler.jsonc',
       'apps/web/wrangler.jsonc',
     ]);
   });
 
-  it('serves the web Worker on workers.dev with no route, gate first (#395)', () => {
-    const web = byName('yawelo-idle-web-dev');
-    expect(web.routes).toBeUndefined();
-    expect(web.main).toMatch(/apps\/web\/worker\/index\.ts$/);
-    expect(web.assets).toMatchObject({
+  it('serves the site Worker on workers.dev with no route, gate first (#332)', () => {
+    const site = byName('yawelo-idle-site-dev');
+    expect(site.routes).toBeUndefined();
+    expect(site.main).toMatch(/apps\/site\/worker\/index\.ts$/);
+    expect(site.assets).toMatchObject({
       binding: 'ASSETS',
       run_worker_first: true,
+      not_found_handling: '404-page',
     });
+  });
+
+  it('reaches the game only through the site Worker’s GAME binding (#332)', () => {
+    expect(byName('yawelo-idle-site-dev').services).toEqual([
+      { binding: 'GAME', service: 'yawelo-idle-web-dev' },
+    ]);
+    const game = byName('yawelo-idle-web-dev');
+    expect(game.workers_dev).toBe(false);
+    expect(game.routes).toBeUndefined();
+  });
+
+  it('serves the game’s files before its script, which handles client routes (#332)', () => {
+    const game = byName('yawelo-idle-web-dev');
+    expect(game.main).toMatch(/apps\/web\/worker\/index\.ts$/);
+    expect(game.assets).toEqual({ directory: './dist', binding: 'ASSETS' });
   });
 
   it('serves the sync Worker on workers.dev with no route (#395)', () => {
     expect(byName('yawelo-idle-sync-dev').routes).toBeUndefined();
   });
 
-  it('serves each dev Worker at its workers.dev address only, with no preview URLs (#395)', () => {
+  it('serves each public dev Worker at its workers.dev address only, and the game at none, with no preview URLs (#395, #332)', () => {
     expect(
       configs
         .map(({ config }) => [
@@ -125,8 +145,9 @@ describe('the dev Workers’ deploy configs', () => {
         ])
         .sort(),
     ).toEqual([
+      ['yawelo-idle-site-dev', true, false],
       ['yawelo-idle-sync-dev', true, false],
-      ['yawelo-idle-web-dev', true, false],
+      ['yawelo-idle-web-dev', false, false],
     ]);
   });
 
@@ -137,7 +158,7 @@ describe('the dev Workers’ deploy configs', () => {
     const address = (name: string) =>
       `https://${byName(name).name}.${DEV_WORKERS_SUBDOMAIN}.workers.dev`;
     expect(verify?.env).toMatchObject({
-      DEV_WEB_URL: `${address('yawelo-idle-web-dev')}/`,
+      DEV_WEB_URL: `${address('yawelo-idle-site-dev')}/`,
       DEV_SYNC_URL: address('yawelo-idle-sync-dev'),
     });
   });
@@ -289,8 +310,9 @@ describe('the dev Cloudflare token, proven and held only where it is used (#395)
       holds(
         'npx wrangler deploy --config wrangler.deploy.jsonc --var "COMMIT:${GITHUB_SHA}"',
       ),
+      holds('npx wrangler deploy'),
       holds(
-        'npx wrangler deploy --secrets-file "$RUNNER_TEMP/web-secrets.json"',
+        'npx wrangler deploy --secrets-file "$RUNNER_TEMP/site-secrets.json"',
       ),
     ]);
   });
@@ -309,9 +331,9 @@ describe('the dev Cloudflare token, proven and held only where it is used (#395)
 });
 
 describe('the dev password, uploaded by the deploy (#357)', () => {
-  const FILE = '"$RUNNER_TEMP/web-secrets.json"';
+  const FILE = '"$RUNNER_TEMP/site-secrets.json"';
 
-  it('is written from the dev environment secret, then deployed with the web Worker', () => {
+  it('is written from the dev environment secret, then deployed with the site Worker (#332)', () => {
     const steps = deploySteps();
     const write = steps.findIndex(
       (step) => runOf(step) === `node scripts/dev-secrets.ts ${FILE}`,
@@ -324,6 +346,35 @@ describe('the dev password, uploaded by the deploy (#357)', () => {
       DEV_PASSWORD: '${{ secrets.DEV_BASIC_AUTH_PASSWORD }}',
     });
     expect(deploy).toBeGreaterThan(write);
-    expect(steps[deploy]?.['working-directory']).toBe('apps/web');
+    expect(steps[deploy]?.['working-directory']).toBe('apps/site');
+  });
+});
+
+describe('the game and the site, deployed in binding order (#332 AC7)', () => {
+  const deployIn = (dir: string) =>
+    deploySteps().findIndex(
+      (step) =>
+        step['working-directory'] === dir &&
+        runOf(step).startsWith('npx wrangler deploy'),
+    );
+
+  it('deploys the game before the site, whose GAME binding names it', () => {
+    const game = deployIn('apps/web');
+    expect(game).toBeGreaterThanOrEqual(0);
+    expect(deployIn('apps/site')).toBeGreaterThan(game);
+  });
+
+  it('builds each app, stamped with this commit, before deploying it', () => {
+    const builds = deploySteps().flatMap((step, index) =>
+      step.env?.['YAWELO_IDLE_COMMIT'] === '${{ github.sha }}'
+        ? [{ index, run: runOf(step) }]
+        : [],
+    );
+    expect(builds.map(({ run }) => run)).toEqual([
+      'npm run build --workspace @yawelo-idle/web',
+      'npm run build --workspace @yawelo-idle/site',
+    ]);
+    expect(builds[0]?.index).toBeLessThan(deployIn('apps/web'));
+    expect(builds[1]?.index).toBeLessThan(deployIn('apps/site'));
   });
 });

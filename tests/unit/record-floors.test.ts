@@ -329,9 +329,9 @@ describe('the file lists', () => {
   });
 
   it('joins a suite’s files to its directory', () => {
-    const web = SUITES.find(({ name }) => name === 'web gate') as Suite;
-    expect(suiteFiles(web, 'test/gate.test.ts\n')).toEqual([
-      'apps/web/test/gate.test.ts',
+    const site = SUITES.find(({ name }) => name === 'site harness') as Suite;
+    expect(suiteFiles(site, 'test/site.test.ts\n')).toEqual([
+      'apps/site/test/site.test.ts',
     ]);
   });
 });
