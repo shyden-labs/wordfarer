@@ -1,6 +1,6 @@
 # Handover: Yawelo Idle
 
-**Written:** 2026-10-06 13:41 UTC.
+**Written:** 2026-10-06 13:41 UTC; updated 14:52 UTC for #438's fifth commit.
 **Next session:** launch Claude from `~/Developer/Repos/yawelo-idle`. The session names itself "Yawelo Idle" by hook; type `/color green` once.
 
 ## Progress (global rule: every close-out states both estimates)
@@ -15,12 +15,13 @@ From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawel
 ## What this session did (2026-10-06 11:55 to 13:41 UTC)
 
 - **#341's names and operator steps.** Shyden chose `yawelo-idle-roadmap` for the roadmap App. #341's AC3 and AC8 were updated, and AC8 now carries exact click-paths. One change from the spec: secrets go in as GitHub `dev` environment secrets (#357's `--secrets-file` path), not `wrangler secret put`.
-- **#341 is built: PR #438**, branch `website/341-roadmap-backend`, head `34d4b16`, four commits, each gated alone (9 of 9 CI steps from a clean `npm ci`):
+- **#341 is built: PR #438**, branch `website/341-roadmap-backend`, head `f2e0d97`, five commits, each gated alone (9 of 9 CI steps from a clean `npm ci`):
   1. `a570c03` `packages/progress`: one classifier; `parseItems(pages, repo)` refuses non-issues for the script, `roadmapItems(pages, repo)` drops them for the Worker; `assertBoard`; the script takes `[owner/repo]`.
   2. `cc49597` webhook verifier (`timingSafeEqual`, GitHub's test vector) and the App client (PKCS#1 key, exact read-only rights), tested in workerd against a fake `api.github.com` (`apps/site/test/github-fake/`), plus the `webhook-compare` guard.
   3. `9a95eaa` the `Roadmap` Durable Object, `/hooks/github`, `/api/roadmap.json|health|live`, the cron.
   4. `34d4b16` the secrets file carries three secrets, `verify-dev` judges the roadmap's health, **drift stays until fixed** (Shyden's decision: no expiry; only a webhook seen delivering a change clears it), spec §5.2/§5.3/§10 amended, CI step name.
-- 36 mutations, all as predicted (two Stage 2 predictions corrected). R6 measured locally: every engine sends cached Basic credentials on the WebSocket upgrade.
+  5. `f2e0d97` counts, never titles (Shyden: _"only display the right things"_): the public snapshot and socket no longer name dropped cards; health counts them by kind; the roadmap refuses an unclassifiable item by its kind, never its title.
+- 39 mutations, all as predicted (two Stage 2 predictions corrected). R6 measured locally: every engine sends cached Basic credentials on the WebSocket upgrade.
 
 ## Waiting on Shyden
 
