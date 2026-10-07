@@ -163,6 +163,7 @@ export {
   type Journey,
 } from './state';
 export {
+  CEFR_LEVELS,
   resolveCourse,
   type CardSet,
   type Cefr,

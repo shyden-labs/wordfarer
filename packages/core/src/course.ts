@@ -21,7 +21,14 @@
 
 import { BALANCE } from './balance';
 
-export type Cefr = 'A1' | 'A2' | 'B1';
+/**
+ * The CEFR levels v1 teaches (parent §5.2: A1 to B1), in order. The one
+ * definition: `Cefr` derives from it and content's schema enumerates it
+ * (#101 AC5), so a level exists in one place.
+ */
+export const CEFR_LEVELS = ['A1', 'A2', 'B1'] as const;
+
+export type Cefr = (typeof CEFR_LEVELS)[number];
 
 /** A word or phrase the player can pick up (parent §5.2, the fields core needs). */
 export interface LexiconItem {
