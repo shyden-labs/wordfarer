@@ -5,7 +5,7 @@
   "web-smoke/errors-chromium": 2,
   "web-smoke/errors-firefox": 2,
   "web-smoke/errors-webkit": 2,
-  "web-smoke/violations-chromium": 1,
-  "web-smoke/violations-firefox": 1,
-  "web-smoke/violations-webkit": 1
+  "web-smoke/violations-chromium": 3,
+  "web-smoke/violations-firefox": 3,
+  "web-smoke/violations-webkit": 3
 }

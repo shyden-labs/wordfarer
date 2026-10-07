@@ -109,9 +109,10 @@ describe('the game Worker, under /play/ (#332 AC4)', () => {
 /**
  * The first policy (#123 AC5); #153 owns the full one and the other headers.
  * Pinned as a literal: a value read from the Worker would move with it.
+ * Its one script from elsewhere is Cloudflare Web Analytics' beacon (#451).
  */
 const POLICY =
-  "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
+  "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js/; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
 
 describe('the game Worker sets a Content Security Policy (#123 AC5)', () => {
   it.each([
