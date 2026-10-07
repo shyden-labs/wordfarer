@@ -4,7 +4,7 @@ import { floorBreach } from '../floors';
 import { searched } from '../searched';
 import { committableFiles } from './tracked-files';
 import { withoutYamlComments } from './source-text';
-import { scanSchedule } from './scheduled-workflows';
+import { SCHEDULED_ENVIRONMENTS, scanSchedule } from './scheduled-workflows';
 
 /**
  * A scheduled workflow never reaches production (#460 AC3). The rule and
@@ -21,7 +21,7 @@ const noLocal = (path: string): string => {
 };
 
 describe('scanSchedule', () => {
-  it('flags a scheduled job whose environment starts with prod', () => {
+  it('flags a scheduled job whose environment is not on the allow-list (prod-cron)', () => {
     const scan = scanSchedule(
       'daily.yml',
       `${SCHEDULE}jobs:
@@ -38,7 +38,7 @@ describe('scanSchedule', () => {
         file: 'daily.yml',
         job: 'check',
         problem:
-          'a scheduled workflow names environment "prod-cron": dispatch a separate workflow with --ref main instead',
+          'a scheduled workflow names environment "prod-cron", which no scheduled job may use (allowed: dev): dispatch a separate workflow with --ref main instead',
       },
     ]);
   });
@@ -58,23 +58,46 @@ describe('scanSchedule', () => {
       noLocal,
     );
     expect(scan.findings.map((f) => f.problem)).toEqual([
-      'a scheduled workflow names environment "production": dispatch a separate workflow with --ref main instead',
+      'a scheduled workflow names environment "production", which no scheduled job may use (allowed: dev): dispatch a separate workflow with --ref main instead',
     ]);
   });
 
-  it('flags a production name in any case, as GitHub matches environments without case', () => {
+  it('allows dev and nothing else, by exact name (the allow-list, pinned)', () => {
+    expect(SCHEDULED_ENVIRONMENTS).toEqual(['dev']);
+  });
+
+  // A name that does not say prod can still hold a production key: the
+  // allow-list judges the name exactly, never by what it seems to mean.
+  for (const name of ['live', 'release', 'cloudflare-prod', 'staging', 'DEV'])
+    it(`flags environment ${JSON.stringify(name)}, which is not exactly an allowed name`, () => {
+      const scan = scanSchedule(
+        'daily.yml',
+        `${SCHEDULE}jobs:
+  check:
+    runs-on: ubuntu-24.04
+    environment: ${name}
+    steps:
+      - run: echo
+`,
+        noLocal,
+      );
+      expect(scan.findings.map((f) => f.problem)).toEqual([
+        `a scheduled workflow names environment "${name}", which no scheduled job may use (allowed: dev): dispatch a separate workflow with --ref main instead`,
+      ]);
+    });
+
+  it('accepts a scheduled job with no environment, which the secrets guard keeps from every stored secret', () => {
     const scan = scanSchedule(
       'daily.yml',
       `${SCHEDULE}jobs:
   check:
     runs-on: ubuntu-24.04
-    environment: PROD-cron
     steps:
       - run: echo
 `,
       noLocal,
     );
-    expect(scan.findings.map((f) => f.job)).toEqual(['check']);
+    expect(scan).toEqual({ scheduled: true, jobs: 1, findings: [] });
   });
 
   it('accepts a scheduled job on the dev environment, judging its one job', () => {
@@ -170,7 +193,7 @@ jobs:
         file: 'daily.yml',
         job: 'check',
         problem:
-          'a scheduled workflow names environment "production" through ./.github/workflows/release.yml (job deploy): dispatch a separate workflow with --ref main instead',
+          'a scheduled workflow names environment "production" through ./.github/workflows/release.yml (job deploy), which no scheduled job may use (allowed: dev): dispatch a separate workflow with --ref main instead',
       },
     ]);
   });
@@ -222,7 +245,7 @@ jobs:
       (path) => files[path] ?? '',
     );
     expect(scan.findings.map((f) => f.problem)).toEqual([
-      'a scheduled workflow names environment "prod-cron" through ./.github/workflows/inner.yml (job deploy): dispatch a separate workflow with --ref main instead',
+      'a scheduled workflow names environment "prod-cron" through ./.github/workflows/inner.yml (job deploy), which no scheduled job may use (allowed: dev): dispatch a separate workflow with --ref main instead',
     ]);
   });
 
@@ -316,7 +339,7 @@ describe('this repo’s scheduled workflows stay off production (#460 AC3)', () 
     ).toBeUndefined();
   });
 
-  it('no scheduled workflow names a production environment', () => {
+  it('no scheduled workflow names an environment outside the allow-list', () => {
     const workflows = scanAll();
     expect(
       floorBreach('scheduled-workflows/workflows', workflows.length),
