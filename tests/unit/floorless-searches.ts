@@ -1,4 +1,5 @@
 import ts from 'typescript';
+import { lineOf } from './line-of';
 import { listFindings } from './burn-down';
 import { chainRoot } from './one-test-per-case';
 import {
@@ -310,10 +311,8 @@ export function searchSitesIn(sf: ts.SourceFile): SearchReading {
   const refused: string[] = [];
   let refusalChecks = 0;
   let unplaced = 0;
-  const lineOf = (node: ts.Node): number =>
-    sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
   const refuse = (node: ts.Node, why: string): void => {
-    refused.push(`${sf.fileName}:${String(lineOf(node))}: ${why}`);
+    refused.push(`${sf.fileName}:${String(lineOf(sf, node))}: ${why}`);
   };
 
   const site = (at: ts.Node, form: Form, call?: ts.CallExpression): void => {
@@ -324,7 +323,7 @@ export function searchSitesIn(sf: ts.SourceFile): SearchReading {
       return;
     }
     sites.push({
-      line: lineOf(at),
+      line: lineOf(sf, at),
       form,
       scope: place.scope,
       label: place.label,
@@ -428,7 +427,7 @@ export function scalarZerosIn(sf: ts.SourceFile): ZeroReading {
             undefined;
         if (!read.negated && !isSite)
           scalarZeros.push(
-            `line ${String(sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1)}: ${node.getText(sf).replace(/\s+/g, ' ')}`,
+            `line ${String(lineOf(sf, node))}: ${node.getText(sf).replace(/\s+/g, ' ')}`,
           );
       }
     }

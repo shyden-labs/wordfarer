@@ -1,4 +1,5 @@
 import ts from 'typescript';
+import { lineOf } from './line-of';
 
 /** A loop inside one test that asserts, or changes page state, on each pass. */
 export interface LoopedCase {
@@ -280,15 +281,13 @@ export function scanTests(source: string, fileName: string): TestScan {
   const unclassified: string[] = [];
   const testCalls: string[] = [];
   let examined = 0;
-  const lineOf = (node: ts.Node): number =>
-    sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
   const inTest = (title: string, node: ts.Node): void => {
     const loop = loopParts(sf, node);
     if (loop && actsPerPass(loop.body) && !declared(sf, node))
       cases.push({
         test: title,
         loop: loop.header,
-        line: lineOf(node),
+        line: lineOf(sf, node),
       });
     ts.forEachChild(node, (child) => {
       inTest(title, child);
@@ -301,19 +300,19 @@ export function scanTests(source: string, fileName: string): TestScan {
       if (kind !== 'none') examined += 1;
       if (kind === 'unknown')
         unclassified.push(
-          `line ${String(lineOf(node))}: ${callee} is neither a test form nor a known non-test`,
+          `line ${String(lineOf(sf, node))}: ${callee} is neither a test form nor a known non-test`,
         );
       if (kind === 'test') {
         const callback = callbackOf(node);
         if (callback) {
           testCalls.push(
-            `line ${String(lineOf(node))}: ${callee}('${titleOf(sf, node)}')`,
+            `line ${String(lineOf(sf, node))}: ${callee}('${titleOf(sf, node)}')`,
           );
           inTest(titleOf(sf, node), callback.body);
           return;
         }
         unclassified.push(
-          `line ${String(lineOf(node))}: ${callee}('${titleOf(sf, node)}') has no inline body to read`,
+          `line ${String(lineOf(sf, node))}: ${callee}('${titleOf(sf, node)}') has no inline body to read`,
         );
       }
     }

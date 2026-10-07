@@ -1,4 +1,5 @@
 import ts from 'typescript';
+import { lineOf } from './line-of';
 import { listFindings } from './burn-down';
 import {
   expectationOf,
@@ -514,10 +515,8 @@ export function literalMinimumsIn(sf: ts.SourceFile): MinimumReading {
   const refused: string[] = [];
   let comparisons = 0;
   let literalArguments = 0;
-  const lineOf = (node: ts.Node): number =>
-    sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
   const refuse = (node: ts.Node, why: string): void => {
-    refused.push(`${sf.fileName}:${String(lineOf(node))}: ${why}`);
+    refused.push(`${sf.fileName}:${String(lineOf(sf, node))}: ${why}`);
   };
 
   const compare = (
@@ -548,7 +547,7 @@ export function literalMinimumsIn(sf: ts.SourceFile): MinimumReading {
       return;
     }
     minimums.push({
-      line: lineOf(read.expectation),
+      line: lineOf(sf, read.expectation),
       form: folded.form,
       demands,
       scope: place.scope,
