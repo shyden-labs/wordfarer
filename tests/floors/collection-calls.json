@@ -20,10 +20,10 @@
   "collection-calls/allowed/a value a third-party call returned": 2,
   "collection-calls/allowed/a workspace value passed to a call that runs no function argument": 1,
   "collection-calls/allowed/a workspace value read but not called": 3,
-  "collection-calls/call-counted-files": 97,
+  "collection-calls/call-counted-files": 98,
   "collection-calls/configure-forms": 1,
-  "collection-calls/corpus-calls": 14624,
+  "collection-calls/corpus-calls": 14786,
   "collection-calls/corpus-judged": 364,
-  "collection-calls/files-with-describe": 94,
+  "collection-calls/files-with-describe": 95,
   "collection-calls/todo-forms": 1
 }
