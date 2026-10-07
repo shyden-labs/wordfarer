@@ -33,6 +33,8 @@
  * The password is sent, never printed: no problem message carries a header.
  */
 
+import { CONTENT_SECURITY_POLICY } from '../apps/web/worker/policy.ts';
+
 export interface Probe {
   status: number;
   headers: Headers;
@@ -56,7 +58,10 @@ const COMMIT_STAMP = /<meta name="yawelo-idle-commit" content="([^"]*)"/;
 const GAME_SCRIPT = /<script[^>]+src="(\/play\/assets\/[^"]+\.js)"/;
 
 /** The pages checked once the home page serves the expected commit (#332). */
-export const SITE_PAGES: readonly string[] = ['/id/', '/roadmap', '/play/'];
+/** The game's shell, the one page served by the game Worker (#332). */
+const GAME_SHELL = '/play/';
+
+export const SITE_PAGES: readonly string[] = ['/id/', '/roadmap', GAME_SHELL];
 
 /** Any sign that a response carries the app rather than a challenge. */
 const APP_MARKUP = /<(?:!doctype|html|meta|script)\b/i;
@@ -167,12 +172,8 @@ const noIndexCheck = (label: string, probe: Probe): Check => ({
   },
 });
 
-export function webJudgement(
-  probe: Probe,
-  sha: string,
-  label = 'web',
-): Judgement {
-  return judge([
+function webChecks(probe: Probe, sha: string, label: string): Check[] {
+  return [
     {
       name: 'status',
       gate: true,
@@ -193,7 +194,15 @@ export function webJudgement(
       },
     },
     noIndexCheck(label, probe),
-  ]);
+  ];
+}
+
+export function webJudgement(
+  probe: Probe,
+  sha: string,
+  label = 'web',
+): Judgement {
+  return judge(webChecks(probe, sha, label));
 }
 
 export function webProblems(
@@ -202,6 +211,34 @@ export function webProblems(
   label = 'web',
 ): string[] {
   return [...webJudgement(probe, sha, label).problems];
+}
+
+/** The game Worker's policy on a response it served (#123). */
+const policyCheck = (label: string, probe: Probe): Check => ({
+  name: 'content security policy',
+  problem: () => {
+    const policy = probe.headers.get('content-security-policy');
+    return policy === CONTENT_SECURITY_POLICY
+      ? undefined
+      : `${label}: Content-Security-Policy is ${JSON.stringify(policy)}, expected ${JSON.stringify(CONTENT_SECURITY_POLICY)}`;
+  },
+});
+
+/** The game's shell at /play/: a page of the site, under the game's policy (#123). */
+export function gameShellJudgement(
+  probe: Probe,
+  sha: string,
+  label: string,
+): Judgement {
+  return judge([...webChecks(probe, sha, label), policyCheck(label, probe)]);
+}
+
+export function gameShellProblems(
+  probe: Probe,
+  sha: string,
+  label: string,
+): string[] {
+  return [...gameShellJudgement(probe, sha, label).problems];
 }
 
 /** A script the game shell loads, read with the password (#332). */
@@ -225,6 +262,7 @@ export function scriptJudgement(label: string, probe: Probe): Judgement {
       },
     },
     noIndexCheck(label, probe),
+    policyCheck(label, probe),
   ]);
 }
 
@@ -521,7 +559,9 @@ async function lookAtTheRest(
     const label = `web ${path}`;
     outcomes.push(
       await look('web', label, at(path), right, (p) =>
-        webProblems(p, target.sha, label),
+        path === GAME_SHELL
+          ? gameShellProblems(p, target.sha, label)
+          : webProblems(p, target.sha, label),
       ),
     );
   }

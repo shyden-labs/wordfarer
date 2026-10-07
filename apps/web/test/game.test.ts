@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestHarness } from 'wrangler';
+import { floorBreach } from '../../../tests/floors';
+import { searched } from '../../../tests/searched';
 
 /**
  * The dev game Worker, served by wrangler's test harness from the real
@@ -101,5 +103,46 @@ describe('the game Worker, under /play/ (#332 AC4)', () => {
     const body = await (await get(await builtScript())).text();
     expect(body).toContain('Coming soon.');
     expect(body).toContain(href);
+  });
+});
+
+/**
+ * The first policy (#123 AC5); #153 owns the full one and the other headers.
+ * Pinned as a literal: a value read from the Worker would move with it.
+ */
+const POLICY =
+  "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
+
+describe('the game Worker sets a Content Security Policy (#123 AC5)', () => {
+  it.each([
+    ['the shell', '/play/'],
+    ['a client route', '/play/a/client/route'],
+    ['the redirect from /play', '/play'],
+    ['a path outside /play/', '/'],
+  ])('on %s', async (_name, path) => {
+    const response = await get(path);
+    expect(response.headers.get('Content-Security-Policy')).toBe(POLICY);
+  });
+
+  it('on the script the shell loads, a file the asset router serves', async () => {
+    const response = await get(await builtScript());
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Security-Policy')).toBe(POLICY);
+  });
+
+  it('the shell needs nothing inline: every script has a src, no style element or attribute, no handler', async () => {
+    const html = await (await get('/play/')).text();
+    const tags = html.match(/<[a-zA-Z][^>]*>/g) ?? [];
+    const inline = tags.filter(
+      (tag) =>
+        (/^<script\b/i.test(tag) && !/\ssrc=/i.test(tag)) ||
+        /^<style\b/i.test(tag) ||
+        /\sstyle=/i.test(tag) ||
+        /\son[a-z]+=/i.test(tag),
+    );
+    expect(
+      searched(inline, { of: tags, what: 'tags in the served shell' }),
+    ).toEqual([]);
+    expect(floorBreach('game-html/tags', tags.length)).toBeUndefined();
   });
 });

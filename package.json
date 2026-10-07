@@ -11,14 +11,16 @@
     "packages/*"
   ],
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks",
     "postinstall": "npm run types --workspace @yawelo-idle/sync-worker --workspace @yawelo-idle/web --workspace @yawelo-idle/site --workspace @yawelo-idle/dev-hosts",
     "test:unit": "vitest run",
     "floors:record": "node scripts/record-floors.ts",
     "test:worker": "npm run test --workspace @yawelo-idle/sync-worker --workspace @yawelo-idle/web --workspace @yawelo-idle/site --workspace @yawelo-idle/dev-hosts",
     "test:pacing": "vitest run -c vitest.pacing.config.ts",
     "test:engines": "playwright test -c playwright.engines.config.ts",
+    "test:web": "npm run build --workspace @yawelo-idle/web && playwright test -c playwright.web.config.ts",
     "lint": "eslint . --max-warnings 0",
-    "typecheck": "tsc --noEmit && npm run typecheck --workspaces --if-present",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests/web && npm run typecheck --workspaces --if-present",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "build": "npm run build --workspaces --if-present",
@@ -28,6 +30,7 @@
     "pacing:sweep": "node scripts/pacing-sweep.ts"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/compat": "^2.1.1",
     "@eslint/js": "^10.0.0",
     "@playwright/test": "^1.63.0",

@@ -140,10 +140,14 @@ describe('the dev Workers’ deploy configs', () => {
     expect(game.routes).toBeUndefined();
   });
 
-  it('serves the game’s files before its script, which handles client routes (#332)', () => {
+  it('runs the game’s script before its files, so every response carries the CSP (#123, #332)', () => {
     const game = byName('yawelo-idle-web-dev');
     expect(game.main).toMatch(/apps\/web\/worker\/index\.ts$/);
-    expect(game.assets).toEqual({ directory: './dist', binding: 'ASSETS' });
+    expect(game.assets).toEqual({
+      directory: './dist',
+      binding: 'ASSETS',
+      run_worker_first: true,
+    });
   });
 
   it('serves the sync Worker on workers.dev with no route (#395)', () => {

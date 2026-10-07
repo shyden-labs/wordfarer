@@ -1,0 +1,22 @@
+{
+  // The game's Svelte 5 components and screens (spec §6.1), compiled by the
+  // app that imports them (apps/web's Vite build). @tsconfig/svelte leaves
+  // unused locals and parameters unreported, so svelte-check would pass a
+  // dead variable; these two make it fail on one (#123 AC2).
+  "extends": "@tsconfig/svelte/tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": []
+  },
+  "include": ["src/**/*.ts", "src/**/*.svelte"]
+}
