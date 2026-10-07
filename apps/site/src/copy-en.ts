@@ -324,7 +324,8 @@ export const COPY_EN = {
     logging: line('What our servers log', 'site §6.3'),
     cookies: line('Cookies and analytics', 'site §6.3'),
     noCookies: line(
-      'This site sets no cookies and uses no analytics.',
+      'This site sets no cookies. We count visits with Cloudflare Web Analytics, which stores nothing on your device and does not fingerprint you.',
+      'W17',
       'site §3',
       'site §6.3',
     ),

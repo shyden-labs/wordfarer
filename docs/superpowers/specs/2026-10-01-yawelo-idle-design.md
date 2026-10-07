@@ -304,7 +304,7 @@ Each item below becomes at least one automated test or CI guard.
 | 25  | No forced _league_ competition: no relegation or promotion pressure. The ranked board (D11) has no penalties, demotions or rewards that change gameplay                                                            |
 | 26  | Numbers carry real-world meaning (words known, places visited)                                                                                                                                                     |
 
-**Privacy at launch:** no analytics and no advertising IDs. Server data is limited to §6.6, §6.7 and §10. Balancing uses the pacing bots instead of player tracking.
+**Privacy at launch:** no ads, no cookies, no advertising IDs and no cross-site trackers. Visits are counted with Cloudflare Web Analytics, which is cookieless (operator 2026-10-07 01:11: _"Both, staged"_, #451, website spec W17); in-game analytics is designed before launch as its own epic, with a privacy review (#452). Server data is limited to §6.6, §6.7 and §10. Balancing uses the pacing bots instead of player tracking.
 
 ## 10. Fair play and leaderboards (D10–D12)
 

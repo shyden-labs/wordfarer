@@ -14,6 +14,21 @@ const CONSOLE_SENTINEL = 'yawelo-idle smoke: console sentinel';
 const ERROR_SENTINEL = 'yawelo-idle smoke: page error sentinel';
 /** An address CSP's default-src 'self' refuses; never fetched. */
 const FOREIGN_IMAGE = 'https://example.invalid/planted.png';
+/** A script from another origin, which script-src refuses (#451 AC2). */
+const FOREIGN_SCRIPT = 'https://example.invalid/planted.js';
+/**
+ * A script on the beacon's own host but outside its path: script-src admits
+ * Cloudflare Web Analytics' beacon alone, never the whole host (#451 AC2).
+ */
+const NEIGHBOUR_SCRIPT = 'https://static.cloudflareinsights.com/planted.js';
+/**
+ * Cloudflare Web Analytics' beacon as Cloudflare injects it, the version
+ * after `beacon.min.js/` (#451). The test serves a stub from it; nothing is
+ * fetched, and the real beacon's own version never matches it.
+ */
+const BEACON = 'https://static.cloudflareinsights.com/beacon.min.js/vsmoke';
+/** Every address the CSP test plants; each must be refused. */
+const PLANTED = [FOREIGN_IMAGE, FOREIGN_SCRIPT, NEIGHBOUR_SCRIPT] as const;
 /** The axe rule an image with no text alternative breaks. */
 const PLANTED_AXE_RULE = 'image-alt';
 /** The planted image's id, so its finding is told from a real one. */
@@ -96,30 +111,66 @@ test('the shell runs under its Content Security Policy with no violation', async
     page.getByRole('heading', { level: 1, name: 'Yawelo Idle' }),
   ).toBeVisible();
 
-  await page.evaluate((src) => {
-    const image = document.createElement('img');
-    image.src = src;
-    image.alt = '';
-    document.body.append(image);
-  }, FOREIGN_IMAGE);
+  await page.evaluate(
+    ([image, scripts]) => {
+      const planted = document.createElement('img');
+      planted.src = image;
+      planted.alt = '';
+      document.body.append(planted);
+      document.body.append(
+        ...scripts.map((src) =>
+          Object.assign(document.createElement('script'), { src }),
+        ),
+      );
+    },
+    [FOREIGN_IMAGE, [FOREIGN_SCRIPT, NEIGHBOUR_SCRIPT]] as const,
+  );
   const violations = (): Promise<string[]> =>
     page.evaluate(
       () => (window as unknown as { __violations: string[] }).__violations,
     );
   await expect
-    .poll(async () =>
-      (await violations()).some((v) => v.includes(FOREIGN_IMAGE)),
-    )
-    .toBe(true);
+    .poll(async () => {
+      const seen = await violations();
+      return PLANTED.filter((url) => !seen.some((v) => v.includes(url)));
+    })
+    .toEqual([]);
 
   const seen = await violations();
-  const unplanned = seen.filter((v) => !v.includes(FOREIGN_IMAGE));
+  const unplanned = seen.filter((v) => !PLANTED.some((url) => v.includes(url)));
   expect(
     searched(unplanned, { of: seen, what: 'CSP violations seen' }),
   ).toEqual([]);
   expect(
     floorBreach(`web-smoke/violations-${testInfo.project.name}`, seen.length),
   ).toBeUndefined();
+});
+
+test("the shell runs Cloudflare Web Analytics' beacon at any version (#451)", async ({
+  page,
+}) => {
+  await page.route(BEACON, (route) =>
+    route.fulfill({
+      contentType: 'text/javascript',
+      body: 'window.__beaconRan = true;',
+    }),
+  );
+  await page.goto('/play/');
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Yawelo Idle' }),
+  ).toBeVisible();
+  await page.evaluate((src) => {
+    document.body.append(
+      Object.assign(document.createElement('script'), { src }),
+    );
+  }, BEACON);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as unknown as { __beaconRan?: boolean }).__beaconRan,
+      ),
+    )
+    .toBe(true);
 });
 
 test('the shell has no axe violations', async ({ page }, testInfo) => {

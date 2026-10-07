@@ -15,7 +15,7 @@ The operator, 2026-10-04 11:50 UTC: _"i want you to make the wordfarer website. 
 1. A visitor understands what Yawelo Idle is, how it plays and when it is coming, in English or Indonesian, on any device from a 320 px phone to a TV.
 2. A visitor can get ready for launch in one place: join the launch list, save the site, follow the project.
 3. Anyone can watch development happen: the public roadmap shows each change on the board within seconds, without a reload. Design target: under 10 s from the board edit to the open page. It is a target, not yet a measurement; #341 and #342 measures it on dev, and a miss is reported, never hidden by loosening the target.
-4. Nothing on the site breaks a player-trust promise (parent §9): no ads, no analytics, no cookies, no third-party trackers.
+4. Nothing on the site breaks a player-trust promise (parent §9): no ads, no cookies, no advertising IDs, no cross-site trackers. Visits are counted with Cloudflare Web Analytics, which is cookieless (W17).
 5. Every page says plainly that the game is in development and may change completely.
 
 **Other game work waits** until this site is live in production (operator, 12:00 UTC, "Pause game fully"). Two later decisions shape that: #35 is finished first (12:23 UTC), and the game stories the site shares, together with their dependency chains, are built as part of this epic (§9).
@@ -40,6 +40,7 @@ The operator, 2026-10-04 11:50 UTC: _"i want you to make the wordfarer website. 
 | W14 | Trailer         | 2026-10-06 01:49: a **code-made trailer rendered to a self-hosted video** (#421), _"but be ready to change this for 3 once gameplay and a demo is available"_, meaning real gameplay footage replaces it then (#422)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | W15 | Dev gate        | 2026-10-06 01:46: dev **keeps its password gate**; the public link is production                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | W16 | Site updates    | 2026-10-06 01:46: **one website story per finished player-facing feature** (#420; `CLAUDE.md`, "Website follows the game"; the story form's Website field)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| W17 | Analytics       | 2026-10-07 01:11: **"Both, staged"**: cookieless visit counts now with **Cloudflare Web Analytics** (#451), and in-game analytics designed later as its own epic with a privacy review, before launch (#452). It replaces the earlier "no analytics" line, which a session wrote into parent §9 on 2026-10-01 and was never an operator decision. Copy approved 01:19: _"This site sets no cookies. We count visits with Cloudflare Web Analytics, which stores nothing on your device and does not fingerprint you."_                                                                                                                                                                                         |
 
 ## 3. Pages and content (design question 1 of 5, approved 12:02)
 
@@ -62,7 +63,7 @@ Every page exists in English at `/…` and Indonesian at `/id/…`, with a langu
 
 **Other pages:** `/roadmap` (§5), `/privacy` (§6.3), `/play` "coming soon" (served by the game app, §7.2), and a 404.
 
-**Site-wide:** no analytics, no cookies, no third-party requests of any kind (fonts self-hosted), WCAG 2.2 AA (parent §8).
+**Site-wide:** no cookies and no third-party requests except the cookieless Cloudflare Web Analytics beacon (W17; fonts self-hosted), WCAG 2.2 AA (parent §8).
 
 **Copy rule:** every claim about a mechanic traces to the parent spec, a recorded operator decision (this §2, epic #328) or a merged design spec. A claim with no source is cut, not softened. The English copy is approved by the operator before translation (#334), the cheap moment to change it.
 
@@ -118,7 +119,7 @@ Create and install the read-only App, and create the two org webhooks. Each webh
 
 ### 6.3 Privacy page
 
-`/privacy` (en and id) states: what is collected (the sign-up, held by the named provider as processor), the lawful basis (consent) and how to withdraw it, exactly what request logging Cloudflare and the Worker keep (read from the Worker config and Cloudflare's own terms in #343 and #344, never assumed), and that there are no cookies or analytics. Operator step: check whether the ICO data protection fee applies. #343 and #344 sets out the ICO's own criteria and does not guess.
+`/privacy` (en and id) states: what is collected (the sign-up, held by the named provider as processor), the lawful basis (consent) and how to withdraw it, exactly what request logging Cloudflare and the Worker keep (read from the Worker config and Cloudflare's own terms in #343 and #344, never assumed), that there are no cookies, and that visits are counted with Cloudflare Web Analytics (W17): what it counts, that it stores nothing on the device, and Cloudflare as processor (#423). Operator step: check whether the ICO data protection fee applies. #343 and #344 sets out the ICO's own criteria and does not guess.
 
 ## 7. Architecture (W10, approved 12:01)
 
