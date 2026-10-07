@@ -16,13 +16,16 @@ import {
  *
  * `npm run test:web:dev` runs the same tests against the address in
  * `WEB_SMOKE_URL` (deploy-dev sets it to dev, after verify has seen this
- * commit served there; #123 DoD). It builds and starts nothing, and gives the
- * dev password to that address's origin alone. Playwright answers dev's 401
+ * commit served there; #123 DoD). It builds and starts nothing, and answers
+ * dev's 401 password challenge with the dev password. Playwright answers the
  * challenge itself: measured against a gate shaped like packages/lockdown's in
  * all three engines (#123), an answered challenge logs nothing, while an
- * unanswered one logs a failed load in Chromium and WebKit. (`send: 'always'`
- * would not avoid the challenge: it applies to Playwright's API requests, not
- * the browser's.)
+ * unanswered one logs a failed load in Chromium and WebKit. The credentials
+ * carry no `origin`: measured on HTTPS's default port, WebKit refuses a
+ * password scoped to `https://host` or `https://host:443` (401), while
+ * Chromium and Firefox accept both. They carry no `send` either: `send` reaches
+ * Playwright's API requests, not the browser's. The game's policy keeps the
+ * page on dev's own origin, so no other origin can ask for the password.
  */
 const PORT = 8791;
 
@@ -70,7 +73,6 @@ export function webSmokeConfig(
       httpCredentials: {
         username: USERNAME,
         password,
-        origin: new URL(target).origin,
       },
     },
   });
