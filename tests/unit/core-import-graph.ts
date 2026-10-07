@@ -1,5 +1,6 @@
 import { posix } from 'node:path';
 import ts from 'typescript';
+import { lineOf } from './line-of';
 
 /**
  * The value-import graph of packages/core/src, which must stay acyclic (#92).
@@ -71,8 +72,7 @@ export function scanModule(file: string, source: string): ModuleScan {
   const imports: RelativeImport[] = [];
   const refused: string[] = [];
   const refuse = (node: ts.Node, problem: string) => {
-    const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
-    refused.push(`${file}:${String(line + 1)}: ${problem}`);
+    refused.push(`${file}:${String(lineOf(sf, node))}: ${problem}`);
   };
 
   const visit = (node: ts.Node): void => {

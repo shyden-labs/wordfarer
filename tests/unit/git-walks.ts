@@ -1,4 +1,5 @@
 import ts from 'typescript';
+import { lineOf } from './line-of';
 
 /**
  * Finds every git file walk in a TypeScript source and judges whether it sees
@@ -90,11 +91,9 @@ export function gitWalks(file: string, text: string): GitWalks {
   const unclassified: string[] = [];
   const wrappers = new Set<string>();
   let programCalls = 0;
-  const lineOf = (node: ts.Node) =>
-    source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
   /** Judges one git call from its argument expressions. */
   const judge = (node: ts.Node, argv: readonly ts.Expression[]): void => {
-    const line = lineOf(node);
+    const line = lineOf(source, node);
     const where = `${file}:${String(line)}`;
     const [first] = argv;
     if (first === undefined || !ts.isStringLiteralLike(first)) {

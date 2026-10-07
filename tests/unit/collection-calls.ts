@@ -1,4 +1,5 @@
 import ts from 'typescript';
+import { lineOf } from './line-of';
 
 /**
  * Calls a test file evaluates while Vitest COLLECTS it (Refs #97).
@@ -451,8 +452,6 @@ export function scanCollection(
     ts.ScriptTarget.Latest,
     true,
   );
-  const lineOf = (node: ts.Node): number =>
-    sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
   /** A node's source, whitespace collapsed, so a call written over lines reads as one. */
   const textOf = (node: ts.Node): string => collapse(node.getText(sf));
 
@@ -663,7 +662,7 @@ export function scanCollection(
   const calls: string[] = [];
   const met = (call: CallLike, how: string): void => {
     calls.push(
-      `line ${String(lineOf(call))}: ${textOf(calleeOf(call))} (${how})`,
+      `line ${String(lineOf(sf, call))}: ${textOf(calleeOf(call))} (${how})`,
     );
   };
   const refused: RefusedCall[] = [];
@@ -676,21 +675,21 @@ export function scanCollection(
       if (verdict?.kind === 'reaches')
         refused.push({
           scope,
-          line: lineOf(call),
+          line: lineOf(sf, call),
           call: textOf(calleeOf(call)),
           reaches: verdict.text,
         });
       if (verdict?.kind === 'unread')
-        unclassified.push(`line ${String(lineOf(call))}: ${verdict.text}`);
+        unclassified.push(`line ${String(lineOf(sf, call))}: ${verdict.text}`);
     },
     unread: (node, text) => {
-      unclassified.push(`line ${String(lineOf(node))}: ${text}`);
+      unclassified.push(`line ${String(lineOf(sf, node))}: ${text}`);
     },
     describeForm: () => {
       describeForms += 1;
     },
     describe: (call, title) => {
-      describeCallbacks.push(`line ${String(lineOf(call))}: ${title}`);
+      describeCallbacks.push(`line ${String(lineOf(sf, call))}: ${title}`);
     },
     registration: (call) => {
       met(call, 'registration');
