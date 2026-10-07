@@ -80,9 +80,10 @@ const SKIPPED: Record<string, string> = {
   'Lint (zero warnings)': `\${{ ${SKIP} }}`,
   'Typecheck (tsc, svelte-check)': `\${{ ${SKIP} }}`,
   'Pacing bots (under 5 minutes)': `\${{ ${SKIP} }}`,
-  // The report uploads even after a failed pacing run, but never on docs-only,
-  // where nothing wrote it.
-  'Upload the pacing report': `\${{ !cancelled() && ${SKIP} }}`,
+  // The report uploads after a pacing run that passed or failed, but never on
+  // docs-only, where nothing wrote it, nor when the pacing step never started
+  // (#353).
+  'Upload the pacing report': `\${{ !cancelled() && ${SKIP} && (steps.pacing.outcome == 'success' || steps.pacing.outcome == 'failure') }}`,
   'Worker tests (sync in workerd + local D1, site and game through the asset router)': `\${{ ${SKIP} }}`,
   'Cross-engine determinism (Node, Chromium, Firefox, WebKit)': `\${{ ${SKIP} }}`,
   'Web smoke (the built game in a local Worker, on Chromium, Firefox and WebKit)': `\${{ ${SKIP} }}`,
