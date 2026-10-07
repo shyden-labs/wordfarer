@@ -215,12 +215,13 @@ const lockedVersion = (name: string): unknown => {
 };
 
 describe('the browser image is pinned and matches the test runner (#44)', () => {
-  it('there is an image to check: CI gets its browsers from one', () => {
-    expect(
-      containerImages().filter(({ image }) =>
-        image.startsWith('mcr.microsoft.com/playwright:'),
-      ),
-    ).toHaveLength(1);
+  it('there is an image to check: CI gets its browsers from one, in every job that runs them', () => {
+    const images = containerImages()
+      .map(({ image }) => image)
+      .filter((image) => image.startsWith('mcr.microsoft.com/playwright:'));
+    // One distinct pin: none is a miss, two would let the deploy-dev smoke
+    // (#123) drift from the browsers build-and-test proved.
+    expect(new Set(images).size).toBe(1);
   });
 
   it('every container image is pinned to a digest, not just a tag', () => {

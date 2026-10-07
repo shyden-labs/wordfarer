@@ -1,0 +1,11 @@
+{
+  // The browser smoke specs (#123): their callbacks run in the page, so this
+  // project sees the DOM. The root project excludes them, so no Node script
+  // or repo guard can typecheck against `document`.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"]
+  },
+  "include": ["*.ts", "../floors.ts", "../searched.ts"],
+  "exclude": []
+}

@@ -23,6 +23,9 @@
     "scripts/**/*.ts",
     "vitest.config.ts",
     "vitest.pacing.config.ts",
-    "playwright.engines.config.ts"
-  ]
+    "playwright.engines.config.ts",
+    "playwright.web.config.ts"
+  ],
+  // The browser specs see the DOM, so they have their own project.
+  "exclude": ["tests/web/**"]
 }

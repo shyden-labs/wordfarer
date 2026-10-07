@@ -5,6 +5,8 @@ import {
   NO_INDEX,
   basicAuthorization,
   gateJudgement,
+  gameShellJudgement,
+  gameShellProblems,
   gateProblems,
   healthJudgement,
   healthProblems,
@@ -21,6 +23,7 @@ import {
   webProblems,
   type Probe,
 } from '../../scripts/verify-dev';
+import { CONTENT_SECURITY_POLICY } from '../../apps/web/worker/policy';
 import { floorBreach } from '../floors';
 import { searched } from '../searched';
 
@@ -45,6 +48,7 @@ const shell = (sha: string) =>
     `<script type="module" src="${SCRIPT}"></script></head>`,
   );
 const noindex = { 'x-robots-tag': NO_INDEX };
+const policy = { 'content-security-policy': CONTENT_SECURITY_POLICY };
 
 describe('basicAuthorization', () => {
   it('encodes the password as UTF-8 after a fixed username', () => {
@@ -178,11 +182,19 @@ describe('scriptProblems (#332)', () => {
     const ok = probe(200, 'export {};', {
       'content-type': JAVASCRIPT,
       ...noindex,
+      ...policy,
     });
     expect(scriptJudgement('web /x.js', ok)).toEqual({
-      checked: ['status', 'content type', 'noindex'],
+      checked: ['status', 'content type', 'noindex', 'content security policy'],
       problems: [],
     });
+  });
+
+  it('fails a script served without the game’s Content Security Policy (#123)', () => {
+    const bare = probe(200, '', { 'content-type': JAVASCRIPT, ...noindex });
+    expect(scriptProblems('web /x.js', bare)).toEqual([
+      `web /x.js: Content-Security-Policy is null, expected ${JSON.stringify(CONTENT_SECURITY_POLICY)}`,
+    ]);
   });
 
   it('fails a non-200 and judges nothing after it', () => {
@@ -196,16 +208,58 @@ describe('scriptProblems (#332)', () => {
     ['HTML', 'text/html; charset=utf-8'],
     ['a look-alike type', 'text/javascriptish'],
   ])('fails a script served as %s', (_case, type) => {
-    const wrongType = probe(200, '', { 'content-type': type, ...noindex });
+    const wrongType = probe(200, '', {
+      'content-type': type,
+      ...noindex,
+      ...policy,
+    });
     expect(scriptProblems('web /x.js', wrongType)).toEqual([
       `web /x.js: Content-Type is ${JSON.stringify(type)}, expected text/javascript`,
     ]);
   });
 
   it('fails a script without the noindex header', () => {
-    const bare = probe(200, '', { 'content-type': JAVASCRIPT });
+    const bare = probe(200, '', { 'content-type': JAVASCRIPT, ...policy });
     expect(scriptProblems('web /x.js', bare)).toEqual([
       'web /x.js: X-Robots-Tag is null, expected "noindex, nofollow, noarchive"',
+    ]);
+  });
+});
+
+describe('gameShellProblems (#123)', () => {
+  it('accepts the game shell with its commit, noindex and the game’s policy', () => {
+    const judged = gameShellJudgement(
+      probe(200, shell(SHA), { ...noindex, ...policy }),
+      SHA,
+      'web /play/',
+    );
+    expect(
+      searched(judged.problems, {
+        of: judged.checked,
+        what: 'game shell checks',
+      }),
+    ).toEqual([]);
+    expect(
+      floorBreach('verify-dev/game-shell-checks', judged.checked.length),
+    ).toBeUndefined();
+  });
+
+  it.each([
+    ['no policy', {}, 'null'],
+    [
+      'a weaker policy',
+      { 'content-security-policy': 'default-src *' },
+      JSON.stringify('default-src *'),
+    ],
+  ])('names a shell served with %s', (_case, headers, seen) => {
+    expect(
+      gameShellProblems(
+        probe(200, shell(SHA), { ...noindex, ...headers }),
+        SHA,
+        'web /play/',
+      ),
+    ).toEqual([
+      `web /play/: Content-Security-Policy is ${seen}, expected ${JSON.stringify(CONTENT_SECURITY_POLICY)}`,
     ]);
   });
 });
@@ -306,6 +360,8 @@ describe('verifyDev', () => {
   let ungatedPath = '';
   /** The game shell names no script. */
   let noScript = false;
+  /** The game's shell and script carry its Content Security Policy (#123). */
+  let policyServed = true;
   const seenUrls: string[] = [];
   let webStale = 0;
   let healthStale = 0;
@@ -335,8 +391,15 @@ describe('verifyDev', () => {
         res.end(retiredServes ? shell(served) : 'There is nothing here yet');
         return;
       }
+      const gamePolicy: Record<string, string> = policyServed
+        ? { 'content-security-policy': CONTENT_SECURITY_POLICY }
+        : {};
       if (req.url === SCRIPT && authorised) {
-        res.writeHead(200, { 'content-type': scriptType, ...tag });
+        res.writeHead(200, {
+          'content-type': scriptType,
+          ...tag,
+          ...gamePolicy,
+        });
         res.end('export {};');
         return;
       }
@@ -371,6 +434,7 @@ describe('verifyDev', () => {
       res.writeHead(authorised ? authorisedStatus : 200, {
         'content-type': 'text/html',
         ...tag,
+        ...(req.url === '/play/' ? gamePolicy : {}),
       });
       const commit =
         webStale <= staleLooks || req.url === stalePath ? OLD : served;
@@ -410,6 +474,7 @@ describe('verifyDev', () => {
     stalePath = '';
     ungatedPath = '';
     noScript = false;
+    policyServed = true;
     seenUrls.length = 0;
     webStale = 0;
     healthStale = 0;
@@ -500,6 +565,17 @@ describe('verifyDev', () => {
     noScript = true;
     const problems = await verifyDev(target(), { polls: 3, pollMs: 0 });
     expect(problems).toEqual(['web /play/: no game script in the page']);
+  });
+
+  it('names the game shell and script served without the game’s policy (#123)', async () => {
+    reset();
+    policyServed = false;
+    const problems = await verifyDev(target(), { polls: 3, pollMs: 0 });
+    const expected = JSON.stringify(CONTENT_SECURITY_POLICY);
+    expect(problems).toEqual([
+      `web /play/: Content-Security-Policy is null, expected ${expected}`,
+      `web ${SCRIPT}: Content-Security-Policy is null, expected ${expected}`,
+    ]);
   });
 
   it('fails at once, without another look, when the gate is gone', async () => {

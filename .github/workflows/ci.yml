@@ -90,6 +90,9 @@ jobs:
       - name: Cross-engine determinism (Node, Chromium, Firefox, WebKit)
         if: ${{ steps.classify.outputs.scope != 'docs-only' }}
         run: npm run test:engines
+      - name: Web smoke (the built game in a local Worker, on Chromium, Firefox and WebKit)
+        if: ${{ steps.classify.outputs.scope != 'docs-only' }}
+        run: npm run test:web
       - name: Build (a warning fails it)
         if: ${{ steps.classify.outputs.scope != 'docs-only' }}
         run: scripts/fail-on-warnings.sh npm run build

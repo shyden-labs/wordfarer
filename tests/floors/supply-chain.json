@@ -1,11 +1,11 @@
 {
-  "supply-chain/action-file-walk": 311,
+  "supply-chain/action-file-walk": 329,
   "supply-chain/dependabot-ecosystems": 2,
-  "supply-chain/digest-images": 1,
+  "supply-chain/digest-images": 2,
   "supply-chain/grouped-action-repos": 3,
-  "supply-chain/node-modules-walk": 311,
+  "supply-chain/node-modules-walk": 329,
   "supply-chain/ordered-action-repos": 3,
-  "supply-chain/pinned-uses": 11,
-  "supply-chain/playwright-images": 1,
-  "supply-chain/versioned-uses": 11
+  "supply-chain/pinned-uses": 13,
+  "supply-chain/playwright-images": 2,
+  "supply-chain/versioned-uses": 13
 }

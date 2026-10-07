@@ -17,5 +17,9 @@
     // dist/play/x with no prefix to strip.
     "directory": "./dist",
     "binding": "ASSETS",
+    // The script runs before the asset router, so the Content Security
+    // Policy it sets reaches the files too (#123). A call over the site
+    // Worker's service binding carries no request fee, so this costs CPU only.
+    "run_worker_first": true,
   },
 }
