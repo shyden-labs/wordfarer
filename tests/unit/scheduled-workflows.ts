@@ -6,14 +6,23 @@
  * `develop` here, so a scheduled job runs code nobody has released. Its job
  * may read dev or a read-only source, but a production credential belongs
  * to a separate workflow it dispatches with `--ref main`, whose environment
- * admits `main` alone. So a workflow whose `on:` holds `schedule` may not
- * name an environment starting `prod`, in its own jobs or in a local
- * reusable workflow it calls. Anything the reader cannot place (an
+ * admits `main` alone. So a workflow whose `on:` holds `schedule` may name
+ * only an environment on `SCHEDULED_ENVIRONMENTS`, by exact name, in its own
+ * jobs or in a local reusable workflow it calls. The name is judged exactly,
+ * never by what it seems to mean: `live` or `release` can hold a production
+ * key as well as `prod-cron` can. A job with no environment reads no stored
+ * secret (`workflow-secrets.test.ts`). Anything the reader cannot place (an
  * environment chosen by expression, a remote reusable workflow, an `on:` of
  * an unknown shape) is refused by name, never skipped.
  */
 import { parse } from 'yaml';
 import { isRecord } from './workflow-secrets';
+
+/**
+ * The only environments a scheduled job may name, matched exactly. `dev`
+ * admits `develop` and reaches only dev's Workers and D1.
+ */
+export const SCHEDULED_ENVIRONMENTS: readonly string[] = ['dev'];
 
 export interface ScheduleFinding {
   readonly file: string;
@@ -81,9 +90,9 @@ function judgeEnvironment(environment: unknown, via: string): string[] {
     return [
       `a scheduled workflow chooses its environment by expression (${name}), which no check can read`,
     ];
-  if (!name.toLowerCase().startsWith('prod')) return [];
+  if (SCHEDULED_ENVIRONMENTS.includes(name)) return [];
   return [
-    `a scheduled workflow names environment "${name}"${via}: dispatch a separate workflow with --ref main instead`,
+    `a scheduled workflow names environment "${name}"${via}, which no scheduled job may use (allowed: ${SCHEDULED_ENVIRONMENTS.join(', ')}): dispatch a separate workflow with --ref main instead`,
   ];
 }
 
