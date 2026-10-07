@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 
@@ -46,6 +47,7 @@ const SKIP = "steps.classify.outputs.scope != 'docs-only'";
 
 /** Every step, in order: today's order with the classifier after Node. */
 const ORDER = [
+  'The default branch is develop',
   'actions/checkout',
   'actions/setup-node',
   'Classify the change as docs-only or full (#360)',
@@ -64,6 +66,7 @@ const ORDER = [
 
 /** The steps a docs-only change runs (AC2). */
 const DOCS_ONLY = [
+  'The default branch is develop',
   'actions/checkout',
   'actions/setup-node',
   'Classify the change as docs-only or full (#360)',
@@ -87,11 +90,11 @@ const SKIPPED: Record<string, string> = {
 };
 
 describe('build-and-test’s steps (#360 AC2)', () => {
-  it('run in today’s order, with the classifier after Node and before install', () => {
+  it('run in today’s order, the default-branch check first, the classifier after Node and before install', () => {
     expect(steps().map(idOf)).toEqual(ORDER);
   });
 
-  it('on docs-only, run exactly checkout, Node, the classifier, install, Format and the unit suite', () => {
+  it('on docs-only, run exactly the default-branch check, checkout, Node, the classifier, install, Format and the unit suite', () => {
     expect(
       steps()
         .filter((s) => s.if === undefined)
@@ -119,7 +122,10 @@ describe('build-and-test’s steps (#360 AC2)', () => {
 });
 
 describe('the classifier step (#360 AC1)', () => {
-  const classifier = () => steps().find((s) => idOf(s) === DOCS_ONLY[2]) ?? {};
+  const classifier = () =>
+    steps().find(
+      (s) => idOf(s) === 'Classify the change as docs-only or full (#360)',
+    ) ?? {};
 
   it('is the step the skips read, by its id', () => {
     expect(classifier().id).toBe('classify');
@@ -152,4 +158,46 @@ describe('deploy-dev always tests in full (#360 AC3)', () => {
     expect(test?.uses).toBe('./.github/workflows/ci.yml');
     expect(test?.with).toBeUndefined();
   });
+});
+
+describe('the default-branch step (#460 AC2)', () => {
+  const step = () =>
+    steps().find((s) => idOf(s) === 'The default branch is develop') ?? {};
+  /** The step's shell, run as Actions runs it: bash with -e. */
+  const run = (branch: string) => {
+    const script = step().run;
+    if (typeof script !== 'string') throw new Error('the step has no run');
+    try {
+      const stdout = execFileSync('bash', ['-e', '-c', script], {
+        encoding: 'utf8',
+        env: { PATH: process.env.PATH, DEFAULT_BRANCH: branch },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      return { status: 0, stdout };
+    } catch (error) {
+      const failed = error as { status: number; stdout: string };
+      return { status: failed.status, stdout: failed.stdout };
+    }
+  };
+
+  it('reads the repository’s default branch from the event', () => {
+    expect(step().env).toEqual({
+      DEFAULT_BRANCH: '${{ github.event.repository.default_branch }}',
+    });
+  });
+
+  it('passes when the default branch is develop', () => {
+    expect(run('develop')).toEqual({ status: 0, stdout: '' });
+  });
+
+  for (const branch of ['main', '', 'Develop', 'develop ', 'feature/develop'])
+    it(`fails, naming the setting, when the default branch is ${JSON.stringify(branch)}`, () => {
+      expect(run(branch)).toEqual({
+        status: 1,
+        stdout:
+          `::error::The default branch is '${branch}', not develop, so ` +
+          'Dependabot security fixes and its config live outside the develop ' +
+          'gate (#460). Set it in Settings > General > Default branch.\n',
+      });
+    });
 });
