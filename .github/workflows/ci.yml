@@ -84,11 +84,15 @@ jobs:
       # The personas play the real core and the spec's pacing targets are
       # checked (#35); AC7 holds the suite under 5 minutes on the runner.
       - name: Pacing bots (under 5 minutes)
+        id: pacing
         timeout-minutes: 5
         if: ${{ steps.classify.outputs.scope != 'docs-only' }}
         run: npm run test:pacing
+      # Only after a pacing run that passed or failed: a step before it that
+      # failed skips the suite, and an upload then would fail on a report
+      # nothing wrote, a second red step that misleads (#353).
       - name: Upload the pacing report
-        if: ${{ !cancelled() && steps.classify.outputs.scope != 'docs-only' }}
+        if: ${{ !cancelled() && steps.classify.outputs.scope != 'docs-only' && (steps.pacing.outcome == 'success' || steps.pacing.outcome == 'failure') }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           # every-commit.yml calls this once per commit in one run, where an
