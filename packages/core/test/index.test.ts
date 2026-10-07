@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import * as core from '../src/index';
 
 /**
@@ -71,5 +71,16 @@ describe('the package entry point', () => {
       'fluent',
       'mastered',
     ]);
+  });
+
+  it('exports the three CEFR levels in order, the one definition content’s schema reads (#101 AC5)', () => {
+    expect(core.CEFR_LEVELS).toEqual(['A1', 'A2', 'B1']);
+  });
+
+  it('keeps Cefr equal to CEFR_LEVELS’ members, so the two cannot disagree (#101 AC5)', () => {
+    expectTypeOf<core.Cefr>().toEqualTypeOf<
+      (typeof core.CEFR_LEVELS)[number]
+    >();
+    expectTypeOf(core.CEFR_LEVELS).toEqualTypeOf<readonly ['A1', 'A2', 'B1']>();
   });
 });

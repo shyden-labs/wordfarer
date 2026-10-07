@@ -1,0 +1,23 @@
+{
+  // @yawelo-idle/content loads and validates a course pack (#101). It runs in
+  // Node (the content build and its unit tests) and may later run in a
+  // browser, so `types: []` keeps the hoisted @types/node out and a
+  // Node-only API cannot typecheck here. `test/` is included so the AC5
+  // type-level drift test is checked by `npm run typecheck`.
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2023"],
+    "types": [],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}
