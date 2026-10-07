@@ -607,7 +607,7 @@ describe('the recorder over this repository', () => {
       );
       return {
         path,
-        reading: readFloorCaller(path, source),
+        reading: readFloorCaller(path, sf),
         // The cross-check, read from the text with literals and comments gone.
         named: /\bfloorBreach\b/.test(codeWithoutLiterals(sf)),
       };

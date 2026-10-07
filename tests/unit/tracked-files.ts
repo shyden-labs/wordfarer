@@ -37,3 +37,28 @@ export const committableFiles = (
       .filter((path) => path !== ''),
   ),
 ];
+
+/**
+ * Every untracked path git ignores under `root`, a wholly ignored directory
+ * once as `dir/` (#432). One git call for the whole tree: old-name's
+ * filesystem walk asked `git check-ignore` once per directory, 60 calls
+ * that were 99% of its wall time and timed it out under load. Tracked paths
+ * are never in it.
+ */
+export const ignoredPaths = (root: string): Set<string> =>
+  new Set(
+    execFileSync(
+      'git',
+      [
+        'ls-files',
+        '-z',
+        '--others',
+        '--ignored',
+        '--exclude-standard',
+        '--directory',
+      ],
+      { encoding: 'utf8', cwd: root, maxBuffer: 64 * 1024 * 1024 },
+    )
+      .split('\0')
+      .filter((path) => path !== ''),
+  );

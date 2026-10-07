@@ -40,9 +40,10 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, posix, relative, sep } from 'node:path';
-import ts from 'typescript';
+import type ts from 'typescript';
 import { committableFiles } from '../tests/unit/tracked-files.ts';
 
 /** The recorded figures, one file per guard, relative to the repository root. */
@@ -449,6 +450,16 @@ export interface FloorCallerReading {
   readonly refusals: readonly string[];
 }
 
+/**
+ * TypeScript's parser, loaded on the first read of callers rather than when
+ * the script loads (#432): a top-level import doubled the recorder's load
+ * time (156-183 ms to 340-412 ms), which every test that loads it paid.
+ */
+const load = createRequire(import.meta.url);
+let parser: typeof ts | undefined;
+const typescript = (): typeof ts =>
+  (parser ??= load('typescript') as typeof ts);
+
 const FLOOR = 'floorBreach';
 
 /** Whether `specifier`, written in `path`, names the floors module. */
@@ -460,25 +471,27 @@ const isFloorsModule = (path: string, specifier: string): boolean =>
 
 /** A name declared here, so the identifier is no reference to `floorBreach`. */
 const isKey = (node: ts.Identifier): boolean => {
+  const api = typescript();
   const parent = node.parent;
   return (
-    (ts.isPropertyAssignment(parent) ||
-      ts.isMethodDeclaration(parent) ||
-      ts.isPropertyDeclaration(parent) ||
-      ts.isPropertySignature(parent) ||
-      ts.isMethodSignature(parent)) &&
+    (api.isPropertyAssignment(parent) ||
+      api.isMethodDeclaration(parent) ||
+      api.isPropertyDeclaration(parent) ||
+      api.isPropertySignature(parent) ||
+      api.isMethodSignature(parent)) &&
     parent.name === node
   );
 };
 
 /** A declaration that gives `node` its own binding. */
 const declares = (node: ts.Identifier): boolean => {
+  const api = typescript();
   const parent = node.parent;
   return (
-    (ts.isFunctionDeclaration(parent) ||
-      ts.isVariableDeclaration(parent) ||
-      ts.isClassDeclaration(parent) ||
-      ts.isParameter(parent)) &&
+    (api.isFunctionDeclaration(parent) ||
+      api.isVariableDeclaration(parent) ||
+      api.isClassDeclaration(parent) ||
+      api.isParameter(parent)) &&
     parent.name === node
   );
 };
@@ -493,16 +506,21 @@ const declares = (node: ts.Identifier): boolean => {
  */
 export function readFloorCaller(
   path: string,
-  source: string,
+  source: string | ts.SourceFile,
 ): FloorCallerReading {
   if (path === `${FLOORS_MODULE}.ts`) return { calls: false, refusals: [] };
-  const sf = ts.createSourceFile(
-    path,
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    path.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
-  );
+  const api = typescript();
+  // A caller that has parsed the file already passes it, so it is parsed once.
+  const sf =
+    typeof source === 'string'
+      ? api.createSourceFile(
+          path,
+          source,
+          api.ScriptTarget.Latest,
+          true,
+          path.endsWith('.tsx') ? api.ScriptKind.TSX : api.ScriptKind.TS,
+        )
+      : source;
   const direct = new Set<string>();
   const namespaces = new Set<string>();
   const refusals = new Set<string>();
@@ -513,23 +531,23 @@ export function readFloorCaller(
 
   for (const statement of sf.statements) {
     if (!(
-      ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)
+      api.isImportDeclaration(statement) || api.isExportDeclaration(statement)
     ))
       continue;
     const from = statement.moduleSpecifier;
     if (
       from === undefined ||
-      !ts.isStringLiteral(from) ||
+      !api.isStringLiteral(from) ||
       !isFloorsModule(path, from.text)
     )
       continue;
-    if (ts.isImportDeclaration(statement)) {
+    if (api.isImportDeclaration(statement)) {
       const clause = statement.importClause;
       const bindings =
-        clause?.phaseModifier === ts.SyntaxKind.TypeKeyword
+        clause?.phaseModifier === api.SyntaxKind.TypeKeyword
           ? undefined
           : clause?.namedBindings;
-      if (bindings && ts.isNamespaceImport(bindings))
+      if (bindings && api.isNamespaceImport(bindings))
         namespaces.add(bindings.name.text);
       else
         for (const element of bindings?.elements ?? [])
@@ -544,33 +562,33 @@ export function readFloorCaller(
   let calls = false;
   const visit = (node: ts.Node): void => {
     if (
-      ts.isCallExpression(node) &&
-      node.expression.kind === ts.SyntaxKind.ImportKeyword
+      api.isCallExpression(node) &&
+      node.expression.kind === api.SyntaxKind.ImportKeyword
     ) {
       const [specifier] = node.arguments;
       if (
         specifier &&
-        ts.isStringLiteralLike(specifier) &&
+        api.isStringLiteralLike(specifier) &&
         isFloorsModule(path, specifier.text)
       )
         refuse(
           `imports ${FLOORS_MODULE} dynamically, which the recorder cannot follow`,
         );
     }
-    if (ts.isIdentifier(node)) {
+    if (api.isIdentifier(node)) {
       const parent = node.parent;
-      if (ts.isImportSpecifier(parent) || ts.isNamespaceImport(parent)) {
+      if (api.isImportSpecifier(parent) || api.isNamespaceImport(parent)) {
         // A binding site, read above.
-      } else if (ts.isExportSpecifier(parent)) {
+      } else if (api.isExportSpecifier(parent)) {
         const exported = (parent.propertyName ?? parent.name).text;
         if (exported === FLOOR || direct.has(exported)) refuse(REEXPORT);
       } else if (
-        ts.isPropertyAccessExpression(parent) &&
+        api.isPropertyAccessExpression(parent) &&
         parent.name === node
       ) {
         if (node.text === FLOOR) {
           if (
-            ts.isIdentifier(parent.expression) &&
+            api.isIdentifier(parent.expression) &&
             namespaces.has(parent.expression.text)
           )
             calls = true;
@@ -583,16 +601,16 @@ export function readFloorCaller(
         // An object's own key, not a reference.
       } else if (namespaces.has(node.text)) {
         if (
-          ts.isPropertyAccessExpression(parent) &&
+          api.isPropertyAccessExpression(parent) &&
           parent.expression === node
         ) {
           // A member, judged at its name.
         } else if (
-          ts.isElementAccessExpression(parent) &&
+          api.isElementAccessExpression(parent) &&
           parent.expression === node
         ) {
           const key = parent.argumentExpression;
-          if (!ts.isStringLiteralLike(key))
+          if (!api.isStringLiteralLike(key))
             refuse(`reads ${FLOORS_MODULE} by a computed key`);
           else if (key.text === FLOOR) calls = true;
         } else refuse(`hands ${FLOORS_MODULE} on as a value`);
@@ -604,7 +622,7 @@ export function readFloorCaller(
             : `calls ${FLOOR} with no recognised import of it`,
         );
     }
-    ts.forEachChild(node, visit);
+    api.forEachChild(node, visit);
   };
   visit(sf);
   return { calls, refusals: [...refusals] };
