@@ -376,7 +376,7 @@ const TEST_FILE = /\.(test|spec)\.ts$/;
 const RAW_TEST_CALL = /(^|[^\w.$])(it|test)(\.\w+)*\s*\(/m;
 
 /** Every tracked test file and what the detector read in it, scanned inside each test, never at collection. */
-const scan = () => {
+const readScan = () => {
   const files = committableFiles().filter((path) => TEST_FILE.test(path));
   const read = files.map((file) => {
     const source = readFileSync(file, 'utf8');
@@ -398,6 +398,10 @@ const scan = () => {
       .map(({ file }) => file),
   };
 };
+
+/** One walk per file, shared by its tests (#432: each test re-walked every file). */
+let scanned: ReturnType<typeof readScan> | undefined;
+const scan = () => (scanned ??= readScan());
 
 describe('the suite', () => {
   it('scans every committable test file, this one included', () => {

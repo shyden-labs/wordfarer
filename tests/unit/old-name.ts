@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { ignoredPaths } from './tracked-files';
 
 /**
  * The game's old name, and the places it may still be written (#356).
@@ -249,20 +250,6 @@ export function readText(path: string, bytes: Uint8Array): Reading {
   }
 }
 
-/** The paths of `paths` git ignores (tracked paths never are). */
-const ignoredOf = (root: string, paths: readonly string[]): Set<string> => {
-  if (paths.length === 0) return new Set();
-  const run = spawnSync('git', ['check-ignore', '-z', '--stdin'], {
-    cwd: root,
-    input: paths.join('\0'),
-    encoding: 'utf8',
-  });
-  // 0: some ignored, 1: none ignored; anything else is a failure, refused.
-  if (run.status !== 0 && run.status !== 1)
-    throw new Error(`git check-ignore failed: ${run.stderr}`);
-  return new Set(run.stdout.split('\0').filter((path) => path !== ''));
-};
-
 /**
  * Every file under `root` that git tracks or would add, found by walking the
  * file system and asking git only which names it ignores. It is the second
@@ -270,6 +257,7 @@ const ignoredOf = (root: string, paths: readonly string[]): Set<string> => {
  */
 export function walkTree(root = '.'): string[] {
   const files: string[] = [];
+  const ignored = ignoredPaths(root);
   const pending = [''];
   for (let dir = pending.pop(); dir !== undefined; dir = pending.pop()) {
     const entries = readdirSync(join(root, dir), { withFileTypes: true })
@@ -278,10 +266,13 @@ export function walkTree(root = '.'): string[] {
     const paths = entries.map((entry) =>
       dir === '' ? entry.name : `${dir}/${entry.name}`,
     );
-    const ignored = ignoredOf(root, paths);
     entries.forEach((entry, index) => {
       const path = paths[index];
-      if (path === undefined || ignored.has(path)) return;
+      if (
+        path === undefined ||
+        ignored.has(entry.isDirectory() ? `${path}/` : path)
+      )
+        return;
       if (entry.isDirectory()) pending.push(path);
       else files.push(path);
     });

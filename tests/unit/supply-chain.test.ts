@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { parse } from 'yaml';
@@ -425,18 +424,20 @@ describe('the install is reproducible', () => {
     // Dependabot's one npm entry reads the root manifest and its lock file,
     // which hold every workspace's dependencies. A manifest outside the
     // workspaces would have its own dependencies and nothing to update them.
-    // Two readings: git's files, and npm's own list of workspaces.
+    // Two readings: git's files, and the workspaces the root lock file links,
+    // which is what that npm entry reads. Read from the file, not `npm query`:
+    // starting npm took 1.0-1.4 s, and timed this test out under load (#432).
     const manifests = committableFiles()
       .filter((path) => /(^|\/)package\.json$/.test(path))
       .filter((path) => path !== 'package.json')
       .map((path) => dirname(path))
       .sort();
-    const query = spawnSync('npm', ['query', '.workspace'], {
-      encoding: 'utf8',
-    });
-    expect(query.status, query.stderr).toBe(0);
-    const workspaces = (JSON.parse(query.stdout) as { location: string }[])
-      .map(({ location }) => location)
+    const lock = JSON.parse(readFileSync('package-lock.json', 'utf8')) as {
+      packages: Record<string, { link?: boolean; resolved?: string }>;
+    };
+    const workspaces = Object.values(lock.packages)
+      .filter(({ link }) => link === true)
+      .map(({ resolved }) => resolved ?? '')
       .sort();
     expect(workspaces, 'positive control: the site is one').toContain(
       'apps/site',
