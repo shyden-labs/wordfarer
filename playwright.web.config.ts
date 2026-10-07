@@ -16,9 +16,13 @@ import {
  *
  * `npm run test:web:dev` runs the same tests against the address in
  * `WEB_SMOKE_URL` (deploy-dev sets it to dev, after verify has seen this
- * commit served there; #123 DoD). It builds and starts nothing, and sends the
- * dev password on every request, since a 401 challenge answered later would
- * show in the console as a failed load.
+ * commit served there; #123 DoD). It builds and starts nothing, and gives the
+ * dev password to that address's origin alone. Playwright answers dev's 401
+ * challenge itself: measured against a gate shaped like packages/lockdown's in
+ * all three engines (#123), an answered challenge logs nothing, while an
+ * unanswered one logs a failed load in Chromium and WebKit. (`send: 'always'`
+ * would not avoid the challenge: it applies to Playwright's API requests, not
+ * the browser's.)
  */
 const PORT = 8791;
 
@@ -63,7 +67,11 @@ export function webSmokeConfig(
     ...shared,
     use: {
       baseURL: target,
-      httpCredentials: { username: USERNAME, password, send: 'always' },
+      httpCredentials: {
+        username: USERNAME,
+        password,
+        origin: new URL(target).origin,
+      },
     },
   });
 }
