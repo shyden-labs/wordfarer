@@ -21,8 +21,9 @@
  *   (the sync Worker's suite runs inside workerd, which has no file system);
  * - any suite failed or did not start.
  *
- * Yawelo Idle runs six suites, and the root unit suite skips five of them
- * (pacing, the game and site harnesses, the sync Worker, the engines), so each suite is
+ * Yawelo Idle runs eight suites, and the root unit suite skips the others
+ * (pacing, the game, site and dev-hosts harnesses, the sync Worker, the
+ * engines, the web smoke suite), so each suite is
  * asked for its own file list rather than the recorder copying their globs.
  *
  * CI never records: a run that can rewrite the figure it checks against
@@ -261,6 +262,22 @@ export const SUITES: readonly Suite[] = [
     ],
     files: (stdout) => playwrightListed(process.cwd())(stdout),
     run: ['npm', 'run', 'test:engines'],
+  },
+  {
+    name: 'web smoke suite',
+    cwd: '.',
+    list: [
+      'npx',
+      'playwright',
+      'test',
+      '-c',
+      'playwright.web.config.ts',
+      '--list',
+      '--reporter=json',
+    ],
+    files: (stdout) => playwrightListed(process.cwd())(stdout),
+    // Its script builds the game first: the local Worker serves ./dist.
+    run: ['npm', 'run', 'test:web'],
   },
 ];
 

@@ -58,6 +58,7 @@ const ORDER = [
   'Upload the pacing report',
   'Worker tests (sync in workerd + local D1, site and game through the asset router)',
   'Cross-engine determinism (Node, Chromium, Firefox, WebKit)',
+  'Web smoke (the built game in a local Worker, on Chromium, Firefox and WebKit)',
   'Build (a warning fails it)',
 ];
 
@@ -81,6 +82,7 @@ const SKIPPED: Record<string, string> = {
   'Upload the pacing report': `\${{ !cancelled() && ${SKIP} }}`,
   'Worker tests (sync in workerd + local D1, site and game through the asset router)': `\${{ ${SKIP} }}`,
   'Cross-engine determinism (Node, Chromium, Firefox, WebKit)': `\${{ ${SKIP} }}`,
+  'Web smoke (the built game in a local Worker, on Chromium, Firefox and WebKit)': `\${{ ${SKIP} }}`,
   'Build (a warning fails it)': `\${{ ${SKIP} }}`,
 };
 

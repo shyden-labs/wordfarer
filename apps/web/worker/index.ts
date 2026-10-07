@@ -17,15 +17,9 @@
  * ROOT index.html, which the game, built into dist/play, does not have;
  * measured in the asset router, #332.)
  */
-const BASE = '/play/';
+import { CONTENT_SECURITY_POLICY } from './policy';
 
-/**
- * The first policy (#123 AC5): the built game needs nothing inline and
- * nothing from another origin. #153 owns the full policy and the other
- * security headers.
- */
-const CONTENT_SECURITY_POLICY =
-  "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
+const BASE = '/play/';
 
 function withPolicy(response: Response): Response {
   const headers = new Headers(response.headers);

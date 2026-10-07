@@ -1,5 +1,6 @@
 {
   "verify-dev/broken-site-problems": 18,
+  "verify-dev/game-shell-checks": 4,
   "verify-dev/gate-checks": 3,
   "verify-dev/health-checks": 4,
   "verify-dev/healthy-site-probes": 11,
