@@ -106,13 +106,13 @@ describe('the web smoke suite (#123 AC3)', () => {
 });
 
 describe('the web smoke suite against dev (#123 DoD)', () => {
-  it('targets the address it is given, gives the dev password to its origin alone, and starts no server', () => {
+  it('targets the address it is given, answers its password challenge, and starts no server', () => {
     expect(dev().use?.baseURL).toBe(DEV_URL);
-    // The password goes to dev's origin and no other.
+    // No `origin`: WebKit refuses a password scoped to an origin on HTTPS's
+    // default port, and no `send`: it reaches only Playwright's API requests.
     expect(dev().use?.httpCredentials).toEqual({
       username: 'smoke',
       password: 'the dev password',
-      origin: 'https://dev.yawelo-idle.shyden.co.uk',
     });
     expect(dev().webServer).toBeUndefined();
   });
