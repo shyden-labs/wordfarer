@@ -19,6 +19,7 @@
     "test:pacing": "vitest run -c vitest.pacing.config.ts",
     "test:engines": "playwright test -c playwright.engines.config.ts",
     "test:web": "npm run build --workspace @yawelo-idle/web && playwright test -c playwright.web.config.ts",
+    "test:web:dev": "playwright test -c playwright.web.config.ts",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests/web && npm run typecheck --workspaces --if-present",
     "format": "prettier --write .",
