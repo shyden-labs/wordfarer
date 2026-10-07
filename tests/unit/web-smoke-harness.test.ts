@@ -106,13 +106,13 @@ describe('the web smoke suite (#123 AC3)', () => {
 });
 
 describe('the web smoke suite against dev (#123 DoD)', () => {
-  it('targets the address it is given, sends the dev password up front, and starts no server', () => {
+  it('targets the address it is given, gives the dev password to its origin alone, and starts no server', () => {
     expect(dev().use?.baseURL).toBe(DEV_URL);
-    // `always`: a 401 challenge first would be a failed load in the console.
+    // The password goes to dev's origin and no other.
     expect(dev().use?.httpCredentials).toEqual({
       username: 'smoke',
       password: 'the dev password',
-      send: 'always',
+      origin: 'https://dev.yawelo-idle.shyden.co.uk',
     });
     expect(dev().webServer).toBeUndefined();
   });
