@@ -1,66 +1,92 @@
 # Handover: Yawelo Idle
 
-**Written:** 2026-10-07 05:03 UTC.
+**Written:** 2026-10-07 17:45 UTC.
 **Next session:** launch Claude from `~/Developer/Repos/yawelo-idle`. A hook names the session "Yawelo Idle"; type `/color green` once.
 
 ## Progress (global rule: every close-out states both estimates)
 
-From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawelo Idle Stories"` at 05:02 UTC:
+From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawelo Idle Stories"` at 17:48 UTC:
 
-- **By tickets: 20% complete** (60 of 306 in-scope stories closed). Measured pace: 8.57 a day over 7 days (10, 14, 8, 2, 15, 10, 1). ETA at that pace: 2026-11-05. **ETA to release-ready: 2026-12-19 to 2027-01-27** (low to medium confidence). That assumes 246 open stories plus about 30 unfiled, at 4–6 a working day, plus 1.5–2.5 weeks of outside waits.
-- **By effort: 21% complete** (299 of 1,441 points closed). Measured pace: 42.71 points a day over 7 days (64, 53, 43, 16, 77, 41, 5). ETA at that pace: 2026-11-03. **ETA to release-ready: 2026-12-17 to 2027-01-24** (low to medium confidence). That assumes 1,142 open points plus 130–180 unfiled prestige points, at 20–30 a working day, plus the same waits.
-- **Website first release (epic #331): live on production 2026-10-13 to 2026-10-20** (low to medium confidence, unchanged).
-- **Measured:** the counts and paces. **Assumed:** the slower future rates, the unfiled prestige work (#328, #329) and the outside waits.
+- **By tickets: 20% complete** (65 of 318 in-scope stories closed).
+  - Measured pace: 9.29 a day over 7 days (10, 14, 8, 2, 15, 10, 6). At that pace: 2026-11-04.
+  - **ETA to release-ready: 2026-12-23 to 2027-02-01** (low to medium confidence).
+- **By effort: 21% complete** (314 of 1,507 points closed).
+  - Measured pace: 44.86 points a day. At that pace: 2026-11-03.
+  - **ETA to release-ready: 2026-12-19 to 2027-01-30** (low to medium confidence).
+- **Measured:** the counts and the paces. **Assumed:**
+  - 4–6 stories (20–30 points) a working day;
+  - about 30 unfiled prestige stories (130–180 points, #328, #329);
+  - 1.5–2.5 weeks of outside waits.
+- **Why the dates moved:** tonight added 6 stories (37 points, #467 and #473–#477), so the ETAs moved out by a few days. 4 stories closed (#101, #448, #353, #417).
 
-## What this session did (2026-10-07 04:20 to 05:03 UTC)
+## The order (Shyden, 2026-10-07: "set a priority order and go from there", then "fix them all now")
 
-- **#123 is closed.** The dev smoke was red for two reasons, and both are fixed:
-  - **PR #453 (WebKit).** The dev smoke's `httpCredentials` lost `origin`. On HTTPS's default port, WebKit refuses a password scoped to an origin. M30d and M30e went red as predicted.
-  - **PR #454 (#451, the beacon).** Shyden decided at 01:11 UTC to keep analytics, so the game's CSP now admits Cloudflare Web Analytics' beacon.
-  - **Evidence:** deploy-dev run 37573623116 on `879585b` succeeded in all five jobs, including `smoke` (12 of 12, all three engines) and `dev-verified`.
-- **#451's policy.** The only new source is `script-src 'self' https://static.cloudflareinsights.com/beacon.min.js/`.
-  - The trailing `/` is needed: a path without it refuses the versioned URL Cloudflare injects. A probe measured this in 3 engines (`.superpowers/sdd/451/csp-path.out`).
-  - There is no `connect-src`: under automatic setup the beacon reports to the site's own `/cdn-cgi/rum`, according to Cloudflare's FAQ. I narrowed AC1 on that evidence, with a comment on #451.
-  - The smoke serves a stub beacon at a versioned path and requires it to run. It also plants a foreign script and a script on the beacon's host outside its path, and both must be refused. M1–M4 all went red as predicted.
-  - The copy line approved at 01:19 and the W17 row are in, along with the amended spec lines.
-  - ACs were added on #423 (disclosure) and #425/#426 (automatic setup, beacon-clean production smoke).
-- **#451 AC7 (ICO PECR) was decided by Shyden at 04:48 UTC: "No opt-out: read it as not covered."** The ICO's reading and quotes are on #451. Don't re-ask, and don't file an opt-out story.
-- **Shyden asked that the beacon never stop silently.** Two things came of it:
-  - **#455** (8 points): the smoke requires the real beacon; a daily check, including Cloudflare's own visit count above zero; and an issue assigned to Shyden on failure.
-  - **A new global rule**, "Nothing we rely on stops silently", in `~/.claude/CLAUDE.md`, by Shyden's choice ("Every project").
+1. **Unit tests under 1 s each** (new global rule, below): **#473 → #474 → #475 → #476, then #477 last.** #477 is the guard and the 1 s limit, so it lands once the suite is fast. 32 points.
+2. **#432 stays open for its evidence.** AC1: the CI stall of `writeFloors` is narrowed but not reproduced. AC3: 10 consecutive CI runs with it never slow. The local timeouts are fixed (PR #471).
+3. **#467,** the back-translation engine. It needs Docker running; Docker Desktop was off tonight.
+4. **#51 → #104 → #102,** in that order (Shyden: "#104 first"). #104 needs #51's evidence rules and #467's engine, and #102 needs #104.
+5. Then #110 → #103 (content), #125 → #124 → #128 (UI foundations), and #464 before the first production release.
+6. **One M1 floor burn-down a session alongside** (#411–#416, #368–#375, #84, #36, #297). #402 is not urgent: the runner is pinned to 24.04.
+
+## What this session did (2026-10-07 15:54 to 17:45 UTC)
+
+- **#101 closed.** PR #465 merged `9a1f699`, deployed and dev-verified.
+- **#448 closed.** PR #468: the floor recorder finds callers from the parse tree and refuses by name what it cannot follow. Merged `9858269`, deployed.
+- **#353 closed.** PR #469: the pacing upload runs only when the pacing step ran. Proved live on throwaway PR #470 (closed). Merged `cb591a0`, deployed.
+- **#417:** PR #472, one `lineOf` home for every guard (U+2028-safe). Merged `a510918`. Deployed and dev-verified; #417 closed and set Done.
+- **#432:** PR #471 cut slow work instead of raising limits. Merged `8764b1a`, deployed.
+  - `walkTree` spawns git once instead of 60 times.
+  - The walks run once per file.
+  - The recorder loads TypeScript lazily.
+  - `supply-chain` reads the lockfile.
+  - `ci-scope` copies one template repo.
+  - Across 35 tests: 27.4 s → 8.0 s.
+  - **The issue stays open,** and its CI-log measurement is posted on it.
+- **Filed:** #467 (engine, 5 points) and #473–#477 (1-second rule, 32 points). #102 and #104 now name their dependencies.
+- **Corrected by Shyden:** I first gave 27 slow tests 30 s "named budgets". He: _"reduce the slow parts. you already know increasing time limits is not the fix"_. They were reverted, and the memory note is `feedback-reduce-slow-work-never-raise-timeouts`.
+- **New global rule** (`~/.claude/CLAUDE.md` and `reference-engineering-standards.md`):
+  - every unit test runs in under 1 s, and no limit is ever raised;
+  - non-unit suites keep one measured limit at their CI step;
+  - it is a standing task in every repo.
+- **#473 is profiled.** shop-agreement's replay (6.9 s in plain node, 32 s in the suite) is production-rate recomputation in core: `linesFor`, `rateBreakdown`, `tenTo` and others, recomputed for the same state at every offer. The fix to plan is to compute a state's breakdown once, for example cached by state object.
+  - It needs a reviewed plan first: it is engine work under the golden-hash determinism rules.
+  - The profile is on #473. Probe: `.superpowers/sdd/473/probe.ts`, run with `node --experimental-transform-types --import ./.superpowers/sdd/432/ext-loader.mjs`.
+- **GitHub write outage:** writes returned HTTP 500 from 16:53 to about 17:19 UTC while reads worked. Writes queued in that window were sent once writes worked again.
 
 ## Waiting on Shyden
 
-1. **#451 AC3:** confirm with a comment on #451 that Workers & Pages > `yawelo-idle-dev-hosts` > Web Analytics is enabled with **automatic** setup. #451 stays open only for this.
-2. **#341 AC8 steps a–d** (create `yawelo-idle-roadmap`, generate its key, install it on `yawelo-idle` only, add `ROADMAP_WEBHOOK_SECRET` and `ROADMAP_APP_KEY` to the `dev` environment), then **comment the App ID on #341**. Nothing had arrived by 05:02 UTC. PR #438 must not merge before it.
-3. **#341 AC8 step e** (the dev org webhook), after #438 deploys.
-4. **#343:** the two Buttondown accounts. No reply as of 05:02 UTC.
-5. Later: the #333 wordmark pick, the #425/#426 prod token and environment, #345 visual sign-off, and #455's read-only Cloudflare Analytics token.
+1. **Spotlight** (a side agent's note, which fits the measurement): add `~/Developer/Repos` to System Settings → Spotlight → Privacy. Its indexer hit 137% CPU after the `npm ci` runs tonight, just as a test timed out.
+2. **Docker Desktop on,** for #467.
+3. **#451 AC3:** confirm Web Analytics automatic setup on `yawelo-idle-dev-hosts`.
+4. **#341 AC8 steps a–d,** then the App ID comment. PR #438 must not merge before that.
+5. **#343:** the two Buttondown accounts.
+6. **Later:** the #333 wordmark, the #425/#426 prod token, #345 sign-off, and #455's analytics token.
+7. **Optional:** file "test timeouts only shrink" as a separate guard? #477 covers it for unit tests.
 
 ## State
 
-- `develop` is at `879585b`. Open PRs: #438 (#341, head `f2e0d97`) and this handover's. Dependabot #23 and #24 are still behind develop.
-- **Worktrees:**
-  - `../yawelo-idle-341` holds #438's branch with `node_modules`; `../yawelo-idle-341-gate` is #341's gate scratch.
-  - `../yawelo-idle-451` holds #451's merged branch and can be removed with `git worktree remove ../yawelo-idle-451`.
-  - The merged local branch `m3/123-dev-smoke-webkit` can go too.
-- **Tooling, git-ignored, in this checkout:**
-  - `.superpowers/sdd/451/`: the probe, predictions, `mut.py`, the logs and the issue comments.
-  - `.superpowers/sdd/123/`: `mut_t8.py`, the mutation records and the WebKit auth probes.
-  - `.superpowers/sdd/101/plan.md`: #101's plan, with review pass 1 logged.
+- **`develop`** is at `a510918` (read with `git rev-parse origin/develop` when written).
+- **Open PRs:**
+  - #438 (#341, behind develop);
+  - Dependabot #24 (`@types/node`);
+  - this handover's PR, which supersedes #466 (closed).
+- **Worktrees still present:** `../yawelo-idle-341`, `-341-gate`, `-348`, `-348-red` and `-35` (earlier sessions). `-101`, `-353`, `-417` and `-451` were merged and removed tonight.
+- **The local branch `m1/473-golden-once`** has no commits; reuse it or delete it.
 - **Board:** project 4, `PVT_kwDOEOcG584BlRWb`, "Yawelo Idle Stories".
-  - Status field `PVTSSF_lADOEOcG584BlRWbzhj-3Hc` (Todo `f75ad846`, In Progress `47fc9ee4`, Done `98236657`); Estimate field `PVTF_lADOEOcG584BlRWbzhkVhDU`.
-  - A new issue may not be auto-added: add it with `addProjectV2ItemById` naming the board.
-  - Read an item back through `repository{issue{projectItems}}`; a bare `PVTI_` read is refused by the router.
-- **Dev:** `https://dev.yawelo-idle.shyden.co.uk/`. The password is the `dev` environment secret `DEV_BASIC_AUTH_PASSWORD`; any username works.
-- **The default branch is still `main`.** The global standing task (switch to `develop`, guard scheduled workflows, CI check, move Dependabot security PRs) has not been started here. #455's daily schedule depends on it.
+  - Status field `PVTSSF_lADOEOcG584BlRWbzhj-3Hc`: Todo `f75ad846`, In Progress `47fc9ee4`, Done `98236657`.
+  - Estimate field `PVTF_lADOEOcG584BlRWbzhkVhDU`.
+- **Session tools:** `.superpowers/sdd/101/set-status.sh <issue> <option-id>` sets a status after asserting the board title. `.superpowers/sdd/432/measure.setup.ts` and `vitest.measure.config.ts` record each test's wall, CPU and timeout to JSONL.
 
 ## Resume steps
 
-1. Read this file. Then run `git log origin/develop --oneline -3` and `gh issue list -R shyden-labs/yawelo-idle --state open --limit 30`, and check #451 (AC3), #341 and #343 for replies. If AC3 is confirmed, close #451 with the evidence from its status comment.
-2. **If #341 has the App ID**, follow #341's steps (they were in this file before 2026-10-07; read them with `git show 879585b:HANDOVER.md`, "Resume steps" item 2): set `ROADMAP_APP_ID`, rebase `../yawelo-idle-341` on develop, re-record the floors, gate, merge on green and Shyden's a–d, then step e and the read-backs.
-3. **Otherwise, #101 is next** in the chain #123 (done) → #101 → #102 → #110 → #125 → #126, which #333 and then #335 wait on.
-   - Its plan is `.superpowers/sdd/101/plan.md`. Continue the review loop to zero findings, executing the plan's code as the global rule requires, then do T1–T3.
-   - Also file the projection story the plan names (pack → core `CourseData`).
-4. **Global standing task, new this session ("Nothing we rely on stops silently"):** before other test work, list this repo's silent-failure points from code and config (every schedule, outbound email, webhook, third-party script, backup and feed). Analytics is #455. File one story per other point.
-5. At close-out, run `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawelo Idle Stories"` and state both estimates. Check closed stories against CLAUDE.md's "Website follows the game" rule. Settle the whole handover before the first push, as one commit.
+1. **Run `ListAgents` first.**
+2. **Start #473.** Read the profile comment on #473, then write a plan (superpowers:writing-plans).
+   - Cache the production breakdown per state in `packages/core`, and prove it changes nothing: the golden-log hash, the determinism lint, and the cross-engine spec.
+   - Profile `golden-log.test.ts` too.
+   - Review the plan to zero by running its code, then implement it TDD.
+3. **Then #474 and #475.** Measure with the measuring config first (`MEASURE_OUT=… npx vitest run -c .superpowers/sdd/432/vitest.measure.config.ts`).
+   - Cut work only. Never raise a limit.
+   - Remove the `*_TIMEOUT_MS` constants as each test gets fast.
+4. **#477 last:** `testTimeout: 1_000`, the CPU check in a setup file, and the guard with planted forms.
+5. **#432:** after 10 CI runs, scan them with `.superpowers/sdd/432/ci/scan.sh` (edit its run list) and close it if `writeFloors` never appears.
+6. **At close-out,** run the progress script, state both estimates, and check the closed stories against "Website follows the game" (tonight's closes are all test or CI work, with nothing to announce). Settle the handover as one commit.
