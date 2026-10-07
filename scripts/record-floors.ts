@@ -27,7 +27,8 @@
  * asked for its own file list rather than the recorder copying their globs.
  *
  * CI never records: a run that can rewrite the figure it checks against
- * asserts nothing. Imports are Node's own.
+ * asserts nothing. Imports are Node's own, TypeScript's parser, which finds
+ * the callers (#448), and the repository's one file walk.
  */
 import { spawnSync } from 'node:child_process';
 import {
@@ -41,6 +42,8 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, posix, relative, sep } from 'node:path';
+import ts from 'typescript';
+import { committableFiles } from '../tests/unit/tracked-files.ts';
 
 /** The recorded figures, one file per guard, relative to the repository root. */
 export const FLOORS_DIR = 'tests/floors';
@@ -432,34 +435,210 @@ const observationsIn = (file: string): Observation[] =>
         .map((line) => JSON.parse(line) as Observation)
     : [];
 
-/**
- * Whether `source` imports `floorBreach` from the floors module: the
- * construct that makes a file a caller. Its bare name is no evidence, since
- * this file spells it in prose and in the search below.
- */
-export const importsFloorBreach = (source: string): boolean =>
-  /import\s*\{[^}]*\bfloorBreach\b[^}]*\}\s*from\s*['"][^'"]*\/floors['"]/.test(
-    source,
+/** Every file kind TypeScript compiles, as git pathspecs. */
+export const TYPESCRIPT_FILES = ['*.ts', '*.mts', '*.cts', '*.tsx'] as const;
+
+/** The floors module, from the repository root, without its extension. */
+export const FLOORS_MODULE = 'tests/floors';
+
+/** What one file's parse tree says about `floorBreach` (#448). */
+export interface FloorCallerReading {
+  /** The file's code calls `floorBreach`, or hands it on by reference. */
+  readonly calls: boolean;
+  /** Each way the file reaches `floorBreach` that the recorder cannot follow. */
+  readonly refusals: readonly string[];
+}
+
+const FLOOR = 'floorBreach';
+
+/** Whether `specifier`, written in `path`, names the floors module. */
+const isFloorsModule = (path: string, specifier: string): boolean =>
+  specifier.startsWith('.') &&
+  posix
+    .normalize(posix.join(posix.dirname(path), specifier))
+    .replace(/\.[jt]s$/, '') === FLOORS_MODULE;
+
+/** A name declared here, so the identifier is no reference to `floorBreach`. */
+const isKey = (node: ts.Identifier): boolean => {
+  const parent = node.parent;
+  return (
+    (ts.isPropertyAssignment(parent) ||
+      ts.isMethodDeclaration(parent) ||
+      ts.isPropertyDeclaration(parent) ||
+      ts.isPropertySignature(parent) ||
+      ts.isMethodSignature(parent)) &&
+    parent.name === node
   );
+};
+
+/** A declaration that gives `node` its own binding. */
+const declares = (node: ts.Identifier): boolean => {
+  const parent = node.parent;
+  return (
+    (ts.isFunctionDeclaration(parent) ||
+      ts.isVariableDeclaration(parent) ||
+      ts.isClassDeclaration(parent) ||
+      ts.isParameter(parent)) &&
+    parent.name === node
+  );
+};
 
 /**
- * TypeScript files git tracks, or would at the next `git add -A`, whose text
- * calls `floorBreach`, but not its home. `git grep` exits 1 for no match.
+ * Whether `path`'s code calls `floorBreach` (#448), read from its parse tree:
+ * comments and strings hold no identifiers, so prose naming it is no call.
+ * Every import form TypeScript accepts is followed (extensionless, `.ts`,
+ * `.js`, aliased, a namespace read by name or literal key, the function
+ * handed on by reference). Anything else that reaches the name is refused by
+ * name, never skipped: a caller the recorder misses keeps a stale floor.
+ */
+export function readFloorCaller(
+  path: string,
+  source: string,
+): FloorCallerReading {
+  if (path === `${FLOORS_MODULE}.ts`) return { calls: false, refusals: [] };
+  const sf = ts.createSourceFile(
+    path,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    path.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  const direct = new Set<string>();
+  const namespaces = new Set<string>();
+  const refusals = new Set<string>();
+  const refuse = (why: string): void => {
+    refusals.add(`${path}: ${why}`);
+  };
+  const REEXPORT = `re-exports ${FLOOR}; import it from ${FLOORS_MODULE} directly`;
+
+  for (const statement of sf.statements) {
+    if (!(
+      ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)
+    ))
+      continue;
+    const from = statement.moduleSpecifier;
+    if (
+      from === undefined ||
+      !ts.isStringLiteral(from) ||
+      !isFloorsModule(path, from.text)
+    )
+      continue;
+    if (ts.isImportDeclaration(statement)) {
+      const clause = statement.importClause;
+      const bindings =
+        clause?.phaseModifier === ts.SyntaxKind.TypeKeyword
+          ? undefined
+          : clause?.namedBindings;
+      if (bindings && ts.isNamespaceImport(bindings))
+        namespaces.add(bindings.name.text);
+      else
+        for (const element of bindings?.elements ?? [])
+          if (
+            !element.isTypeOnly &&
+            (element.propertyName ?? element.name).text === FLOOR
+          )
+            direct.add(element.name.text);
+    } else if (!statement.exportClause) refuse(REEXPORT);
+  }
+
+  let calls = false;
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isCallExpression(node) &&
+      node.expression.kind === ts.SyntaxKind.ImportKeyword
+    ) {
+      const [specifier] = node.arguments;
+      if (
+        specifier &&
+        ts.isStringLiteralLike(specifier) &&
+        isFloorsModule(path, specifier.text)
+      )
+        refuse(
+          `imports ${FLOORS_MODULE} dynamically, which the recorder cannot follow`,
+        );
+    }
+    if (ts.isIdentifier(node)) {
+      const parent = node.parent;
+      if (ts.isImportSpecifier(parent) || ts.isNamespaceImport(parent)) {
+        // A binding site, read above.
+      } else if (ts.isExportSpecifier(parent)) {
+        const exported = (parent.propertyName ?? parent.name).text;
+        if (exported === FLOOR || direct.has(exported)) refuse(REEXPORT);
+      } else if (
+        ts.isPropertyAccessExpression(parent) &&
+        parent.name === node
+      ) {
+        if (node.text === FLOOR) {
+          if (
+            ts.isIdentifier(parent.expression) &&
+            namespaces.has(parent.expression.text)
+          )
+            calls = true;
+          else
+            refuse(
+              `reaches ${FLOOR} through ${parent.expression.getText(sf)}, which the recorder cannot follow`,
+            );
+        }
+      } else if (isKey(node)) {
+        // An object's own key, not a reference.
+      } else if (namespaces.has(node.text)) {
+        if (
+          ts.isPropertyAccessExpression(parent) &&
+          parent.expression === node
+        ) {
+          // A member, judged at its name.
+        } else if (
+          ts.isElementAccessExpression(parent) &&
+          parent.expression === node
+        ) {
+          const key = parent.argumentExpression;
+          if (!ts.isStringLiteralLike(key))
+            refuse(`reads ${FLOORS_MODULE} by a computed key`);
+          else if (key.text === FLOOR) calls = true;
+        } else refuse(`hands ${FLOORS_MODULE} on as a value`);
+      } else if (direct.has(node.text)) calls = true;
+      else if (node.text === FLOOR)
+        refuse(
+          declares(node)
+            ? `declares its own ${FLOOR}`
+            : `calls ${FLOOR} with no recognised import of it`,
+        );
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return { calls, refusals: [...refusals] };
+}
+
+/** The callers among `files`, and every file refused by name. */
+export function findFloorCallers(
+  files: readonly { readonly path: string; readonly source: string }[],
+): { callers: string[]; refusals: string[] } {
+  const callers: string[] = [];
+  const refusals: string[] = [];
+  for (const { path, source } of files) {
+    const reading = readFloorCaller(path, source);
+    refusals.push(...reading.refusals);
+    if (reading.calls && reading.refusals.length === 0) callers.push(path);
+  }
+  return { callers, refusals };
+}
+
+/**
+ * TypeScript files git tracks, or would at the next `git add -A`, whose code
+ * calls `floorBreach`, each read from its parse tree (#448). Every file is
+ * read, not only those a text search names, so an aliased or namespace import
+ * is found too; a file reaching it in a way this cannot follow stops the
+ * record by name.
  */
 const floorCallers = (): string[] => {
-  const found = spawnSync(
-    'git',
-    ['grep', '-l', '--untracked', '-F', 'floorBreach(', '--', '*.ts'],
-    { encoding: 'utf8' },
+  const { callers, refusals } = findFloorCallers(
+    committableFiles([...TYPESCRIPT_FILES])
+      .filter((path) => existsSync(path))
+      .map((path) => ({ path, source: readFileSync(path, 'utf8') })),
   );
-  if (found.status === 1 && found.error === undefined) return [];
-  const refusal = runRefusal('search for floorBreach callers', found);
-  if (refusal !== undefined) die(refusal);
-  return found.stdout
-    .split('\n')
-    .filter(
-      (file) => file !== '' && importsFloorBreach(readFileSync(file, 'utf8')),
-    );
+  if (refusals.length > 0) die(`nothing recorded:\n  ${refusals.join('\n  ')}`);
+  return callers;
 };
 
 const die = (message: string): never => {
