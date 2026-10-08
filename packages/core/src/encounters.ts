@@ -8,6 +8,7 @@
  */
 import { BALANCE } from './balance';
 import type { Encounter } from './course';
+import { memosOn } from './memo';
 import { Num } from './num';
 
 const ONE = Num.from(1);
@@ -48,6 +49,7 @@ export function purchaseCost(
 ): Num {
   checkOwned(owned);
   checkCount(count);
+  if (!memosOn()) return costOf(encounter, owned, count);
   let costs = costMemo.get(encounter);
   if (costs === undefined) {
     costs = new Map();
@@ -56,15 +58,17 @@ export function purchaseCost(
   const key = `${String(owned)}:${String(count)}`;
   let cost = costs.get(key);
   if (cost === undefined) {
-    const first = Num.mul(Num.from(encounter.c0), Num.pow(GROWTH, owned));
-    const series = Num.div(
-      Num.sub(Num.pow(GROWTH, count), ONE),
-      GROWTH_LESS_ONE,
-    );
-    cost = Num.mul(first, series);
+    cost = costOf(encounter, owned, count);
     costs.set(key, cost);
   }
   return cost;
+}
+
+/** `purchaseCost`'s sum, worked out: c0 x g^owned x (g^count - 1) / (g - 1). */
+function costOf(encounter: Encounter, owned: number, count: number): Num {
+  const first = Num.mul(Num.from(encounter.c0), Num.pow(GROWTH, owned));
+  const series = Num.div(Num.sub(Num.pow(GROWTH, count), ONE), GROWTH_LESS_ONE);
+  return Num.mul(first, series);
 }
 
 /**
@@ -86,6 +90,7 @@ const milestoneMemo = new Map<number, Num>();
 /** The output multiplier from the milestones `owned` has reached: 2^milestones. */
 export function milestoneFactor(owned: number): Num {
   const reached = milestonesReached(owned);
+  if (!memosOn()) return Num.pow(MILESTONE_MULTIPLIER, reached);
   let factor = milestoneMemo.get(reached);
   if (factor === undefined) {
     factor = Num.pow(MILESTONE_MULTIPLIER, reached);

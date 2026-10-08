@@ -22,7 +22,7 @@
   "collection-calls/allowed/a workspace value read but not called": 3,
   "collection-calls/call-counted-files": 103,
   "collection-calls/configure-forms": 1,
-  "collection-calls/corpus-calls": 15387,
+  "collection-calls/corpus-calls": 15388,
   "collection-calls/corpus-judged": 404,
   "collection-calls/files-with-describe": 100,
   "collection-calls/todo-forms": 1

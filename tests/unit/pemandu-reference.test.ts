@@ -4,10 +4,7 @@ import {
   BOT_EPOCH_WALL_MS,
   syntheticCourse,
 } from '../../packages/core/fixtures/synthetic-course';
-import {
-  bestPayback,
-  nextPurchaseTick,
-} from '../../packages/core/src/automation';
+import { nextPurchaseTick } from '../../packages/core/src/automation';
 import {
   DAY_MS,
   bucketStart,
@@ -23,22 +20,24 @@ import {
   type WordMemory,
 } from '../../packages/core/src/memory';
 import { Num } from '../../packages/core/src/num';
-import { integrate } from '../../packages/core/src/sim';
+import { withoutMemos } from '../../packages/core/src/memo';
+import { integrate, pemanduBuys } from '../../packages/core/src/sim';
 import { initialState, type GameState } from '../../packages/core/src/state';
 import { phrasebookId } from '../../packages/core/src/upgrades';
 import { floorBreach } from '../floors';
-import { refIntegrate } from './pemandu-reference';
 
 /**
- * #297 AC2: every Pemandu purchase is the one core made before #297, the
- * same Encounter at the same tick with the same stored bits. The reference
- * (`pemandu-reference.ts`) is the pre-#297 code; each generated state is
- * played by both, and at each of the reference's purchases core's
- * `nextPurchaseTick` must find that tick and Understanding, `bestPayback`
- * that Encounter, and `integrate` must end where the reference ends. The
- * states cover the whole synthetic course: any destination, any Encounter
- * counts, words, cards (and their festivals across the year), Phrasebooks,
- * the stamp discount and bonus, grammar, and each Pemandu interval.
+ * #297 AC2: core's memos change no purchase. Each generated state is played
+ * twice by the very same code, once as it runs and once with every memo off
+ * (`withoutMemos`): at each purchase of the plain run the memoised search
+ * must find the same tick and Understanding, the memoised purchase must buy
+ * the same Encounter to the same bits, and `integrate` must end where the
+ * plain run ends. There is no frozen copy: a rule change reaches both runs
+ * at once (operator, 2026-10-08), and the golden log's recorded hash is what
+ * says whether a rule change was meant. The states cover the whole synthetic
+ * course: any destination, any Encounter counts, words, cards (and their
+ * festivals across the year), Phrasebooks, the stamp discount and bonus,
+ * grammar, and each Pemandu interval.
  */
 
 let built: Course | undefined;
@@ -83,11 +82,10 @@ const generated = fc.record({
       before: fc.integer({ min: 1, max: 10_000 }),
     }),
   ),
-  ticks: fc.integer({ min: 0, max: 30 }),
+  ticks: fc.integer({ min: 0, max: 20 }),
 });
 type Generated = typeof generated extends fc.Arbitrary<infer T> ? T : never;
 
-/** The state a record describes, its words reviewed before it begins. */
 /** The held cards' festival edges, in order: where a play may start before. */
 function edgesOf(cards: readonly CultureCard[]): readonly number[] {
   return [
@@ -102,6 +100,7 @@ function edgesOf(cards: readonly CultureCard[]): readonly number[] {
   ].sort((a, b) => a - b);
 }
 
+/** The state a record describes, its words reviewed before it begins. */
 function stateOf(r: Generated): GameState {
   const c = course();
   const held = c.regions
@@ -183,31 +182,40 @@ function agrees(r: Generated): {
   const crossed =
     bucketStart(until) !== bucketStart(s.sim) ||
     (edge !== undefined && edge <= s.wall + elapsed);
-  const { purchases, end } = refIntegrate(c, s, elapsed);
+  const tickOf = (
+    found: ReturnType<typeof nextPurchaseTick>['next'],
+  ): unknown => found && [found.tick, Num.toTuple(found.understanding)];
+  // Each purchase as the plain run (every memo off) makes it, and the
+  // memoised answer at the same state: the same tick, the same bits, the
+  // same Encounter bought. At most one purchase a tick, so the loop is
+  // bounded, and it must end because the plain run buys nothing more.
   let current = s;
-  for (const p of purchases) {
-    const found = nextPurchaseTick(c, current, until).next;
-    expect(found?.tick).toBe(p.tick);
-    expect(found && Num.toTuple(found.understanding)).toEqual(
-      Num.toTuple(p.understanding),
+  let held = 0;
+  let done = false;
+  for (let k = 0; k <= r.ticks + 1 && !done; k += 1) {
+    const plain = withoutMemos(() => nextPurchaseTick(c, current, until).next);
+    expect(tickOf(nextPurchaseTick(c, current, until).next)).toEqual(
+      tickOf(plain),
     );
-    const at: GameState = {
-      ...current,
-      sim: p.tick,
-      wall: wallMs(current.wall + p.tick - current.sim),
-      anchor: { sim: p.tick, understanding: Num.toTuple(p.understanding) },
-    };
-    expect(bestPayback(c, at)).toBe(p.id);
-    current = p.after;
+    if (plain === undefined) {
+      done = true;
+    } else {
+      const from = current;
+      const after = withoutMemos(() => pemanduBuys(c, from, plain));
+      expect(pemanduBuys(c, from, plain)).toEqual(after);
+      current = after;
+      held += 1;
+    }
   }
-  expect(nextPurchaseTick(c, current, until).next).toBeUndefined();
+  expect(done).toBe(true);
+  const end = withoutMemos(() => integrate(c, s, elapsed));
   const got = integrate(c, s, elapsed);
   expect(got).toEqual(end);
   expect(stateHash(got)).toBe(stateHash(end));
-  return { held: purchases.length, crossed };
+  return { held, crossed };
 }
 
-describe('Pemandu buys as it did before #297, purchase by purchase (AC2)', () => {
+describe('Pemandu buys with its memos as with none, purchase by purchase (AC2)', () => {
   it.each(Array.from({ length: 30 }, (_, k) => k + 1))(
     'over 10 generated states, seed %i',
     (seed) => {

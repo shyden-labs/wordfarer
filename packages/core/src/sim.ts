@@ -22,6 +22,7 @@ import { simMs, wallMs, type WallMs } from './clock';
 import type { Course, Encounter } from './course';
 import { findGrammarNode, grammarNodeCost, ownedGrammarNodes } from './grammar';
 import { insightFor, isDue, newWordMemory, review } from './memory';
+import { memosOn } from './memo';
 import { Num, type NumTuple } from './num';
 import { understandingNow } from './production';
 import { currentDestination, regionsReached } from './route';
@@ -183,7 +184,7 @@ export function integrate(
  * affordable there is `nextPurchaseTick`'s finding, so a refusal means the
  * two disagree, and that is thrown, never skipped.
  */
-function pemanduBuys(
+export function pemanduBuys(
   course: Course,
   state: GameState,
   { tick, understanding }: PurchaseTick,
@@ -237,6 +238,7 @@ export function advance(
   state: GameState,
   now: WallMs,
 ): Advanced {
+  if (!memosOn()) return advanceAfresh(course, state, now);
   let byState = advanceMemo.get(course);
   if (byState === undefined) {
     byState = new WeakMap();

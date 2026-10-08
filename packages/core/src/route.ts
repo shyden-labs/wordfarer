@@ -10,6 +10,7 @@
  * on a different course, which is refused by name rather than guessed.
  */
 import type { Course, Destination, Region } from './course';
+import { memosOn } from './memo';
 import type { GameState } from './state';
 
 /** A destination and the region it lies in. */
@@ -24,14 +25,19 @@ const routeMemo = new WeakMap<Course, readonly Stop[]>();
 
 /** Every destination of the course, numbered region by region in course order. */
 export function route(course: Course): readonly Stop[] {
+  if (!memosOn()) return stopsOf(course);
   let stops = routeMemo.get(course);
   if (stops === undefined) {
-    stops = course.regions.flatMap((region, r) =>
-      region.destinations.map((destination) => ({ region: r, destination })),
-    );
+    stops = stopsOf(course);
     routeMemo.set(course, stops);
   }
   return stops;
+}
+
+function stopsOf(course: Course): readonly Stop[] {
+  return course.regions.flatMap((region, r) =>
+    region.destinations.map((destination) => ({ region: r, destination })),
+  );
 }
 
 /**

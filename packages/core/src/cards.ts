@@ -11,6 +11,7 @@
  */
 import { BALANCE } from './balance';
 import type { Course, CultureCard, Encounter } from './course';
+import { memosOn } from './memo';
 import type { GameState } from './state';
 import { sharesTag } from './words';
 
@@ -49,6 +50,7 @@ export function heldCards(
   course: Course,
   state: GameState,
 ): readonly CultureCard[] {
+  if (!memosOn()) return holding(course, state.cards);
   let byList = heldMemo.get(course);
   if (byList === undefined) {
     byList = new WeakMap();
@@ -56,14 +58,22 @@ export function heldCards(
   }
   let kept = byList.get(state.cards);
   if (kept === undefined) {
-    for (const id of state.cards) cultureCard(course, id);
-    const held = new Set(state.cards);
-    kept = course.regions.flatMap((region) =>
-      region.cultureCards.filter((card) => held.has(card.id)),
-    );
+    kept = holding(course, state.cards);
     byList.set(state.cards, kept);
   }
   return kept;
+}
+
+/** The cards `ids` names, in course order; an id the course lacks is refused. */
+function holding(
+  course: Course,
+  ids: readonly string[],
+): readonly CultureCard[] {
+  for (const id of ids) cultureCard(course, id);
+  const held = new Set(ids);
+  return course.regions.flatMap((region) =>
+    region.cultureCards.filter((card) => held.has(card.id)),
+  );
 }
 
 /** Whether one of `card`'s festival windows holds wall time `wall`. */
