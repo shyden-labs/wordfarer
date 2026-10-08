@@ -48,7 +48,7 @@
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.0",
     "vitest": "^4.1.11",
-    "wrangler": "^4.145.0",
+    "wrangler": "^4.148.0",
     "yaml": "^2.9.1"
   },
   "allowScripts": {
@@ -59,7 +59,7 @@
   "overrides": {
     "@cloudflare/vitest-pool-workers": {
       "wrangler": "$wrangler",
-      "miniflare": "5.20260930.0-alpha"
+      "miniflare": "5.20261006.0-alpha"
     },
     "sharp": "0.35.5"
   }
