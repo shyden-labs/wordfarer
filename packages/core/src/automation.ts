@@ -12,6 +12,7 @@
 import { BALANCE } from './balance';
 import { nextGridTick, simMs, type SimMs } from './clock';
 import type { Course, Encounter } from './course';
+import { memosOn } from './memo';
 import { Num } from './num';
 import {
   rateGain,
@@ -97,6 +98,7 @@ const pricedMemo = new WeakMap<Course, WeakMap<GameState['owned'], Priced>>();
 function pricedAt(course: Course, state: GameState): Priced {
   const factor = encounterCostFactor(state);
   const reached = regionsReached(course, state);
+  if (!memosOn()) return priceList(course, state, factor, reached, undefined);
   let byOwned = pricedMemo.get(course);
   if (byOwned === undefined) {
     byOwned = new WeakMap();
@@ -110,6 +112,23 @@ function pricedAt(course: Course, state: GameState): Priced {
     last !== undefined && last.factor === factor && last.reached === reached
       ? last
       : undefined;
+  const priced = priceList(course, state, factor, reached, same);
+  byOwned.set(state.owned, priced);
+  lastPriced.set(course, priced);
+  return priced;
+}
+
+/**
+ * The buyable Encounters priced, reusing `same`'s price wherever its count
+ * is the state's: a price depends on nothing else `same` was priced under.
+ */
+function priceList(
+  course: Course,
+  state: GameState,
+  factor: number,
+  reached: number,
+  same: Priced | undefined,
+): Priced {
   const encounters =
     same?.encounters ??
     course.regions.slice(0, reached).flatMap((region) => region.encounters);
@@ -125,10 +144,7 @@ function pricedAt(course: Course, state: GameState): Priced {
     if (cheapest === undefined || Num.cmp(price, cheapest) < 0)
       cheapest = price;
   }
-  const priced = { encounters, prices, cheapest, counts, factor, reached };
-  byOwned.set(state.owned, priced);
-  lastPriced.set(course, priced);
-  return priced;
+  return { encounters, prices, cheapest, counts, factor, reached };
 }
 
 /**
