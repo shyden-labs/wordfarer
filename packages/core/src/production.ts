@@ -25,7 +25,6 @@ import type { Course, CultureCard, Encounter } from './course';
 import { encounterOutput, milestoneFactor } from './encounters';
 import { rootFactors } from './grammar';
 import { meanRetrievability } from './memory';
-import { memosOn } from './memo';
 import { Num } from './num';
 import { ownedCount, type GameState } from './state';
 import { globalMultiplier, phrasebookId, upgradeLevel } from './upgrades';
@@ -126,19 +125,14 @@ const sortedMemo = new WeakMap<
   readonly (readonly [string, GameState['words'][string]])[]
 >();
 
-function sortWords(
-  words: GameState['words'],
-): readonly (readonly [string, GameState['words'][string]])[] {
-  return Object.entries(words).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-}
-
 function sortedWords(
   words: GameState['words'],
 ): readonly (readonly [string, GameState['words'][string]])[] {
-  if (!memosOn()) return sortWords(words);
   let sorted = sortedMemo.get(words);
   if (sorted === undefined) {
-    sorted = sortWords(words);
+    sorted = Object.entries(words).sort(([a], [b]) =>
+      a < b ? -1 : a > b ? 1 : 0,
+    );
     sortedMemo.set(words, sorted);
   }
   return sorted;
@@ -159,7 +153,6 @@ function matchedOf(
   course: Course,
   words: GameState['words'],
 ): Map<Encounter, readonly number[]> {
-  if (!memosOn()) return new Map();
   let byWords = matchedMemo.get(course);
   if (byWords === undefined) {
     byWords = new WeakMap();
@@ -187,16 +180,6 @@ const bucketMemo = new WeakMap<
 >();
 
 function bucketWords(course: Course, state: GameState, t: SimMs): BucketWords {
-  const bucket = keptBucket(course, state, t);
-  // Plain, the hour's word bonuses are #33's, kept by their own key-part
-  // tests; what #297 keeps on them, each Encounter's matches and factors,
-  // is worked out afresh.
-  return memosOn()
-    ? bucket
-    : { bonuses: bucket.bonuses, matched: new Map(), factors: new Map() };
-}
-
-function keptBucket(course: Course, state: GameState, t: SimMs): BucketWords {
   let byWords = bucketMemo.get(course);
   if (byWords === undefined) {
     byWords = new WeakMap();
@@ -594,19 +577,6 @@ export function rateGain(
   state: GameState,
   t: SimMs,
 ): (encounter: Encounter) => Num {
-  if (!memosOn()) {
-    const bucket = bucketWords(course, state, t);
-    const shared = sharedAt(course, state, t);
-    return (encounter) => {
-      const owned = ownedCount(state, encounter.id);
-      const words = wordFactors(bucket, encounter);
-      const now = product(linesFor(state, encounter, owned, words, shared));
-      const more = product(
-        linesFor(state, encounter, owned + 1, words, shared),
-      );
-      return Num.sub(more, now);
-    };
-  }
   const book = rateBook(course, state);
   const context = contextAt(course, state, book, t);
   const { index } = encountersOf(course);
@@ -642,7 +612,6 @@ export function totalRate(breakdown: readonly EncounterRate[]): Num {
  * rates added in the same order, kept in the rate book (#297).
  */
 export function rateAt(course: Course, state: GameState, t: SimMs): Num {
-  if (!memosOn()) return totalRate(rateBreakdown(course, state, t));
   const book = rateBook(course, state);
   const context = contextAt(course, state, book, t);
   const { list } = encountersOf(course);
@@ -682,12 +651,6 @@ const heldMemo = new WeakMap<Course, WeakMap<GameState, Num>>();
 
 /** Understanding at the state's simulated time: the anchor's, plus production since. */
 export function understandingNow(course: Course, state: GameState): Num {
-  if (!memosOn()) {
-    return understandingAfter(
-      Num.fromTuple(state.anchor.understanding),
-      rateMs(course, state, state.anchor.sim, state.sim),
-    );
-  }
   let byState = heldMemo.get(course);
   if (byState === undefined) {
     byState = new WeakMap();
@@ -738,14 +701,10 @@ export function* segments(
   from: SimMs,
   to: SimMs,
 ): Generator<Segment, void, undefined> {
-  const skew = state.wall - state.sim;
-  const book = memosOn() ? rateBook(course, state) : undefined;
-  const held = book === undefined ? heldCards(course, state) : [];
+  const book = rateBook(course, state);
+  const { skew } = book;
   for (let t = from; t < to;) {
-    const edge =
-      book === undefined
-        ? nextFestivalEdge(held, t + skew)
-        : edgeAfter(book, t + skew);
+    const edge = edgeAfter(book, t + skew);
     const end = simMs(
       Math.min(
         bucketStart(t) + HOUR_MS,
