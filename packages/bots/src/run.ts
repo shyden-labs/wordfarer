@@ -185,6 +185,41 @@ export function reachedAt<S>(
 }
 
 /**
+ * Each sail, timed from when the Understanding earned that run first met its
+ * goal. Fed every state the run reaches, it searches only the states since
+ * the sail before: each sail starts a new run, toward a new goal.
+ */
+export class SailLog<S> {
+  private leg: Seen<S>[];
+  private readonly timed: Sail[] = [];
+
+  constructor(
+    initial: Seen<S>,
+    private readonly meets: Meets<S>,
+    private readonly dayOf: (ms: number) => number,
+  ) {
+    this.leg = [initial];
+  }
+
+  get sails(): readonly Sail[] {
+    return this.timed;
+  }
+
+  /** `state`, reached at `wallMs`, by a sail to `sailedTo` when it was one. */
+  reached(state: S, wallMs: number, sailedTo?: number): void {
+    if (sailedTo !== undefined) {
+      this.timed.push({
+        destination: sailedTo,
+        day: this.dayOf(wallMs),
+        reachedDay: this.dayOf(reachedAt(this.leg, wallMs, this.meets)),
+      });
+      this.leg = [];
+    }
+    this.leg.push({ state, wallMs });
+  }
+}
+
+/**
  * Play `persona` on `course` from the wall time `epochMs` for at most
  * `maxDays`, stopping at the finale.
  */
@@ -198,15 +233,18 @@ export function runPersona(
   const cpu = process.cpuUsage();
   const firstOpenMs = epochMs + WAKE_MS;
   const dayOf = (t: number) => (t - firstOpenMs) / DAY_MS;
-  const sails: Sail[] = [];
   const insane: string[] = [];
   let firstMasteredDay: number | undefined;
   let finaleDay: number | undefined;
-  let leg: Seen<GameState>[] = [];
   let events = 0;
   const streams = new Streams(persona.seed);
   const initial = initialState(wallMs(epochMs), persona.seed);
-  leg = [{ state: initial, wallMs: epochMs }];
+  const log = new SailLog<GameState>(
+    { state: initial, wallMs: epochMs },
+    (s, t) => goalReached(course, s, t),
+    dayOf,
+  );
+  const { sails } = log;
   const player = new Player(course, persona, initial, streams, {
     saw: (v) => {
       if (insane.length < INSANE_KEPT) {
@@ -215,18 +253,9 @@ export function runPersona(
     },
     applied: (event: GameEvent, state: GameState) => {
       events += 1;
-      if (event.type === 'setSail') {
-        sails.push({
-          destination: state.destination,
-          day: dayOf(event.wallMs),
-          reachedDay: dayOf(
-            reachedAt(leg, event.wallMs, (s, t) => goalReached(course, s, t)),
-          ),
-        });
-        if (state.finale) finaleDay = dayOf(event.wallMs);
-        leg = [];
-      }
-      leg.push({ state, wallMs: event.wallMs });
+      const sailed = event.type === 'setSail';
+      log.reached(state, event.wallMs, sailed ? state.destination : undefined);
+      if (sailed && state.finale) finaleDay = dayOf(event.wallMs);
       if (
         event.type === 'answerReview' &&
         firstMasteredDay === undefined &&

@@ -12,7 +12,13 @@ import {
   syntheticCourse,
 } from '@yawelo-idle/core/fixtures/synthetic-course';
 import { persona } from '../src/personas';
-import { insaneValues, reachedAt, runPersona } from '../src/run';
+import {
+  insaneValues,
+  reachedAt,
+  runPersona,
+  SailLog,
+  type PersonaRun,
+} from '../src/run';
 import { QUICK_RETURN_MS } from '../src/schedule';
 
 /** A run, measured (#35 AC4 (h), AC6). */
@@ -88,95 +94,84 @@ describe('insaneValues', () => {
 });
 
 describe('runPersona', () => {
-  it(
-    'plays the Casual Learner’s first day: 3 opens, sails timed from the first open',
-    { timeout: 120_000 },
-    () => {
-      const run = runPersona(course(), persona('casual'), BOT_EPOCH_WALL_MS, 1);
-      expect(run.persona).toBe('casual');
-      expect(run.openDays).toHaveLength(3);
-      expect(run.openDays[0]).toBe(0);
-      expect(run.openDays).toEqual([...run.openDays].sort((a, b) => a - b));
-      expect(run.openDays.filter((d) => d < 0 || d >= 1)).toEqual([]);
-      expect(run.events).toBeGreaterThan(100);
-      expect(run.cpuMs).toBeGreaterThan(0);
-      expect(run.insane).toEqual([]);
-      expect(run.sails.length).toBeGreaterThan(0);
-      const days = run.sails.map((s) => s.day);
-      expect(days.filter((d) => d <= 0 || d >= 1)).toEqual([]);
-      expect(days).toEqual([...days].sort((a, b) => a - b));
-      expect(run.sails.map((s) => s.destination)).toEqual(
-        run.sails.map((_, i) => i + 1),
-      );
-    },
-  );
+  // The run's bookkeeping is the same for every persona, so these tests play
+  // the cheapest one that reaches each case: the Capped buyer's first day
+  // (3 opens, a sail at its second, about 130 ms of CPU cold) is played once
+  // and shared (#475). Which personas meet the pacing targets is the pacing
+  // suite's question.
+  let cappedDay: PersonaRun | undefined;
+  function cappedFirstDay(): PersonaRun {
+    cappedDay ??= runPersona(course(), persona('capped'), BOT_EPOCH_WALL_MS, 1);
+    return cappedDay;
+  }
 
-  it(
-    'ends after the open in which the asked-for sails landed',
-    { timeout: 300_000 },
-    () => {
-      const full = runPersona(
-        course(),
-        persona('casual'),
-        BOT_EPOCH_WALL_MS,
-        3,
-      );
-      const stopped = runPersona(
-        course(),
-        persona('casual'),
-        BOT_EPOCH_WALL_MS,
-        3,
-        {
-          stopAfterSails: 2,
-        },
-      );
-      expect(stopped.sails.length).toBeGreaterThanOrEqual(2);
-      expect(stopped.sails).toEqual(full.sails.slice(0, stopped.sails.length));
-      expect(stopped.openDays.length).toBeLessThan(full.openDays.length);
-      expect(stopped.openDays).toEqual(
-        full.openDays.slice(0, stopped.openDays.length),
-      );
-    },
-  );
+  it('plays the Capped buyer’s first day: 3 opens, sails timed from the first open', () => {
+    const run = cappedFirstDay();
+    expect(run.persona).toBe('capped');
+    expect(run.openDays).toHaveLength(3);
+    expect(run.openDays[0]).toBe(0);
+    expect(run.openDays).toEqual([...run.openDays].sort((a, b) => a - b));
+    expect(run.openDays.filter((d) => d < 0 || d >= 1)).toEqual([]);
+    expect(run.events).toBeGreaterThan(100);
+    expect(run.cpuMs).toBeGreaterThan(0);
+    expect(run.insane).toEqual([]);
+    expect(run.sails.length).toBeGreaterThan(0);
+    const days = run.sails.map((s) => s.day);
+    expect(days.filter((d) => d <= 0 || d >= 1)).toEqual([]);
+    expect(days).toEqual([...days].sort((a, b) => a - b));
+    expect(run.sails.map((s) => s.destination)).toEqual(
+      run.sails.map((_, i) => i + 1),
+    );
+  });
 
-  it(
-    'judges a return 15 minutes after each of the first day’s 3 opens',
-    { timeout: 120_000 },
-    () => {
-      const run = runPersona(course(), persona('casual'), BOT_EPOCH_WALL_MS, 1);
-      expect(run.returnsJudged).toBe(3);
-      expect(run.returnsUndecided).toEqual([]);
-      expect(run.returnsPracticeOnly).toEqual([]);
-    },
-  );
+  it('ends after the open in which the asked-for sails landed', () => {
+    const full = cappedFirstDay();
+    const stopped = runPersona(
+      course(),
+      persona('capped'),
+      BOT_EPOCH_WALL_MS,
+      1,
+      { stopAfterSails: 1 },
+    );
+    const [sail] = stopped.sails;
+    if (sail === undefined) throw new Error('the stopped run never sailed');
+    expect(stopped.sails).toEqual(full.sails.slice(0, stopped.sails.length));
+    expect(stopped.openDays).toEqual(
+      full.openDays.slice(0, stopped.openDays.length),
+    );
+    // The last open played is the one the sail landed in: it began before the
+    // sail, and the full run's next open begins after it.
+    const last = stopped.openDays.length - 1;
+    expect(stopped.openDays[last]).toBeLessThanOrEqual(sail.day);
+    expect(full.openDays[last + 1]).toBeGreaterThan(sail.day);
+  });
 
-  it(
-    'times each goal from when the Understanding earned that run reached it: after the sail before, no later than its own sail, and for the Idler hours before an open lets it sail',
-    { timeout: 300_000 },
-    () => {
-      const run = runPersona(course(), persona('idler'), BOT_EPOCH_WALL_MS, 11);
-      expect(run.sails.length).toBeGreaterThan(2);
-      expect(run.sails.filter((s) => !Number.isFinite(s.reachedDay))).toEqual(
-        [],
-      );
-      const outOfOrder = run.sails.filter(
-        (s, i) =>
-          s.reachedDay > s.day || s.reachedDay <= (run.sails[i - 1]?.day ?? 0),
-      );
-      expect(outOfOrder).toEqual([]);
-      const waitedHours = run.sails.map((s) => (s.day - s.reachedDay) * 24);
-      expect(Math.max(...waitedHours)).toBeGreaterThan(1);
-    },
-  );
+  it('judges a return 15 minutes after each of the first day’s 3 opens', () => {
+    const run = cappedFirstDay();
+    expect(run.returnsJudged).toBe(3);
+    expect(run.returnsUndecided).toEqual([]);
+    expect(run.returnsPracticeOnly).toEqual([]);
+  });
+
+  it('times a goal from when the Understanding earned that run reached it: no later than its sail, and hours before an open lets the Capped buyer sail', () => {
+    // A second sail costs over 0.3 s of CPU in every persona (measured, #475),
+    // so the clock's restart at each sail is SailLog's test below.
+    const { sails } = cappedFirstDay();
+    expect(sails.filter((s) => !Number.isFinite(s.reachedDay))).toEqual([]);
+    const outOfOrder = sails.filter(
+      (s) => s.reachedDay > s.day || s.reachedDay <= 0,
+    );
+    expect(outOfOrder).toEqual([]);
+    const waitedHours = sails.map((s) => (s.day - s.reachedDay) * 24);
+    expect(Math.max(...waitedHours)).toBeGreaterThan(1);
+  });
 
   it('waits 15 minutes for a quick return (operator, 2026-10-04)', () => {
     expect(QUICK_RETURN_MS).toBe(900_000);
   });
 
-  it('records no finale when the run ends first', { timeout: 120_000 }, () => {
-    expect(
-      runPersona(course(), persona('idler'), BOT_EPOCH_WALL_MS, 1).finaleDay,
-    ).toBeUndefined();
+  it('records no finale when the run ends first', () => {
+    expect(cappedFirstDay().finaleDay).toBeUndefined();
   });
 });
 
@@ -226,5 +221,44 @@ describe('reachedAt', () => {
     expect(at).toBe(50_000);
     expect(asked).toBeGreaterThan(0);
     expect(asked).toBeLessThan(40);
+  });
+});
+
+describe('SailLog', () => {
+  /** A stand-in state: `u` earned at `wall`, growing 1 a second, toward its own sail's `goal`. */
+  interface Toy {
+    readonly u: number;
+    readonly wall: number;
+    readonly goal: number;
+  }
+  const meets = (s: Toy, atMs: number) =>
+    s.u + (atMs - s.wall) / 1_000 >= s.goal;
+  const toy = (u: number, wall: number, goal: number): Toy => ({
+    u,
+    wall,
+    goal,
+  });
+  /** Days in seconds, so the times read as the wall times fed. */
+  const seconds = (ms: number) => ms / 1_000;
+
+  it('restarts each goal’s clock at the sail before: the states the last run left are not searched', () => {
+    const log = new SailLog(
+      { state: toy(0, 0, 50), wallMs: 0 },
+      meets,
+      seconds,
+    );
+    // The first run meets its goal of 50 by 10 s and sails at 20 s.
+    log.reached(toy(60, 10_000, 50), 10_000);
+    log.reached(toy(70, 15_000, 50), 15_000);
+    log.reached(toy(0, 20_000, 90), 20_000, 2);
+    // The second earns from nothing toward 90: met at 90 s, sailed at 100 s,
+    // found to the second by bisection (90.156 s). Searched with the first
+    // run's states, whose own goal they met, it would answer 10 s.
+    log.reached(toy(30, 30_000, 90), 30_000);
+    log.reached(toy(0, 100_000, 140), 100_000, 3);
+    expect(log.sails).toEqual([
+      { destination: 2, day: 20, reachedDay: 10 },
+      { destination: 3, day: 100, reachedDay: 90.156 },
+    ]);
   });
 });
