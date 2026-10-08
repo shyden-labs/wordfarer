@@ -98,8 +98,13 @@ function judgeShop(
   for (const o of shop.upgrades) {
     at('upgrades', { type: 'buyUpgrade', id: o.id }, o.affordable);
   }
-  for (const o of shop.grammar) {
-    at('grammar', { type: 'buyGrammarNode', id: o.id }, o.affordable);
+  // Every node of the course, listed or not (#483): one the shop leaves out,
+  // owned or out of reach, must be refused, as a journey not offered is.
+  const listed = new Map(shop.grammar.map((o) => [o.id, o.affordable]));
+  for (const { grammarNodes } of course.regions) {
+    for (const { id } of grammarNodes) {
+      at('grammar', { type: 'buyGrammarNode', id }, listed.get(id) ?? false);
+    }
   }
   const free = shop.journeys.slots.indexOf('empty');
   const startable = new Set(shop.journeys.startable.map((o) => o.durationId));

@@ -40,7 +40,7 @@ const FLOORS: Readonly<Record<ShopKind, ShopCount>> = {
   encounters: { accepted: 13337, refused: 4481 },
   pickUp: { accepted: 976, refused: 1562 },
   upgrades: { accepted: 325, refused: 50473 },
-  grammar: { accepted: 217, refused: 27311 },
+  grammar: { accepted: 217, refused: 30261 },
   journeys: { accepted: 1545, refused: 11153 },
   pemandu: { accepted: 1447, refused: 8711 },
   practice: { accepted: 2524, refused: 14 },
@@ -59,17 +59,9 @@ const KINDS = [
 
 /** The days the golden policy plays, known before the run. */
 const DAYS = Array.from({ length: GOLDEN.days }, (_, day) => day);
-/**
- * The days that begin with every grammar node owned, so the shop lists none
- * and there is no grammar offer to judge (measured on the golden log,
- * 2026-10-08). Their own test proves why.
- */
-const GRAMMAR_OWNED_DAYS: readonly number[] = [33, 34];
-/** Every day with every kind it offers: one test each. */
+/** Every day with every kind: one test each. */
 const DAY_KINDS = DAYS.flatMap((day) =>
-  KINDS.filter(
-    (kind) => kind !== 'grammar' || !GRAMMAR_OWNED_DAYS.includes(day),
-  ).map((kind) => [day, kind] as const),
+  KINDS.map((kind) => [day, kind] as const),
 );
 
 let read:
@@ -148,22 +140,6 @@ describe('the shop agrees with apply along the golden log, day by day (AC3, #479
       expect(
         floorBreach(`shop-agreement/day ${String(n)}/${kind}`, offers),
       ).toBeUndefined();
-    },
-  );
-
-  it.each(GRAMMAR_OWNED_DAYS)(
-    'day %i: the shop lists no grammar offer, every node owned before the day',
-    (n) => {
-      const nodes = fixtures().course.regions.flatMap(({ grammarNodes }) =>
-        grammarNodes.map(({ id }) => id),
-      );
-      expect([...dayOf(n).start.state.grammar].sort()).toEqual(nodes.sort());
-      const { accepted, refused } = judgedDay(n).grammar;
-      expect({ accepted, refused }).toEqual({ accepted: 0, refused: 0 });
-      expect(dayOf(n).shop.grammar, REGENERATE).toEqual({
-        accepted: 0,
-        refused: 0,
-      });
     },
   );
 
