@@ -1,6 +1,6 @@
 # Handover: Yawelo Idle
 
-**Written:** 2026-10-08 02:38 UTC.
+**Written:** 2026-10-08 05:40 UTC (updated after #487 and #488).
 **Next session:** launch Claude from `~/Developer/Repos/yawelo-idle`. A hook names the session "Yawelo Idle"; type `/color green` once.
 
 ## Progress (global rule: every close-out states both estimates)
@@ -36,6 +36,7 @@ From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawel
   - **What:** a rate book keeping each Encounter's rate and price by count, prefix totals re-added in course order, words sorted once, one price list per owned object. Every purchase bit-identical (300-state reference property; golden hash unchanged).
   - **Measured:** late-game catch-up 75 → 10–11 µs a purchase (7.0–7.5x; AC3 asks 10x); golden replay 2x. **Every golden-log and shop-agreement test now ≤ 269 ms of CPU locally (day 32 was 1,444) and under the 300 ms reporter line on CI (day 32 was 2,167).** AC1 figures and per-AC status are on #297.
   - **Mutations:** 20 key-part mutations matched; 5 planted defects caught.
+- **#297's many-states check is dropped** (operator 05:33 UTC, after asking for no frozen copy at 05:11: _"Drop it, keep the simple two"_). #487 replaced the frozen copy with a memos-on/memos-off comparison; fitting it under 0.3 s needed one cache left on, an exemption nobody had granted, and Shyden judged the check over-engineered. #488 reverts #487 and removes the check: core is byte for byte #485's. The memos are guarded by the 5-week golden replay (exact hash and counts) and `rate-memo.test.ts` (one test per memo input). #297's AC2 says so.
 - **#477** gained today's develop measurement (5,877 tests; 20 over 1 s of CPU; 76 under raised limits) and ACs 5 and 6. Replied to the shyden.co.uk session twice.
 - **Side agents were right four times:** per-day floors in the fixture (done that way); the timeout margin (measured: day 32 at 1.5 s of CI's 5 s); the 72 h late-game figure (now printed beside the catch-up); the property never crossing an hour (fixed; every seed now crosses).
 - **Lessons recorded:** `feedback-empty-population-is-a-carve-out-question`, `feedback-one-test-run-per-session`.
@@ -53,10 +54,10 @@ From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawel
 
 ## State
 
-- **`develop`** is at `d6fda7f` (read with `git rev-parse origin/develop` when written).
+- **`develop`** is at `eaaad52` after #488 (read with `git rev-parse origin/develop` when written).
 - **Open PRs:** #438 (#341, behind develop); Dependabot #24 (`@types/node`); this handover's PR.
 - **Worktrees:**
-  - `../yawelo-idle-297` (`deb8025`, merged): keep for its git-ignored `.superpowers/sdd/297/` (mutation runners `mut-memo.py` and `mut-prop.py`, probes, `prof.py`, its own `vitest.measure.config.ts`).
+  - `../yawelo-idle-297` (`a1b49f6`, merged as #487): keep for its git-ignored `.superpowers/sdd/297/` (`mut-memo.py`, the 20 key-part mutations of `rate-memo.test.ts`; probes; `prof.py`; its own `vitest.measure.config.ts`).
   - `../yawelo-idle-297-before` (`c84cf07`, detached, with this branch's bench script copied in): the pre-#297 baseline for interleaved before/after benchmarks.
   - `-341`, `-341-gate`, `-348`, `-348-red` and `-35` remain from earlier sessions.
 - **Board:** project 4, `PVT_kwDOEOcG584BlRWb`, "Yawelo Idle Stories". Status field `PVTSSF_lADOEOcG584BlRWbzhj-3Hc`: Todo `f75ad846`, In Progress `47fc9ee4`, Done `98236657`. Estimate field `PVTF_lADOEOcG584BlRWbzhkVhDU`.
@@ -65,7 +66,7 @@ From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawel
 ## Resume steps
 
 1. **Run `ListAgents` first.**
-2. **#297 part 2, AC3:** from `develop`, a new branch. The profile says the remaining per-purchase cost is the 18-price scan, the generic WeakMap lookups each call makes, and GC. The planned cut is a catch-up loop in `integrate` that holds the rate book, context and price list across purchases. Measure interleaved against `../yawelo-idle-297-before` with `npm run bench:pemandu`; keep the reference property and the 20 key-part mutations green (`mut-memo.py`, `mut-prop.py` in `../yawelo-idle-297/.superpowers/sdd/297/`).
+2. **#297 part 2, AC3:** from `develop`, a new branch. The profile says the remaining per-purchase cost is the 18-price scan, the generic WeakMap lookups each call makes, and GC. The planned cut is a catch-up loop in `integrate` that holds the rate book, context and price list across purchases. Measure interleaved against `../yawelo-idle-297-before` with `npm run bench:pemandu`; keep the golden replay and the 20 key-part mutations green (`mut-memo.py` in `../yawelo-idle-297/.superpowers/sdd/297/`). Any new memo gets a key-part test per input it reads. **If a check needs a workaround to fit the rules (a copy, an exemption, dozens of splits), ask Shyden in plain words whether to keep it** (memory `feedback-offer-dropping-heavy-checks`).
 3. **Then #474 and #475, then #476, then #477** (each cut test at or under 0.3 s of CPU).
 4. **One test run at a time from this session**, whatever its class or worktree (memory note): a light run beside my own heavy run starved day 32 today.
 5. **At close-out,** run the progress script, state both estimates, and check the closed stories against "Website follows the game" (today's closes are test and performance work: nothing for players to see). Settle the handover as one commit.
