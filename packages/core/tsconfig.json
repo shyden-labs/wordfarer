@@ -17,5 +17,8 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "fixtures/**/*.ts"]
+  // The tests run in Node and have their own project (test/tsconfig.json);
+  // the golden vectors are also bundled into every browser engine
+  // (tests/engines), so they are held to ECMAScript here too.
+  "include": ["src/**/*.ts", "fixtures/**/*.ts", "test/golden-vectors.ts"]
 }

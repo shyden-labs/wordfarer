@@ -1,0 +1,14 @@
+{
+  "core-sim/pemandu-beside-edge": 2,
+  "core-sim/pemandu-bought": 3544,
+  "core-sim/pemandu-on-edge": 2,
+  "core-sim/pemandu-zero-part": 4,
+  "core-sim/sequence-bought": 62,
+  "core-sim/sequence-buy-refused": 1901,
+  "core-sim/sequence-checked": 38382,
+  "core-sim/sequence-clipped": 1051,
+  "core-sim/sequence-clock-back": 87,
+  "core-sim/split-beside-edge": 22,
+  "core-sim/split-on-edge": 15,
+  "core-sim/split-zero-part": 20
+}

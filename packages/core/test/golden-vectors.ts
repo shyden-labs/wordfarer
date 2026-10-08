@@ -147,9 +147,9 @@ function vector(
  * late and at most 40 days late in turn, so cards pass through the learning
  * steps as well as long intervals; one answer in four is wrong.
  */
-function reviewVectors(i: Inputs, hash: BitHash): void {
+function reviewVectors(i: Inputs, hash: BitHash, vectors: number): void {
   let word: WordMemory = newWordMemory(REVIEW_START);
-  for (let k = 0; k < VECTORS_PER_FUNCTION; k++) {
+  for (let k = 0; k < vectors; k++) {
     if (k % REVIEWS_PER_CARD === 0) word = newWordMemory(REVIEW_START);
     const late = i.u32() % (k % 2 === 0 ? HOUR_MS : 40 * DAY_MS);
     word = review(word, wallMs(word.card.due + late), i.u32() % 4 !== 0);
@@ -167,13 +167,17 @@ function reviewVectors(i: Inputs, hash: BitHash): void {
   }
 }
 
-/** The digest of one function's 100,000 golden vectors. */
-export function digest(fn: GoldenFunction): string {
+/**
+ * The digest of one function's golden vectors: all 100,000, or the first
+ * `vectors` of them (Node's review pin reads fewer, #474).
+ */
+export function digest(
+  fn: GoldenFunction,
+  vectors: number = VECTORS_PER_FUNCTION,
+): string {
   const inputs = new Inputs(20261001 + FUNCTIONS.indexOf(fn));
   const hash = new BitHash();
-  if (fn === 'review') reviewVectors(inputs, hash);
-  else
-    for (let k = 0; k < VECTORS_PER_FUNCTION; k++)
-      hash.add(vector(fn, inputs, k));
+  if (fn === 'review') reviewVectors(inputs, hash, vectors);
+  else for (let k = 0; k < vectors; k++) hash.add(vector(fn, inputs, k));
   return hash.hex();
 }

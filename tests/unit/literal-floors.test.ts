@@ -541,9 +541,12 @@ const repository = () => {
   return walked;
 };
 
-/** The burn-down list's size when the meta-guard landed (#378): it only shrinks. */
-const CEILING_SITES = 71;
-const CEILING_SCOPES = 58;
+/**
+ * The burn-down list's size: 71 sites in 58 scopes when the meta-guard landed
+ * (#378), lowered with each conversion (#474: 57 in 51). It only shrinks.
+ */
+const CEILING_SITES = 57;
+const CEILING_SCOPES = 51;
 
 describe('every literal minimum of two or more is recorded, or listed (#378)', () => {
   it('finds every scope holding exactly the literal minimums listed', () => {

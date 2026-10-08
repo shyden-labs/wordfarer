@@ -42,6 +42,7 @@ import { view } from '../src/view';
 import { initialState, pickedWord, type GameState } from '../src/state';
 import { pickUpCost, wordBonus } from '../src/words';
 import { exactMean, exactR } from './fsrs-reference';
+import { floorBreach } from '../../../tests/floors';
 
 /**
  * Words, ranks and FSRS review in the game (#28 AC1, AC2, AC4 to AC9).
@@ -209,11 +210,6 @@ function continuous(state: GameState, from: number, to: number): Decimal {
   }
   return total.div(1000);
 }
-
-// The random-sequence property replays 300 games through the real actions:
-// 5.8 s measured inside the full core suite; 4086 to 5182 ms alone and up to
-// 11734 ms over ten loaded full-suite runs (#72).
-const PROPERTY_TIMEOUT_MS = 60_000;
 
 function relative(got: number, want: Decimal): number {
   return new D(got).minus(want).div(want).abs().toNumber();
@@ -743,7 +739,7 @@ describe('memory ages on the wall clock (AC9)', () => {
 describe('no reachable state holds NaN, a negative or an infinite value', () => {
   type Step =
     | { readonly kind: 'listen' }
-    | { readonly kind: 'buy'; readonly id: string }
+    | { readonly kind: 'buy'; readonly id: string; readonly count: number }
     | { readonly kind: 'pick' }
     | {
         readonly kind: 'answer';
@@ -758,6 +754,8 @@ describe('no reachable state holds NaN, a negative or an infinite value', () => 
       arbitrary: fc.record({
         kind: fc.constant('buy' as const),
         id: fc.constantFrom('tea', 'bus', 'stall'),
+        // Up to 60 at once, so some purchases cost more than is held.
+        count: fc.integer({ min: 1, max: 60 }),
       }),
       weight: 2,
     },
@@ -779,72 +777,151 @@ describe('no reachable state holds NaN, a negative or an infinite value', () => 
     },
   );
 
-  function sane(s: GameState): void {
-    for (const t of [s.sim, s.wall, s.anchor.sim, s.memorySince]) {
-      expect(Number.isSafeInteger(t) && t >= 0).toBe(true);
+  /**
+   * Every way `s` breaks the property, and how many values were checked.
+   * Thrown as one error rather than asserted field by field: about 30
+   * `expect` calls a step took a quarter of the time (#474). The count is a
+   * recorded floor, so a check that stops reading the state fails.
+   */
+  function faults(s: GameState): { checked: number; found: string[] } {
+    const found: string[] = [];
+    let checked = 0;
+    const times = {
+      sim: s.sim,
+      wall: s.wall,
+      anchor: s.anchor.sim,
+      memory: s.memorySince,
+    };
+    for (const [name, t] of Object.entries(times)) {
+      checked++;
+      if (!Number.isSafeInteger(t) || t < 0)
+        found.push(`${name} time ${String(t)}`);
     }
-    expect(s.memorySince).toBeLessThanOrEqual(s.anchor.sim);
-    expect(s.anchor.sim).toBeLessThanOrEqual(s.sim);
-    for (const n of [
-      Num.fromTuple(s.insight),
-      understandingNow(course, s),
-      rateAt(course, s, s.sim),
-    ]) {
-      expect(Number.isFinite(n.mantissa) && n.mantissa >= 0).toBe(true);
+    checked += 2;
+    if (s.memorySince > s.anchor.sim)
+      found.push('memorySince after the anchor');
+    if (s.anchor.sim > s.sim) found.push('anchor after sim');
+    const values = {
+      insight: Num.fromTuple(s.insight),
+      understanding: understandingNow(course, s),
+      rate: rateAt(course, s, s.sim),
+    };
+    for (const [name, n] of Object.entries(values)) {
+      checked++;
+      if (!Number.isFinite(n.mantissa) || n.mantissa < 0)
+        found.push(`${name} ${String(n.mantissa)}`);
     }
-    for (const w of Object.values(s.words)) {
-      for (const x of [
-        w.card.due,
-        w.card.stability,
-        w.card.difficulty,
-        w.card.reps,
-        w.card.lapses,
-      ]) {
-        expect(Number.isFinite(x) && x >= 0).toBe(true);
+    for (const [id, w] of Object.entries(s.words)) {
+      const { due, stability, difficulty, reps, lapses } = w.card;
+      const card = { due, stability, difficulty, reps, lapses };
+      for (const [name, x] of Object.entries(card)) {
+        checked++;
+        if (!Number.isFinite(x) || x < 0)
+          found.push(`${id} ${name} ${String(x)}`);
       }
-      if (w.card.lastReview !== null)
-        expect(w.card.lastReview).toBeLessThanOrEqual(s.wall);
+      checked++;
+      if (w.card.lastReview !== null && w.card.lastReview > s.wall)
+        found.push(`${id} reviewed after the wall clock`);
     }
+    return { checked, found };
   }
 
-  it(
-    'over random sequences of pick-ups, answers, purchases and returns',
-    { timeout: PROPERTY_TIMEOUT_MS },
-    () => {
-      let picks = 0;
-      let answers = 0;
-      fc.assert(
-        fc.property(
-          fc.array(step, { minLength: 20, maxLength: 120, size: 'max' }),
-          (steps) => {
-            let s = rich(500);
-            for (const e of steps) {
-              let r: Result | undefined;
-              if (e.kind === 'listen') s = listen(course, s);
-              if (e.kind === 'buy') r = buyEncounter(course, s, e.id, 1);
-              if (e.kind === 'pick') {
-                r = pickUpWord(course, s);
-                if (r.ok) picks++;
-              }
-              if (e.kind === 'answer') {
-                const due = reviewQueue(s.words, s.wall);
-                const q = due[e.pick % Math.max(due.length, 1)];
-                if (q !== undefined) {
-                  r = answerReview(course, s, q.itemId, e.correct);
-                  if (r.ok) answers++;
-                }
-              }
-              if (e.kind === 'advance')
-                s = advance(course, s, wallMs(s.wall + e.deltaMs)).state;
-              if (r?.ok === true) s = r.state;
-              sane(s);
+  // What the property reached (#474): picks taken and refused, purchases
+  // made and refused, right and wrong answers, an answer with nothing due, a
+  // clock stepped back, an absence clipped by the cap, and games that picked
+  // up every word of the destination, and the values checked. Each is a
+  // recorded floor.
+  const REACHED = [
+    'picked',
+    'pick-refused',
+    'bought',
+    'buy-refused',
+    'right',
+    'wrong',
+    'nothing-due',
+    'clock-back',
+    'clipped',
+    'every-word',
+    'checked',
+  ] as const;
+  type Reached = Record<(typeof REACHED)[number], number>;
+
+  let played: Reached | undefined;
+
+  /**
+   * Plays the seeded games once and keeps what they reached, so the property
+   * and each floor below share one play (#474). 25 runs of 20 to 120 steps:
+   * 300 unseeded runs took 4.2 s of CPU.
+   */
+  function play(): Reached {
+    if (played !== undefined) return played;
+    const reached: Reached = {
+      picked: 0,
+      'pick-refused': 0,
+      bought: 0,
+      'buy-refused': 0,
+      right: 0,
+      wrong: 0,
+      'nothing-due': 0,
+      'clock-back': 0,
+      clipped: 0,
+      'every-word': 0,
+      checked: 0,
+    };
+    fc.assert(
+      fc.property(
+        fc.array(step, { minLength: 20, maxLength: 120, size: 'max' }),
+        (steps) => {
+          let s = rich(500);
+          // one scenario: each step plays on from the state the last one left
+          for (const e of steps) {
+            let r: Result | undefined;
+            if (e.kind === 'listen') s = listen(course, s);
+            if (e.kind === 'buy') {
+              r = buyEncounter(course, s, e.id, e.count);
+              reached[r.ok ? 'bought' : 'buy-refused']++;
             }
-          },
-        ),
-        { numRuns: 300 },
-      );
-      expect(picks).toBeGreaterThan(300);
-      expect(answers).toBeGreaterThan(1000);
+            if (e.kind === 'pick') {
+              r = pickUpWord(course, s);
+              reached[r.ok ? 'picked' : 'pick-refused']++;
+            }
+            if (e.kind === 'answer') {
+              const due = reviewQueue(s.words, s.wall);
+              const q = due[e.pick % Math.max(due.length, 1)];
+              if (q === undefined) reached['nothing-due']++;
+              else {
+                r = answerReview(course, s, q.itemId, e.correct);
+                if (r.ok) reached[e.correct ? 'right' : 'wrong']++;
+              }
+            }
+            if (e.kind === 'advance') {
+              const moved = advance(course, s, wallMs(s.wall + e.deltaMs));
+              if (e.deltaMs < 0) reached['clock-back']++;
+              if (moved.summary.clipped) reached.clipped++;
+              s = moved.state;
+            }
+            if (r?.ok === true) s = r.state;
+            const { checked, found } = faults(s);
+            reached.checked += checked;
+            if (found.length > 0) throw new Error(found.join('; '));
+          }
+          if (lexicon.every((x) => x.id in s.words)) reached['every-word']++;
+        },
+      ),
+      { seed: 474, numRuns: 25 },
+    );
+    played = reached;
+    return reached;
+  }
+
+  it('over random sequences of pick-ups, answers, purchases and returns', () => {
+    expect(Object.keys(play())).toEqual([...REACHED]);
+  });
+
+  it.each(REACHED)(
+    'the random sequences reach %s as often as recorded',
+    (name) => {
+      expect(floorBreach(`core-words/${name}`, play()[name])).toBeUndefined();
     },
   );
 });

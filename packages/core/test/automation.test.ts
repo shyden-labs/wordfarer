@@ -21,6 +21,7 @@ import {
 } from '../src/sim';
 import { initialState, type GameState } from '../src/state';
 import { encounterPrice } from '../src/upgrades';
+import { floorBreach } from '../../../tests/floors';
 
 /**
  * Pemandu automation (#33): the unlock and the setting (AC1), the choice
@@ -489,68 +490,70 @@ describe('integrate with Pemandu (AC2)', () => {
     expect(Num.toNumber(Num.fromTuple(later.runSpent))).toBeCloseTo(9.5, 12);
   });
 
-  it(
-    'equals buying tick by tick with bestPayback and buyEncounter, over generated states',
-    // 3.3 s beside one other file (#33); the timeout guards only a hang.
-    { timeout: 120_000 },
-    () => {
-      let bought = 0;
-      fc.assert(
-        fc.property(
-          fc.record({
-            interval: fc.constantFrom(10_000, 5_000, 2_000, 1_000),
-            reached: fc.constantFrom(3, 4, 8),
-            tea0: fc.integer({ min: 0, max: 40 }),
-            market0: fc.integer({ min: 0, max: 20 }),
-            tea1: fc.integer({ min: 0, max: 10 }),
-            held: fc.integer({ min: 0, max: 5_000 }),
-            sim: fc.integer({ min: 0, max: 30 * 3_600_000 }),
-            ticks: fc.integer({ min: 0, max: 150 }),
-            discount: fc.integer({ min: 0, max: 2 }),
-            phrasebook: fc.boolean(),
-            reviewed: fc.integer({ min: 0, max: 5 }),
-          }),
-          (r) => {
-            // Reviewed words make each bonus hang on the wall clock, so a
-            // tick bought at the wrong skew between the clocks pays wrong.
-            // Each review falls before the anchor at 0, as every review in
-            // a real game falls at or before `memorySince`.
-            const words = Object.fromEntries(
-              Array.from({ length: r.reviewed }, (_, k) => {
-                const when = wallMs(START - (k + 1) * 86_400_000);
-                return [
-                  `r0-d0-w${String(k)}`,
-                  review(newWordMemory(when), when, true),
-                ];
-              }),
-            );
-            const s = pemandu(
-              at(r.reached, {
-                held: r.held,
-                simMs: r.sim,
-                words,
-                owned: { tea0: r.tea0, market0: r.market0, tea1: r.tea1 },
-                upgrades: {
-                  ...ALL_TIERS,
-                  ...EARLY,
-                  ...(r.discount > 0 ? { encounterDiscount: r.discount } : {}),
-                  ...(r.phrasebook ? { 'phrasebook:food': 1 } : {}),
-                },
-              }),
-              r.interval,
-            );
-            const elapsed = r.ticks * r.interval;
-            const got = integrate(course, s, elapsed);
-            expect(got).toEqual(tickByTick(course, s, elapsed));
-            bought += unitsOwned(got) - unitsOwned(s);
-          },
-        ),
-        { numRuns: 300, seed: 33 },
-      );
-      // Seeded: the 300 states bought 19,446 units (measured, #33), less one.
-      expect(bought).toBeGreaterThan(19_445);
-    },
-  );
+  it('equals buying tick by tick with bestPayback and buyEncounter, over generated states', () => {
+    // 45 seeded states (#474: 300 took 0.9 s of CPU). Floors: the units
+    // bought, and the states in which nothing was bought.
+    let bought = 0;
+    let idle = 0;
+    fc.assert(
+      fc.property(
+        fc.record({
+          interval: fc.constantFrom(10_000, 5_000, 2_000, 1_000),
+          reached: fc.constantFrom(3, 4, 8),
+          tea0: fc.integer({ min: 0, max: 40 }),
+          market0: fc.integer({ min: 0, max: 20 }),
+          tea1: fc.integer({ min: 0, max: 10 }),
+          held: fc.integer({ min: 0, max: 5_000 }),
+          sim: fc.integer({ min: 0, max: 30 * 3_600_000 }),
+          ticks: fc.integer({ min: 0, max: 150 }),
+          discount: fc.integer({ min: 0, max: 2 }),
+          phrasebook: fc.boolean(),
+          reviewed: fc.integer({ min: 0, max: 5 }),
+        }),
+        (r) => {
+          // Reviewed words make each bonus hang on the wall clock, so a
+          // tick bought at the wrong skew between the clocks pays wrong.
+          // Each review falls before the anchor at 0, as every review in
+          // a real game falls at or before `memorySince`.
+          const words = Object.fromEntries(
+            Array.from({ length: r.reviewed }, (_, k) => {
+              const when = wallMs(START - (k + 1) * 86_400_000);
+              return [
+                `r0-d0-w${String(k)}`,
+                review(newWordMemory(when), when, true),
+              ];
+            }),
+          );
+          const s = pemandu(
+            at(r.reached, {
+              held: r.held,
+              simMs: r.sim,
+              words,
+              owned: { tea0: r.tea0, market0: r.market0, tea1: r.tea1 },
+              upgrades: {
+                ...ALL_TIERS,
+                ...EARLY,
+                ...(r.discount > 0 ? { encounterDiscount: r.discount } : {}),
+                ...(r.phrasebook ? { 'phrasebook:food': 1 } : {}),
+              },
+            }),
+            r.interval,
+          );
+          const elapsed = r.ticks * r.interval;
+          const got = integrate(course, s, elapsed);
+          expect(got).toEqual(tickByTick(course, s, elapsed));
+          const units = unitsOwned(got) - unitsOwned(s);
+          bought += units;
+          if (units === 0) idle += 1;
+        },
+      ),
+      { numRuns: 45, seed: 33 },
+    );
+    expect({
+      bought: floorBreach('core-automation/tick-by-tick-bought', bought),
+      idle: floorBreach('core-automation/tick-by-tick-idle', idle),
+    }).toEqual({ bought: undefined, idle: undefined });
+  });
 });
 
 describe('advance with Pemandu (AC2)', () => {

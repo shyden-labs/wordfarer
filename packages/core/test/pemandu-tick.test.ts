@@ -22,6 +22,7 @@ import {
 import { createStreams } from '../src/rng';
 import type { GameState } from '../src/state';
 import { encounterPrice } from '../src/upgrades';
+import { floorBreach } from '../../../tests/floors';
 
 /**
  * Pemandu's next purchase tick (#33 AC3): solved from the segment's linear
@@ -35,11 +36,6 @@ import { encounterPrice } from '../src/upgrades';
 
 const START: WallMs = wallMs(Date.UTC(2027, 0, 4));
 const INTERVALS = [10_000, 5_000, 2_000, 1_000] as const;
-
-// 10,000 states, each scanned tick by tick through `understandingNow`, and
-// 10,000 grids: 3.3 s for the whole file alone (#33), so the timeout guards
-// only a hang.
-const PROPERTY_TIMEOUT_MS = 120_000;
 
 function words(r: number): Region['destinations'][number]['lexicon'] {
   return [0, 1, 2].map((k) => ({
@@ -173,6 +169,9 @@ const arbCase: fc.Arbitrary<Case> = fc
     festival: fc.boolean(),
     edgeA: perMille(0, 1000),
     edgeB: perMille(0, 1000),
+    // Ends the horizon on a tick of the grid half the time, so a purchase
+    // can fall exactly at `until`, which is inside it (#474).
+    untilOnTick: fc.boolean(),
   })
   .map((r): Case => {
     const horizon = r.ticks * r.interval + Math.floor(r.jitter * r.interval);
@@ -252,7 +251,11 @@ const arbCase: fc.Arbitrary<Case> = fc
           understanding: Num.toTuple(Num.from(understanding)),
         },
       },
-      until: simMs(anchor + horizon),
+      until: simMs(
+        r.untilOnTick
+          ? nextGridTick(simMs(anchor + horizon - 1), r.interval)
+          : anchor + horizon,
+      ),
     };
   });
 
@@ -323,41 +326,37 @@ describe('firstHolding: the first tick of a grid where a monotone test holds', (
     );
   });
 
-  it(
-    'equals a scan of the grid for any threshold and guess',
-    { timeout: PROPERTY_TIMEOUT_MS },
-    () => {
-      fc.assert(
-        fc.property(
-          fc.integer({ min: 1, max: 50 }),
-          fc.integer({ min: 0, max: 60 }),
-          fc.integer({ min: 0, max: 60 }),
-          fc.oneof(
-            fc.double({ min: -1e6, max: 1e6, noNaN: true }),
-            fc.constantFrom(Infinity, -Infinity),
-          ),
-          fc.integer({ min: 0, max: 70 }),
-          (every, a, b, guess, threshold) => {
-            const g = {
-              first: Math.min(a, b) * every,
-              last: Math.max(a, b) * every,
-              every,
-            };
-            const holds = from(threshold * every);
-            let want: number | undefined;
-            for (let t = g.first; t <= g.last; t += every) {
-              if (holds(t)) {
-                want = t;
-                break;
-              }
-            }
-            expect(firstHolding(g, guess * every, holds).tick).toBe(want);
-          },
+  it('equals a scan of the grid for any threshold and guess', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 50 }),
+        fc.integer({ min: 0, max: 60 }),
+        fc.integer({ min: 0, max: 60 }),
+        fc.oneof(
+          fc.double({ min: -1e6, max: 1e6, noNaN: true }),
+          fc.constantFrom(Infinity, -Infinity),
         ),
-        { numRuns: 10_000 },
-      );
-    },
-  );
+        fc.integer({ min: 0, max: 70 }),
+        (every, a, b, guess, threshold) => {
+          const g = {
+            first: Math.min(a, b) * every,
+            last: Math.max(a, b) * every,
+            every,
+          };
+          const holds = from(threshold * every);
+          let want: number | undefined;
+          for (let t = g.first; t <= g.last; t += every) {
+            if (holds(t)) {
+              want = t;
+              break;
+            }
+          }
+          expect(firstHolding(g, guess * every, holds).tick).toBe(want);
+        },
+      ),
+      { numRuns: 10_000 },
+    );
+  });
 });
 
 describe('nextPurchaseTick (AC3)', () => {
@@ -464,58 +463,81 @@ describe('nextPurchaseTick (AC3)', () => {
     });
   });
 
-  it(
-    'equals a tick-by-tick scan over 10,000 generated states, checking at most one more tick than it walks segments',
-    { timeout: PROPERTY_TIMEOUT_MS },
-    () => {
-      const seen = {
-        none: 0,
-        firstTick: 0,
-        midSegment: 0,
-        laterSegment: 0,
-      };
-      fc.assert(
-        fc.property(arbCase, ({ course: c, state: s, until }) => {
-          const got = nextPurchaseTick(c, s, until);
-          const tick = got.next?.tick;
-          expect(tick).toBe(scan(c, s, until));
-          const anchor = s.anchor.sim;
-          const every = s.automation.intervalMs;
-          const walked = [...segments(c, s, anchor, simMs(until + 1))];
-          // One test per segment that holds no purchase, and two, that tick
-          // and the one before, in the segment that does (AC3).
-          expect(got.checks).toBeLessThanOrEqual(walked.length + 1);
-          if (tick === undefined) {
-            seen.none += 1;
-            return;
-          }
-          // The Understanding returned is the bits `understandingNow` gives
-          // at the tick, which a purchase there anchors with.
-          expect(got.next?.understanding).toEqual(
-            understandingNow(c, positioned(s, tick)),
-          );
-          const k = walked.findIndex((g) => g.start <= tick && tick < g.end);
-          const segment = walked[k];
-          if (segment === undefined)
-            throw new Error(`no segment holds ${String(tick)}`);
-          const start =
-            segment.start === anchor ? anchor : simMs(segment.start - 1);
-          if (tick === nextGridTick(anchor, every)) seen.firstTick += 1;
-          else if (tick > nextGridTick(start, every)) seen.midSegment += 1;
-          if (k > 0) seen.laterSegment += 1;
-        }),
-        { numRuns: 10_000, seed: 33 },
-      );
-      // Seeded, so these are exact; re-measured 2026-10-04 on #35's tuned
-      // balance at 993 with no purchase in the horizon, 4,887 at the first
-      // tick, 3,819 solved past a segment's first tick and 3,069 past the
-      // first segment (#33's figures were 993, 4,886, 3,821 and 3,070). Each
-      // floor is that figure less one: a generator that stops reaching a case
-      // fails here rather than passing on fewer.
-      expect(seen.none).toBeGreaterThan(992);
-      expect(seen.firstTick).toBeGreaterThan(4886);
-      expect(seen.midSegment).toBeGreaterThan(3818);
-      expect(seen.laterSegment).toBeGreaterThan(3068);
+  // What the generated states reached (#474), each a recorded floor: no
+  // purchase inside the horizon, a purchase at the first tick, one solved
+  // past a segment's first tick, one past the first segment, and one exactly
+  // at `until`.
+  const REACHED = [
+    'none',
+    'firstTick',
+    'midSegment',
+    'laterSegment',
+    'atUntil',
+  ] as const;
+  type Reached = Record<(typeof REACHED)[number], number>;
+  let solved: Reached | undefined;
+
+  /**
+   * Solves 500 seeded states once, for the property and its floors (#474).
+   * 10,000 took 2.2 s of CPU; the generator aims at the cases above, so 500
+   * still reach each of them dozens of times or more.
+   */
+  function solve(): Reached {
+    if (solved !== undefined) return solved;
+    const seen: Reached = {
+      none: 0,
+      firstTick: 0,
+      midSegment: 0,
+      laterSegment: 0,
+      atUntil: 0,
+    };
+    fc.assert(
+      fc.property(arbCase, ({ course: c, state: s, until }) => {
+        const got = nextPurchaseTick(c, s, until);
+        const tick = got.next?.tick;
+        expect(tick).toBe(scan(c, s, until));
+        const anchor = s.anchor.sim;
+        const every = s.automation.intervalMs;
+        const walked = [...segments(c, s, anchor, simMs(until + 1))];
+        // One test per segment that holds no purchase, and two, that tick
+        // and the one before, in the segment that does (AC3).
+        expect(got.checks).toBeLessThanOrEqual(walked.length + 1);
+        if (tick === undefined) {
+          seen.none += 1;
+          return;
+        }
+        // The Understanding returned is the bits `understandingNow` gives
+        // at the tick, which a purchase there anchors with.
+        expect(got.next?.understanding).toEqual(
+          understandingNow(c, positioned(s, tick)),
+        );
+        const k = walked.findIndex((g) => g.start <= tick && tick < g.end);
+        const segment = walked[k];
+        if (segment === undefined)
+          throw new Error(`no segment holds ${String(tick)}`);
+        const start =
+          segment.start === anchor ? anchor : simMs(segment.start - 1);
+        if (tick === until) seen.atUntil += 1;
+        if (tick === nextGridTick(anchor, every)) seen.firstTick += 1;
+        else if (tick > nextGridTick(start, every)) seen.midSegment += 1;
+        if (k > 0) seen.laterSegment += 1;
+      }),
+      { numRuns: 500, seed: 33 },
+    );
+    solved = seen;
+    return seen;
+  }
+
+  it('equals a tick-by-tick scan over 500 generated states, checking at most one more tick than it walks segments', () => {
+    expect(Object.keys(solve())).toEqual([...REACHED]);
+  });
+
+  it.each(REACHED)(
+    'the generated states reach %s as often as recorded',
+    (name) => {
+      expect(
+        floorBreach(`core-pemandu-tick/${name}`, solve()[name]),
+      ).toBeUndefined();
     },
   );
 });

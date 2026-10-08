@@ -49,13 +49,6 @@ function exactCost(c0: number, owned: number, count: number): Decimal {
     .div(GROWTH.sub(1));
 }
 
-// The two purchaseCost properties check against 60-digit decimal.js (#72).
-// The closed form: 380 to 439 ms alone, 1874 ms over ten loaded full-suite
-// runs, and 5432 ms (a timeout) under #28's mutation harness. k at once:
-// 139 to 214 ms alone, 642 ms loaded. Both are correctness, so a 5 s
-// timeout would guard only the machine's load.
-const PROPERTY_TIMEOUT_MS = 60_000;
-
 describe('purchaseCost (AC2)', () => {
   it.each([
     [0, 10],
@@ -75,53 +68,45 @@ describe('purchaseCost (AC2)', () => {
       expect(relativeError(got, want)).toBeLessThan(costBound(owned, 1, want));
     });
 
-  it(
-    'buying k uses the geometric series closed form',
-    { timeout: PROPERTY_TIMEOUT_MS },
-    () => {
-      fc.assert(
-        fc.property(
-          fc.integer({ min: 0, max: 2000 }),
-          fc.integer({ min: 1, max: 500 }),
-          fc.integer({ min: 1, max: 1_000_000 }),
-          (owned, count, c0) => {
-            const encounter = { ...tea, c0 };
-            const want = exactCost(c0, owned, count);
-            const got = purchaseCost(encounter, owned, count);
-            expect(relativeError(got, want)).toBeLessThan(
-              costBound(owned, count, want),
-            );
-          },
-        ),
-        { numRuns: 1000 },
-      );
-    },
-  );
+  it('buying k uses the geometric series closed form', () => {
+    // 280 random purchases a run against 60-digit decimal.js (#474: 1,000
+    // took 0.7 s of CPU), and every run draws 280 new ones.
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 2000 }),
+        fc.integer({ min: 1, max: 500 }),
+        fc.integer({ min: 1, max: 1_000_000 }),
+        (owned, count, c0) => {
+          const encounter = { ...tea, c0 };
+          const want = exactCost(c0, owned, count);
+          const got = purchaseCost(encounter, owned, count);
+          expect(relativeError(got, want)).toBeLessThan(
+            costBound(owned, count, want),
+          );
+        },
+      ),
+      { numRuns: 280 },
+    );
+  });
 
-  it(
-    'buying k at once costs what k single purchases cost',
-    { timeout: PROPERTY_TIMEOUT_MS },
-    () => {
-      fc.assert(
-        fc.property(
-          fc.integer({ min: 0, max: 1000 }),
-          fc.integer({ min: 1, max: 200 }),
-          (owned, count) => {
-            const bulk = exact(purchaseCost(tea, owned, count));
-            let singles = new D(0);
-            for (let i = 0; i < count; i++) {
-              singles = singles.add(exact(purchaseCost(tea, owned + i, 1)));
-            }
-            const difference = bulk.sub(singles).div(singles).abs().toNumber();
-            expect(difference).toBeLessThan(
-              2 * costBound(owned, count, singles),
-            );
-          },
-        ),
-        { numRuns: 200 },
-      );
-    },
-  );
+  it('buying k at once costs what k single purchases cost', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 1000 }),
+        fc.integer({ min: 1, max: 200 }),
+        (owned, count) => {
+          const bulk = exact(purchaseCost(tea, owned, count));
+          let singles = new D(0);
+          for (let i = 0; i < count; i++) {
+            singles = singles.add(exact(purchaseCost(tea, owned + i, 1)));
+          }
+          const difference = bulk.sub(singles).div(singles).abs().toNumber();
+          expect(difference).toBeLessThan(2 * costBound(owned, count, singles));
+        },
+      ),
+      { numRuns: 200 },
+    );
+  });
 
   it.each([
     [-1, 1],
