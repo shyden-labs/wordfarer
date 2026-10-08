@@ -93,17 +93,22 @@ describe('a 72 h return with Pemandu at 1 s (AC5)', () => {
  * #297 it cost 75.0 / 74.9 µs of CPU a purchase (AC1, `npm run
  * bench:pemandu`, load about 5). AC3's tenth is measured there, beside the
  * old code, and recorded on #297; this test guards a slide back
- * (operator, 2026-10-08: "Generous CI ceiling", then "40 µs in the runner").
+ * (operator, 2026-10-08: "Generous CI ceiling", then "40 µs in the runner",
+ * then "100 µs" once 40 failed on CI).
  *
  * Inside vitest the same code runs about 2.5x slower than bundled, and the
  * process's CPU counts V8's compiler and GC threads, busy in a fresh worker
  * (measured: 15 to 89 µs a purchase by process, 15 to 41 by this thread).
  * So the figure is this thread's CPU, the fastest of a few catch-ups, each
- * on a fresh course so no memo carries. Measured 2026-10-08 at load 4: about
- * 15 µs; the code before #297, about 119 µs. The ceiling sits between.
+ * on a fresh course so no memo carries. Measured 2026-10-08 on the laptop at
+ * load 4: about 15 µs; the code before #297, about 119 µs. CI runners are
+ * about 2x slower and vary: seven CI runs gave 18.2, 24.6, 27.3, 27.6, 32.9,
+ * 35.0 and 48.4 µs, and 48.4 failed a 40 µs ceiling. 100 µs is about twice
+ * the slowest CI figure and, by the laptop's 8x, under half the old code's
+ * cost on CI (estimated about 240 µs, not measured there).
  */
 const CATCH_UPS = 6;
-const CEILING_US = 40;
+const CEILING_US = 100;
 
 describe('a late-game catch-up with Pemandu at 1 s (#297 AC3)', () => {
   it(`buys at under ${String(CEILING_US)} µs of CPU a purchase, the fastest of ${String(CATCH_UPS)}`, () => {
