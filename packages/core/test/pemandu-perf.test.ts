@@ -1,15 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import {
-  BOT_EPOCH_WALL_MS,
-  syntheticCourse,
-} from '../fixtures/synthetic-course';
+import { regionOneReturn } from '../fixtures/pemandu-returns';
+import { syntheticCourse } from '../fixtures/synthetic-course';
 import { DAY_MS, HOUR_MS, simMs, wallMs } from '../src/clock';
 import type { Course } from '../src/course';
-import { newWordMemory, review, type WordMemory } from '../src/memory';
-import { Num } from '../src/num';
 import { rateBreakdown } from '../src/production';
-import { advance, setAutomation } from '../src/sim';
-import { initialState, type GameState } from '../src/state';
+import { advance } from '../src/sim';
+import type { GameState } from '../src/state';
 
 /**
  * A 72 h offline return with Pemandu at 1 s over the synthetic course
@@ -21,7 +17,8 @@ import { initialState, type GameState } from '../src/state';
  * 1,403 ms and 1,670 ms of wall time beside the rest (#33), a figure for
  * the machine's load rather than for this code. Wall time is printed too.
  *
- * The player has finished region 1 and stands at region 2's first
+ * The player (`regionOneReturn`) has finished region 1 and stands at
+ * region 2's first
  * destination: every word of region 1 and of that destination held, each
  * reviewed twice at its own time over the last 20 days, every Encounter of
  * region 1 owned and a few of region 2's. 259,200 ticks fall in the return.
@@ -51,68 +48,13 @@ function course(): Course {
   builtCourse ??= syntheticCourse(1);
   return builtCourse;
 }
-const START = wallMs(BOT_EPOCH_WALL_MS + 60 * DAY_MS);
-
-function heldWords(): Record<string, WordMemory> {
-  const ids = [
-    ...(course().regions[0]?.destinations ?? []),
-    course().regions[1]?.destinations[0],
-  ].flatMap((d) => d?.lexicon.map((item) => item.id) ?? []);
-  return Object.fromEntries(
-    ids.map((id, k) => {
-      const first = wallMs(START - 20 * DAY_MS + k * 3_600_000);
-      const second = wallMs(first + ((k % 7) + 1) * DAY_MS);
-      const word = review(
-        review(newWordMemory(first), first, true),
-        second,
-        k % 5 !== 0,
-      );
-      return [id, word];
-    }),
-  );
-}
-
-function returning(): GameState {
-  const base = initialState(START, 1);
-  const parked: GameState = {
-    ...base,
-    sim: simMs(40 * DAY_MS),
-    anchor: {
-      sim: simMs(40 * DAY_MS),
-      understanding: Num.toTuple(Num.from(2e7)),
-    },
-    words: heldWords(),
-    memorySince: simMs(40 * DAY_MS),
-    owned: {
-      'r0-e0': 60,
-      'r0-e1': 45,
-      'r0-e2': 30,
-      'r0-e3': 20,
-      'r0-e4': 10,
-      'r0-e5': 5,
-      'r1-e0': 3,
-    },
-    upgrades: {
-      offlineCap: 2,
-      pemanduFaster1: 1,
-      pemanduFaster2: 1,
-      pemanduFaster3: 1,
-    },
-    destination: 4,
-    reached: 4,
-  };
-  const on = setAutomation(course(), parked, true, 1_000);
-  if (!on.ok) throw new Error(`refused: ${JSON.stringify(on.rejection)}`);
-  return on.state;
-}
-
 function units(state: GameState): number {
   return Object.values(state.owned).reduce((a, b) => a + b, 0);
 }
 
 describe('a 72 h return with Pemandu at 1 s (AC5)', () => {
   it('is credited in full and buys on the way, in under 1,000 ms', () => {
-    const s = returning();
+    const s = regionOneReturn(course());
     const wallStart = performance.now();
     const cpuStart = process.cpuUsage();
     const { state, summary } = advance(
@@ -173,7 +115,7 @@ describe('the bucket memo behind a fast return', () => {
     ['another course with the same word ids', other, () => ({}), 0],
   ])('%s', (_label, courseOf, change, later) => {
     const c = courseOf();
-    const s0 = returning();
+    const s0 = regionOneReturn(course());
     const t0 = simMs(s0.sim + 1_234);
     const t = simMs(t0 + later);
     rateBreakdown(course(), s0, t0);

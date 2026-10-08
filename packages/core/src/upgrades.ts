@@ -140,11 +140,57 @@ export function encounterPrice(
   encounter: Encounter,
   count: number,
 ): Num {
-  return Num.mul(
-    purchaseCost(encounter, ownedCount(state, encounter.id), count),
-    Num.from(encounterCostFactor(state)),
+  return encounterPriceAt(
+    encounter,
+    ownedCount(state, encounter.id),
+    count,
+    encounterCostFactor(state),
   );
 }
+
+/**
+ * `encounterPrice` with what it reads from the state passed in: the count
+ * owned and the cost factor, so a caller pricing every Encounter of one
+ * state works the factor out once (#297).
+ */
+export function encounterPriceAt(
+  encounter: Encounter,
+  owned: number,
+  count: number,
+  factor: number,
+): Num {
+  let byFactor = priceMemo.get(encounter);
+  if (byFactor === undefined) {
+    byFactor = new Map();
+    priceMemo.set(encounter, byFactor);
+  }
+  let byCount = byFactor.get(factor);
+  if (byCount === undefined) {
+    byCount = new Map();
+    byFactor.set(factor, byCount);
+  }
+  let byOwned = byCount.get(count);
+  if (byOwned === undefined) {
+    byOwned = new Map();
+    byCount.set(count, byOwned);
+  }
+  let price = byOwned.get(owned);
+  if (price === undefined) {
+    price = Num.mul(purchaseCost(encounter, owned, count), Num.from(factor));
+    byOwned.set(owned, price);
+  }
+  return price;
+}
+
+/**
+ * Each price, kept by Encounter, then by everything else it reads: the cost
+ * factor, the count bought and the count owned (#297). Numbers key nested
+ * maps rather than a string, so a catch-up's thousands of lookups build none.
+ */
+const priceMemo = new WeakMap<
+  Encounter,
+  Map<number, Map<number, Map<number, Num>>>
+>();
 
 /** How long a journey takes, as a share of its listed duration. */
 export function journeyDurationFactor(state: GameState): number {
