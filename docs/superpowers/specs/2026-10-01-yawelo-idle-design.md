@@ -404,7 +404,7 @@ TDD throughout: write the failing test first. Zero warnings policy across lint, 
    - the Idler can finish;
    - every simulated open, and a return 15 minutes after each one ends, has at least one meaningful decision (DN1).
 3. **Content guards:** §5.5, each one mutation-verified with comments left in place (house rule).
-4. **Worker:** Vitest with `@cloudflare/vitest-pool-workers` against **real local D1** (Miniflare). Covers:
+4. **Worker:** Vitest driving wrangler's own test harness (`createTestHarness`), on the workerd that `wrangler deploy` uses, against **real local D1** (Miniflare). Amended 2026-10-08 (#506, operator: "we need to unpin"): `@cloudflare/vitest-pool-workers` pinned its own wrangler and miniflare, so every wrangler update needed a hand edit. Covers:
    - pairing (QR and code, expiry, attempt limits);
    - sync conflicts and version history;
    - ranked replay;

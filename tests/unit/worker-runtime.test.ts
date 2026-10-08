@@ -1,26 +1,62 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { floorBreach } from '../floors';
+import { searched } from '../searched';
 
 /**
  * The Worker tests run on the same runtime that deploys.
  *
- * @cloudflare/vitest-pool-workers pins its own wrangler and miniflare, and
- * 0.22.0 pinned versions carrying five high advisories (sharp, undici). The
- * root `overrides` points it at the root wrangler and a patched miniflare.
- * When Dependabot bumps wrangler, the miniflare override goes stale and the
- * lock grows a second copy: the tests would then run on one workerd while
- * `wrangler deploy` ships for another. This fails that bump until the
- * override is updated to the miniflare the new wrangler depends on.
+ * Every Worker suite drives wrangler's own test harness, which starts the
+ * workerd that wrangler itself depends on, so a passing test means the
+ * deployed Worker behaves the same. That holds while the lock has one
+ * wrangler, one miniflare and one workerd, and while nothing but wrangler
+ * brings the runtime in. A test tool that pins its own (as
+ * @cloudflare/vitest-pool-workers did, until #506) adds a second runtime the
+ * tests run on while `wrangler deploy` ships for another, and its pin holds
+ * every wrangler bump red until someone edits it by hand.
  */
 
-interface PackageLock {
-  packages: Record<string, { version?: string }>;
+type Dependencies = Record<string, string>;
+
+interface LockEntry {
+  version?: string;
+  dependencies?: Dependencies;
+  devDependencies?: Dependencies;
+  peerDependencies?: Dependencies;
+  optionalDependencies?: Dependencies;
 }
 
+interface PackageLock {
+  packages: Record<string, LockEntry>;
+}
+
+const readLock = (): PackageLock =>
+  JSON.parse(readFileSync('package-lock.json', 'utf8')) as PackageLock;
+
+/** The packages that are the Workers runtime, or start it. */
+const RUNTIME = ['wrangler', 'miniflare'];
+
+/**
+ * Every lock path whose entry names wrangler or miniflare in any kind of
+ * dependency, in lock order.
+ */
+const runtimeConsumers = (lock: PackageLock): string[] =>
+  Object.entries(lock.packages)
+    .filter(([, entry]) =>
+      [
+        entry.dependencies,
+        entry.devDependencies,
+        entry.peerDependencies,
+        entry.optionalDependencies,
+      ].some((declared) => RUNTIME.some((name) => name in (declared ?? {}))),
+    )
+    .map(([path]) => path);
+
+/** Our own root, which declares wrangler, and wrangler, which starts miniflare. */
+const THROUGH_WRANGLER = ['', 'node_modules/wrangler'];
+
 const versionsOf = (name: string) => {
-  const lock = JSON.parse(
-    readFileSync('package-lock.json', 'utf8'),
-  ) as PackageLock;
+  const lock = readLock();
   const suffix = `node_modules/${name}`;
   return [
     ...new Set(
@@ -38,6 +74,41 @@ describe('one Workers runtime in the lock', () => {
       expect(versionsOf(name)).toHaveLength(1);
     },
   );
+
+  it('the runtime enters the lock only through wrangler (#506)', () => {
+    const consumers = runtimeConsumers(readLock());
+    expect(
+      searched(
+        consumers.filter((path) => !THROUGH_WRANGLER.includes(path)),
+        {
+          of: consumers,
+          what: 'lock entries depending on wrangler or miniflare',
+        },
+      ),
+      'a package bringing its own Workers runtime: Worker tests on it would ' +
+        'not run on the workerd that deploys',
+    ).toEqual([]);
+    expect(
+      floorBreach('worker-runtime/runtime-consumers', consumers.length),
+    ).toBeUndefined();
+  });
+});
+
+describe('runtimeConsumers reads every kind of dependency (#506)', () => {
+  it.each([
+    ['dependencies', 'wrangler'],
+    ['devDependencies', 'wrangler'],
+    ['peerDependencies', 'miniflare'],
+    ['optionalDependencies', 'miniflare'],
+  ])('finds an entry naming the runtime in %s (%s)', (kind, name) => {
+    const lock: PackageLock = {
+      packages: {
+        'node_modules/unrelated': { dependencies: { vitest: '^4.1.0' } },
+        'node_modules/brings-a-runtime': { [kind]: { [name]: '*' } },
+      },
+    };
+    expect(runtimeConsumers(lock)).toEqual(['node_modules/brings-a-runtime']);
+  });
 });
 
 /**

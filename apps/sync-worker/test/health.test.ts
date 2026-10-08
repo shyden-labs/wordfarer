@@ -1,9 +1,72 @@
-import { describe, it, expect, vi } from 'vitest';
-import { env, exports } from 'cloudflare:workers';
-import worker from '../src/index';
+import { afterAll, beforeAll, describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { parse } from 'jsonc-parser';
+import { createTestHarness } from 'wrangler';
 
-const call = (path: string, init?: RequestInit) =>
-  exports.default.fetch(new Request(`https://sync.test${path}`, init));
+/**
+ * The dev sync Worker, served by wrangler's test harness from the real
+ * wrangler.jsonc, on the workerd that wrangler itself deploys with and a real
+ * local D1 (spec §12.4). Every case runs inside workerd (#506).
+ *
+ * Cases that need an environment no deploy has (another commit, a D1 that
+ * throws) go to a second Worker in the same harness: test/injected-worker.ts,
+ * which wraps the real one and makes the change the `x-inject` header names.
+ * Its config, wrangler.injected.jsonc, differs from wrangler.jsonc only in
+ * `name` and `main`, which the first test holds.
+ */
+const ROOT = new URL('..', import.meta.url).pathname;
+const INJECTED = 'yawelo-idle-sync-injected';
+
+const server = createTestHarness({
+  root: ROOT,
+  workers: [
+    { configPath: './wrangler.jsonc' },
+    { configPath: './wrangler.injected.jsonc' },
+  ],
+});
+
+type Init = Parameters<typeof server.fetch>[1];
+
+const call = (path: string, init?: Init) =>
+  server.fetch(`https://sync.test${path}`, init);
+
+const inject = (change: string, path = '/health') =>
+  server
+    .getWorker(INJECTED)
+    .fetch(`https://sync.test${path}`, { headers: { 'x-inject': change } });
+
+const config = (file: string): Record<string, unknown> =>
+  parse(readFileSync(`${ROOT}${file}`, 'utf8')) as Record<string, unknown>;
+
+beforeAll(async () => {
+  await server.listen();
+});
+
+afterAll(async () => {
+  await server.close();
+});
+
+describe('the injected Worker (test only)', () => {
+  it('is the deployed config but for its name and entry point', () => {
+    const deployed = config('wrangler.jsonc');
+    const injected = config('wrangler.injected.jsonc');
+    expect(injected).toMatchObject({
+      name: INJECTED,
+      main: 'test/injected-worker.ts',
+    });
+    expect({
+      ...injected,
+      name: deployed.name,
+      main: deployed.main,
+    }).toEqual(deployed);
+  });
+
+  it('refuses a change it does not know, so a typo cannot pass unchanged', async () => {
+    const response = await inject('comit=abc');
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe('unknown x-inject: comit=abc');
+  });
+});
 
 describe('GET /health', () => {
   it('reports ok, the commit and a D1 that answers', async () => {
@@ -19,23 +82,13 @@ describe('GET /health', () => {
 
   it('reports the commit it was deployed with', async () => {
     const sha = 'd547bd669678987eb85b5807d1a26ea55eaeb987';
-    const response = await worker.fetch(
-      new Request('https://sync.test/health'),
-      { ...env, COMMIT: sha },
-    );
+    const response = await inject(`commit=${sha}`);
+    expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ commit: sha });
   });
 
   it('answers 503, not 200, when D1 throws', async () => {
-    const broken = {
-      prepare: () => {
-        throw new Error('D1_ERROR: no such database');
-      },
-    } as unknown as D1Database;
-    const response = await worker.fetch(
-      new Request('https://sync.test/health'),
-      { ...env, DB: broken },
-    );
+    const response = await inject('d1-throws');
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({
       ok: false,
@@ -45,24 +98,10 @@ describe('GET /health', () => {
   });
 
   it('logs why D1 failed, so a 503 can be diagnosed from the Worker logs', async () => {
-    const cause = new Error('D1_ERROR: no such database');
-    const broken = {
-      prepare: () => {
-        throw cause;
-      },
-    } as unknown as D1Database;
-    const logged = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => undefined);
-    try {
-      await worker.fetch(new Request('https://sync.test/health'), {
-        ...env,
-        DB: broken,
-      });
-      expect(logged).toHaveBeenCalledWith('health: D1 query failed', cause);
-    } finally {
-      logged.mockRestore();
-    }
+    const response = await inject('d1-throws');
+    expect(JSON.parse(response.headers.get('x-console-error') ?? '')).toEqual([
+      ['health: D1 query failed', '<the injected D1 error>'],
+    ]);
   });
 
   it.each(['POST', 'PUT', 'DELETE', 'PATCH'])(
@@ -86,7 +125,7 @@ describe('GET /health', () => {
 
 describe('non-prod marking (#39)', () => {
   const host = (origin: string, path: string) =>
-    exports.default.fetch(new Request(`${origin}${path}`));
+    server.fetch(`${origin}${path}`);
 
   it.each(['/health', '/missing'])(
     'marks %s noindex on the dev API host, with no password asked',
