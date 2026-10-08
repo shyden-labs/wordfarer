@@ -1,7 +1,6 @@
 import ts from 'typescript';
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { scopeKey, walkDisagreements } from './burn-down';
+import { scopeKey } from './burn-down';
 import { comparisonsWritten, literalArgumentsWritten } from './comparison-text';
 import {
   RECORDED_FROM,
@@ -15,7 +14,6 @@ import { LITERAL_MINIMUMS } from './literal-floors.burn-down';
 import { floorBreach } from '../floors';
 import { searched } from '../searched';
 import { codeWithoutLiterals } from './source-text';
-import { committableFiles } from './tracked-files';
 
 /**
  * The reader behind the literal-floors meta-guard (#378), and the text
@@ -506,66 +504,14 @@ describe('the meta-guard sees every form planted in every kind of file', () => {
 });
 
 /**
- * Every TypeScript file git has, and what the reader made of each. Read once,
- * on first use inside a test: nothing reaches workspace code while the file
- * is collected.
- */
-let walked:
-  | {
-      files: string[];
-      readings: (MinimumReading & { file: string; code: string })[];
-      comparisons: string[];
-      minimums: FiledMinimum[];
-    }
-  | undefined;
-const repository = () => {
-  if (walked !== undefined) return walked;
-  const files = committableFiles().filter((path) => /\.[cm]?ts$/.test(path));
-  const readings = files.map((file) => {
-    const sf = parse(readFileSync(file, 'utf8'), file);
-    return { file, code: codeWithoutLiterals(sf), ...literalMinimumsIn(sf) };
-  });
-  walked = {
-    files,
-    readings,
-    comparisons: readings.flatMap(({ file, comparisons }) =>
-      Array.from(
-        { length: comparisons },
-        (_, n) => `${file} #${String(n + 1)}`,
-      ),
-    ),
-    minimums: readings.flatMap(({ file, minimums }) =>
-      minimums.map((minimum) => ({ file, ...minimum })),
-    ),
-  };
-  return walked;
-};
-
-/**
  * The burn-down list's size: 71 sites in 58 scopes when the meta-guard landed
- * (#378), lowered with each conversion (#474: 57 in 51). It only shrinks.
+ * (#378), lowered with each conversion (#474: 57 in 51; #475: 55 in 50). It
+ * only shrinks.
  */
-const CEILING_SITES = 57;
-const CEILING_SCOPES = 51;
+const CEILING_SITES = 55;
+const CEILING_SCOPES = 50;
 
 describe('every literal minimum of two or more is recorded, or listed (#378)', () => {
-  it('finds every scope holding exactly the literal minimums listed', () => {
-    const { readings, comparisons: COMPARISONS, minimums } = repository();
-    const refused = readings.flatMap(({ refused }) => refused);
-    const findings = literalFloorFindings(minimums, LITERAL_MINIMUMS);
-    expect(
-      searched(refused, { of: COMPARISONS, what: 'comparisons' }),
-      refused.join('\n'),
-    ).toEqual([]);
-    expect(
-      searched(findings, { of: COMPARISONS, what: 'comparisons' }),
-      findings.join('\n'),
-    ).toEqual([]);
-    expect(
-      floorBreach('literal-floors/comparisons', COMPARISONS.length),
-    ).toBeUndefined();
-  });
-
   it('only shrinks the burn-down list', () => {
     // Measured when the meta-guard landed (#378). A conversion lowers these
     // with the list; nothing raises them.
@@ -574,42 +520,5 @@ describe('every literal minimum of two or more is recorded, or listed (#378)', (
       CEILING_SITES,
     );
     expect(counts.length).toBeLessThanOrEqual(CEILING_SCOPES);
-  });
-});
-
-describe('the reader proves what it read (#378)', () => {
-  it('reads as many comparisons and literal bounds in each file as its text writes, over every file git has', () => {
-    const { readings, files: FILES } = repository();
-    // Independent of the parse tree (control c): the matcher calls, and those
-    // whose bound is a number written in place, counted in each file's code
-    // with literals and comments removed, against the reader's counts for that
-    // file. A bound folded through a name, a table or a test table is defined
-    // by dataflow alone; a second reading of those would need the TypeScript
-    // checker over a whole program, so the planted forms above stand for them.
-    const misread = readings
-      .filter(
-        ({ code, comparisons, literalArguments }) =>
-          comparisonsWritten(code) !== comparisons ||
-          literalArgumentsWritten(code) !== literalArguments,
-      )
-      .map(
-        ({ file, code, comparisons, literalArguments }) =>
-          `${file}: ${String(comparisonsWritten(code))} comparisons and ` +
-          `${String(literalArgumentsWritten(code))} literal bounds written, ` +
-          `${String(comparisons)} and ${String(literalArguments)} read`,
-      );
-    const walk = walkDisagreements(
-      FILES,
-      committableFiles(['*.ts', '*.mts', '*.cts']),
-    );
-    expect(
-      searched(misread, { of: FILES, what: 'TypeScript files' }),
-      misread.join('\n'),
-    ).toEqual([]);
-    expect(
-      searched(walk, { of: FILES, what: 'TypeScript files' }),
-      walk.join('\n'),
-    ).toEqual([]);
-    expect(floorBreach('literal-floors/files', FILES.length)).toBeUndefined();
   });
 });

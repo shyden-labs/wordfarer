@@ -21,6 +21,8 @@ export default defineConfig({
       '**/dist/**',
       'apps/web/test/**',
       'apps/site/test/**',
+      // The whole-repo guards are their own suite (vitest.guards.config.ts).
+      'tests/guards/**',
     ],
   },
 });

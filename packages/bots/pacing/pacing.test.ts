@@ -2,6 +2,8 @@ import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { build } from 'esbuild';
 import { describe, expect, it } from 'vitest';
+import { floorBreach } from '../../../tests/floors';
+import { searched } from '../../../tests/searched';
 import { PERSONAS } from '../src/personas';
 import { pacingReport } from '../src/report';
 import type { PersonaRun } from '../src/run';
@@ -15,6 +17,8 @@ import {
   idlerFinishes,
   learnersOrder,
   learningPays,
+  longWaits,
+  sailTiming,
   sanity,
 } from '../src/targets';
 
@@ -153,5 +157,26 @@ describe(
         expect(sanity(r)).toEqual([]);
       },
     );
+
+    // Real multi-sail runs (Shyden, 2026-10-08, #475: "we still need these
+    // tests, but they do not belong in unit tests"): every sail of a long
+    // run starts a new one, so its goal is timed from the states after the
+    // sail before. The unit suite proves that restart on stand-in states.
+    it.each(ASSERTED)(
+      '(h) %s meets each sail’s goal after the sail before and no later than its own',
+      async (name) => {
+        const r = await run(name);
+        expect(searched(sailTiming(r), { of: r.sails, what: 'sails' })).toEqual(
+          [],
+        );
+        expect(
+          floorBreach(`pacing-sails/${name}`, r.sails.length),
+        ).toBeUndefined();
+      },
+    );
+
+    it('(h) the Idler waits hours with its goal met before an open lets it sail', async () => {
+      expect(longWaits(await run('idler')).length).toBeGreaterThan(0);
+    });
   },
 );

@@ -6,7 +6,7 @@
  * reports, so a re-tune can see its headroom before CI does.
  */
 
-import type { PersonaRun } from './run';
+import type { PersonaRun, Sail } from './run';
 
 const MINUTES_PER_DAY = 1_440;
 
@@ -266,4 +266,33 @@ export function largestShift(
 /** (h) No value on the path was NaN, negative or infinite. */
 export function sanity(run: PersonaRun): string[] {
   return run.insane.map((name) => `${run.persona}: ${name}`);
+}
+
+/**
+ * (h) Each sail whose goal is timed out of order: a sail starts a new run, so
+ * its goal is met after the sail before (after the start, for the first),
+ * and no later than its own sail.
+ */
+export function sailTiming(run: PersonaRun): string[] {
+  return run.sails.flatMap((sail, i) => {
+    const before = run.sails[i - 1]?.day ?? 0;
+    const met = sail.reachedDay;
+    return met > before && met <= sail.day
+      ? []
+      : [
+          `${run.persona}: destination ${String(sail.destination)}’s goal met on day ${met.toFixed(3)}, outside (${before.toFixed(3)}, ${sail.day.toFixed(3)}]`,
+        ];
+  });
+}
+
+/** How long before its sail a goal must have been met to show a wait for an open. */
+const WAIT_HOURS = 1;
+
+/**
+ * (h) The sails whose goal was met over an hour before them: a persona
+ * opening twice a day waits for an open with its goal met, which shows the
+ * goals are timed from when they were met, not from the sail.
+ */
+export function longWaits(run: PersonaRun): readonly Sail[] {
+  return run.sails.filter((s) => (s.day - s.reachedDay) * 24 > WAIT_HOURS);
 }

@@ -81,6 +81,11 @@ jobs:
         run: npm run typecheck
       - name: Unit tests
         run: npm run test:unit
+      # Tests that read or parse the whole repository (#475), docs-only
+      # changes included: some read every file. One measured limit.
+      - name: Guards (whole-repo checks)
+        timeout-minutes: 1
+        run: npm run test:guards
       # The personas play the real core and the spec's pacing targets are
       # checked (#35); AC7 holds the suite under 5 minutes on the runner.
       - name: Pacing bots (under 5 minutes)
