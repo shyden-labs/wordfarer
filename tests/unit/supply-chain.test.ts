@@ -377,6 +377,30 @@ describe('Dependabot keeps the pins from rotting', () => {
       floorBreach('supply-chain/dependabot-ecosystems', ecosystems),
     ).toBeUndefined();
   });
+
+  /**
+   * #501: type definitions never run ahead of the Node they describe.
+   * Dependabot offered `@types/node` 26 (#493) while the toolchain ran 24,
+   * which types APIs the runtime lacks. Parsed, not read as text, so the
+   * comment above the rule cannot satisfy it.
+   */
+  it('does not offer @types/node majors above the .nvmrc line', () => {
+    const doc: unknown = parse(dependabot());
+    const updates =
+      isRecord(doc) && Array.isArray(doc.updates) ? doc.updates : [];
+    const npm = updates.filter(
+      (u) => isRecord(u) && u['package-ecosystem'] === 'npm',
+    );
+    expect(npm, 'one npm entry').toHaveLength(1);
+    const entry: unknown = npm[0];
+    const ignore =
+      isRecord(entry) && Array.isArray(entry.ignore) ? entry.ignore : [];
+    const above = `>=${String(Number(readFileSync('.nvmrc', 'utf8').trim()) + 1)}.0.0`;
+    expect(ignore).toContainEqual({
+      'dependency-name': '@types/node',
+      versions: [above],
+    });
+  });
 });
 
 /**

@@ -21,6 +21,9 @@ updates:
       # Remove when it accepts Vitest 5.
       - dependency-name: 'vitest'
         versions: ['>=5.0.0']
+      # Types never run ahead of the runtime (#501): move this with .nvmrc.
+      - dependency-name: '@types/node'
+        versions: ['>=27.0.0']
     groups:
       patch-updates:
         update-types:
