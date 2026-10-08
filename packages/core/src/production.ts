@@ -316,12 +316,31 @@ export function rateAt(course: Course, state: GameState, t: SimMs): Num {
   return totalRate(rateBreakdown(course, state, t));
 }
 
+/**
+ * Each state's Understanding, kept by course, then by the state object.
+ * State is never mutated, so a state object stands for its contents, as a
+ * words object does for `bucketMemo`. A purchase judged, a view and the
+ * action after it all read one state's Understanding, and each would walk
+ * every hour since its anchor again (#473).
+ */
+const heldMemo = new WeakMap<Course, WeakMap<GameState, Num>>();
+
 /** Understanding at the state's simulated time: the anchor's, plus production since. */
 export function understandingNow(course: Course, state: GameState): Num {
-  return understandingAfter(
-    Num.fromTuple(state.anchor.understanding),
-    rateMs(course, state, state.anchor.sim, state.sim),
-  );
+  let byState = heldMemo.get(course);
+  if (byState === undefined) {
+    byState = new WeakMap();
+    heldMemo.set(course, byState);
+  }
+  let held = byState.get(state);
+  if (held === undefined) {
+    held = understandingAfter(
+      Num.fromTuple(state.anchor.understanding),
+      rateMs(course, state, state.anchor.sim, state.sim),
+    );
+    byState.set(state, held);
+  }
+  return held;
 }
 
 /**

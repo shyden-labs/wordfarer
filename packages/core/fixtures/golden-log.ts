@@ -63,6 +63,37 @@ export interface GoldenRun {
   readonly events: readonly GameEvent[];
   /** The state the player lived: every event applied as it was decided. */
   readonly live: GameState;
+  /** Each day of the play: where it began and what it sent (#473). */
+  readonly days: readonly GoldenDay[];
+}
+
+/** Where the policy stands at a moment: all it needs to play on from there. */
+export interface PlayerStart {
+  readonly state: GameState;
+  readonly rng: RngState;
+  readonly seq: number;
+  readonly t: number;
+}
+
+/**
+ * One day of the golden play (#473): the policy as the day began, the index
+ * of the day's first event in the log, and the day's events the rules
+ * accepted, by type, and refused, by kind, as the play itself counted them.
+ */
+export interface GoldenDay {
+  readonly day: number;
+  readonly from: number;
+  readonly start: PlayerStart;
+  readonly accepted: Readonly<Record<string, number>>;
+  readonly refused: Readonly<Record<string, number>>;
+}
+
+/** What one day played again from its recorded start sends, and where it ends. */
+export interface PlayedDay {
+  readonly events: readonly GameEvent[];
+  readonly end: PlayerStart;
+  readonly accepted: Readonly<Record<string, number>>;
+  readonly refused: Readonly<Record<string, number>>;
 }
 
 /** The refusals an open may send, one per open, drawn from the policy stream. */
@@ -78,18 +109,33 @@ const REFUSALS = [
 class Player {
   state: GameState;
   private rng: RngState;
-  private seq = 0;
+  private seq: number;
   private t: number;
   readonly events: GameEvent[] = [];
+  private accepted: Record<string, number> = {};
+  private refused: Record<string, number> = {};
 
   constructor(
     private readonly course: Course,
-    initial: GameState,
-    policySeed: number,
+    start: PlayerStart,
   ) {
-    this.state = initial;
-    this.rng = seedRng(policySeed);
-    this.t = initial.wall;
+    this.state = start.state;
+    this.rng = start.rng;
+    this.seq = start.seq;
+    this.t = start.t;
+  }
+
+  /** Where the policy stands now: what a day played from here starts from. */
+  start(): PlayerStart {
+    return { state: this.state, rng: this.rng, seq: this.seq, t: this.t };
+  }
+
+  /** What was sent since the last call, accepted by type and refused by kind. */
+  takeCounts(): Pick<GoldenDay, 'accepted' | 'refused'> {
+    const counts = { accepted: this.accepted, refused: this.refused };
+    this.accepted = {};
+    this.refused = {};
+    return counts;
   }
 
   float(): number {
@@ -129,7 +175,13 @@ class Player {
       return false;
     }
     this.events.push(event);
-    if (result.ok) this.state = result.state;
+    if (result.ok) {
+      this.state = result.state;
+      this.accepted[event.type] = (this.accepted[event.type] ?? 0) + 1;
+    } else {
+      const { kind } = result.rejection;
+      this.refused[kind] = (this.refused[kind] ?? 0) + 1;
+    }
     this.t += STEP_MS;
     return result.ok;
   }
@@ -358,28 +410,54 @@ class Player {
   }
 }
 
+/** Day `day` of the golden policy: five opens, their times drawn first. */
+function playDay(player: Player, day: number): void {
+  const base = BOT_EPOCH_WALL_MS + day * DAY_MS;
+  const opens = Array.from(
+    { length: 5 },
+    () => base + 8 * HOUR_MS + player.int(14 * 3600) * 1000,
+  ).sort((a, b) => a - b);
+  if (day === 0) opens[0] = base + 8 * HOUR_MS;
+  for (let i = 0; i < opens.length; i += 1) {
+    const start = opens[i] ?? base;
+    const next = opens[i + 1] ?? base + DAY_MS + 8 * HOUR_MS;
+    const first = day === 0 && i === 0;
+    player.open(start, first ? HOUR_MS : 8 * MINUTE_MS, next, i === 2);
+  }
+}
+
+/** The policy before its first day: the first state, the policy seed, no events. */
+export function goldenPolicyStart(initial: GameState): PlayerStart {
+  return {
+    state: initial,
+    rng: seedRng(GOLDEN.policySeed),
+    seq: 0,
+    t: initial.wall,
+  };
+}
+
 /** Play the golden policy for `days` days on `course`. */
 export function playGolden(
   course: Course,
   days: number = GOLDEN.days,
 ): GoldenRun {
   const initial = initialState(wallMs(BOT_EPOCH_WALL_MS), GOLDEN.stateSeed);
-  const player = new Player(course, initial, GOLDEN.policySeed);
+  const player = new Player(course, goldenPolicyStart(initial));
+  const played: GoldenDay[] = [];
   for (let day = 0; day < days; day += 1) {
-    const base = BOT_EPOCH_WALL_MS + day * DAY_MS;
-    const opens = Array.from(
-      { length: 5 },
-      () => base + 8 * HOUR_MS + player.int(14 * 3600) * 1000,
-    ).sort((a, b) => a - b);
-    if (day === 0) opens[0] = base + 8 * HOUR_MS;
-    for (let i = 0; i < opens.length; i += 1) {
-      const start = opens[i] ?? base;
-      const next = opens[i + 1] ?? base + DAY_MS + 8 * HOUR_MS;
-      const first = day === 0 && i === 0;
-      player.open(start, first ? HOUR_MS : 8 * MINUTE_MS, next, i === 2);
-    }
+    const start = player.start();
+    const from = player.events.length;
+    playDay(player, day);
+    played.push({ day, from, start, ...player.takeCounts() });
   }
-  return { initial, events: player.events, live: player.state };
+  return { initial, events: player.events, live: player.state, days: played };
+}
+
+/** Play one recorded day again from its start (#473). */
+export function playGoldenDay(course: Course, day: GoldenDay): PlayedDay {
+  const player = new Player(course, day.start);
+  playDay(player, day.day);
+  return { events: player.events, end: player.start(), ...player.takeCounts() };
 }
 
 /** The fixture's first line: what the log was played on, and where it ended. */
@@ -460,6 +538,37 @@ export interface GoldenReplay {
   readonly hash: string;
   readonly events: number;
   readonly refused: number;
+}
+
+/** The days fixture's text: one line per day of the play (#473). */
+export function writeGoldenDays(run: GoldenRun): string {
+  return run.days.map((day) => JSON.stringify(day)).join('\n') + '\n';
+}
+
+/**
+ * Read the days fixture. Each line is one day, numbered from 0 in order, and
+ * a day's first event comes no earlier than the day before's. What a day
+ * holds is not checked here: the tests play and replay each day from it.
+ */
+export function readGoldenDays(text: string): readonly GoldenDay[] {
+  const lines = text.split('\n').filter((line) => line !== '');
+  if (lines.length === 0) throw new Error('golden days are empty');
+  let from = 0;
+  return lines.map((line, index) => {
+    const day = JSON.parse(line) as GoldenDay;
+    if (day.day !== index) {
+      throw new Error(
+        `golden days line ${String(index + 1)} is day ${String(day.day)}`,
+      );
+    }
+    if (!Number.isSafeInteger(day.from) || day.from < from) {
+      throw new Error(
+        `golden days line ${String(index + 1)} starts at event ${String(day.from)}, before ${String(from)}`,
+      );
+    }
+    from = day.from;
+    return day;
+  });
 }
 
 /** Read a fixture's text, replay it from the start its header names, and hash the result. */

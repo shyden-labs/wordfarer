@@ -204,19 +204,57 @@ function pemanduBuys(
   return bought.state;
 }
 
+/** A state brought to a wall time, and what that credited. */
+export interface Advanced {
+  readonly state: GameState;
+  readonly summary: AdvanceSummary;
+}
+
+/**
+ * Each state's last advance, kept by course, then by the state object, with
+ * the wall time it was brought to. State is never mutated, so a state object
+ * stands for its contents. A view and the event after it, or every offer of
+ * one shop judged at one instant, advance one state to one time (#473); only
+ * the last time is kept, so a state viewed at a new time every frame holds
+ * one entry, not one per frame.
+ */
+const advanceMemo = new WeakMap<
+  Course,
+  WeakMap<GameState, { readonly now: WallMs; readonly advanced: Advanced }>
+>();
+
 /**
  * Bring the state to wall time `now` (design §2.3): the elapsed wall time,
  * clamped to `[0, offline cap]`, is credited to both clocks, and the wall
  * clock becomes `max(wall, now)`. When the cap clips, the wall clock runs on
  * past the simulated one; that changes the skew between them, so the state
  * is re-anchored first (the skew only ever changes at an anchor) and every
- * word's hour mean restarts there.
+ * word's hour mean restarts there. Asked again for the same state and time,
+ * it returns what it worked out the first time.
  */
 export function advance(
   course: Course,
   state: GameState,
   now: WallMs,
-): { readonly state: GameState; readonly summary: AdvanceSummary } {
+): Advanced {
+  let byState = advanceMemo.get(course);
+  if (byState === undefined) {
+    byState = new WeakMap();
+    advanceMemo.set(course, byState);
+  }
+  const last = byState.get(state);
+  if (last?.now === now) return last.advanced;
+  const advanced = advanceAfresh(course, state, now);
+  byState.set(state, { now, advanced });
+  return advanced;
+}
+
+/** `advance`'s work, done without looking for a kept result. */
+function advanceAfresh(
+  course: Course,
+  state: GameState,
+  now: WallMs,
+): Advanced {
   const elapsed = now - state.wall;
   const cap = offlineCapMs(state);
   const credited = Math.min(Math.max(elapsed, 0), cap);

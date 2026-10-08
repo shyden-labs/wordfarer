@@ -4,6 +4,7 @@ import {
   GOLDEN,
   playGolden,
   writeGolden,
+  writeGoldenDays,
 } from '../packages/core/fixtures/golden-log';
 
 /**
@@ -15,11 +16,14 @@ import {
  */
 
 const OUT = 'packages/core/fixtures/golden-log.jsonl';
+/** Where each day of the play starts, beside the log (#473). */
+const DAYS_OUT = 'packages/core/fixtures/golden-days.jsonl';
 
 const before = process.cpuUsage();
 const run = playGolden(syntheticCourse(GOLDEN.courseSeed));
 const used = process.cpuUsage(before);
 writeFileSync(OUT, writeGolden(run));
+writeFileSync(DAYS_OUT, writeGoldenDays(run));
 console.log(
   `${OUT}: ${String(run.events.length)} events, ${String(Math.round((used.user + used.system) / 1000))} ms of CPU`,
 );
