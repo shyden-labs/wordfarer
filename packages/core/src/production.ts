@@ -218,10 +218,8 @@ function wordFactors(bucket: BucketWords, encounter: Encounter): WordFactors {
       );
       bucket.matched.set(encounter, matched);
     }
-    factors = {
-      words: multiplier(bucket.bonuses, matched),
-      grammar: grammarRatio(bucket.bonuses, matched),
-    };
+    const words = multiplier(bucket.bonuses, matched);
+    factors = { words, grammar: grammarRatio(bucket.bonuses, matched, words) };
     bucket.factors.set(encounter, factors);
   }
   return factors;
@@ -239,12 +237,14 @@ function multiplier(
 
 /**
  * How much grammar raises `encounter`'s M_words: 1 + the multiplied bonuses
- * over 1 + the bonuses, or undefined when no word on its tags has a factor
- * (#32). The words line times this is what is paid.
+ * over 1 + the bonuses (`words`, `multiplier`'s sum, passed in rather than
+ * added again), or undefined when no word on its tags has a factor (#32).
+ * The words line times this is what is paid.
  */
 function grammarRatio(
   bonuses: readonly TaggedBonus[],
   matched: readonly number[],
+  words: number,
 ): number | undefined {
   let multiplied = 1;
   let covered = false;
@@ -254,7 +254,7 @@ function grammarRatio(
     multiplied += word.bonus * word.grammar;
     if (word.grammar !== 1) covered = true;
   }
-  return covered ? multiplied / multiplier(bonuses, matched) : undefined;
+  return covered ? multiplied / words : undefined;
 }
 
 /** The `words` and `grammar` lines' figures for `encounter` in the bucket holding `t`. */
@@ -292,11 +292,39 @@ function linesFor(
   words: WordFactors,
   shared: Shared,
 ): readonly RateLine[] {
-  const lines: RateLine[] = [
+  return [
+    ...countLines(encounter, owned),
+    ...tailLines(state, encounter, words, shared),
+  ];
+}
+
+/** The lines that read the count owned; every line after them does not. */
+function countLines(encounter: Encounter, owned: number): readonly RateLine[] {
+  return [
     { name: 'encounters', factor: Num.from(encounter.p0 * owned) },
     { name: 'milestones', factor: milestoneFactor(owned) },
-    { name: 'words', factor: Num.from(words.words) },
   ];
+}
+
+/**
+ * `countLines`' factors multiplied from 1 in their order, as `product`
+ * multiplies them, without building the lines: a catch-up rates a new count
+ * at every purchase (#297).
+ */
+function countRate(encounter: Encounter, owned: number): Num {
+  return Num.mul(
+    Num.mul(Num.from(1), Num.from(encounter.p0 * owned)),
+    milestoneFactor(owned),
+  );
+}
+
+function tailLines(
+  state: GameState,
+  encounter: Encounter,
+  words: WordFactors,
+  shared: Shared,
+): readonly RateLine[] {
+  const lines: RateLine[] = [{ name: 'words', factor: Num.from(words.words) }];
   if (words.grammar !== undefined)
     lines.push({ name: 'grammar', factor: Num.from(words.grammar) });
   for (const tag of encounter.tags) {
@@ -349,10 +377,39 @@ function encountersOf(course: Course): {
 }
 
 /**
+ * How many of each of the course's Encounters `state` owns, in course order,
+ * kept by course, then by the owned object: every rate, gain and price of a
+ * purchase reads the same counts, so they are read once a purchase (#297).
+ * State is never mutated, so an owned object stands for its contents.
+ */
+const countsMemo = new WeakMap<
+  Course,
+  WeakMap<GameState['owned'], readonly number[]>
+>();
+
+export function ownedCounts(
+  course: Course,
+  state: GameState,
+): readonly number[] {
+  let byOwned = countsMemo.get(course);
+  if (byOwned === undefined) {
+    byOwned = new WeakMap();
+    countsMemo.set(course, byOwned);
+  }
+  let counts = byOwned.get(state.owned);
+  if (counts === undefined) {
+    counts = encountersOf(course).list.map((e) => ownedCount(state, e.id));
+    byOwned.set(state.owned, counts);
+  }
+  return counts;
+}
+
+/**
  * One stretch of a rate book in which nothing but the counts moves: one
  * clock hour's words, and one span between festival edges, so each held
- * card's season is fixed. For each Encounter it keeps its word factors and
- * its rate at each count asked for; and for the counts last added up, each
+ * card's season is fixed. For each Encounter it keeps the factors of its
+ * lines after the count's two, its rate at each count asked for and its gain
+ * from one more; and for the counts last added up, each
  * Encounter's count and the total so far, so the next total re-adds only
  * from the first Encounter whose count moved, in the same order and so to
  * the same bits.
@@ -361,8 +418,11 @@ interface RateContext {
   /** Any wall time of the span: a card's season is the same at all of them. */
   readonly wall: number;
   readonly t: SimMs;
-  readonly words: (WordFactors | undefined)[];
+  /** Each Encounter's lines after its count's two, as factors (#297). */
+  readonly tails: (readonly Num[] | undefined)[];
   readonly rates: (Map<number, Num> | undefined)[];
+  /** Each Encounter's gain from one more, by the count owned (#297). */
+  readonly gains: (Map<number, Num> | undefined)[];
   readonly counts: (number | undefined)[];
   readonly totals: (Num | undefined)[];
 }
@@ -490,8 +550,9 @@ function contextAt(
     context = {
       wall,
       t,
-      words: new Array<WordFactors | undefined>(n),
+      tails: new Array<readonly Num[] | undefined>(n),
       rates: new Array<Map<number, Num> | undefined>(n),
+      gains: new Array<Map<number, Num> | undefined>(n),
       counts: new Array<number | undefined>(n),
       totals: new Array<Num | undefined>(n),
     };
@@ -517,18 +578,21 @@ function contextRate(
   }
   let rate = byOwned.get(owned);
   if (rate === undefined) {
-    let words = context.words[i];
-    if (words === undefined) {
-      words = wordFactorsAt(course, state, encounter, context.t);
-      context.words[i] = words;
+    let tail = context.tails[i];
+    if (tail === undefined) {
+      const words = wordFactorsAt(course, state, encounter, context.t);
+      const shared: Shared = {
+        held: book.held,
+        wall: context.wall,
+        sets: book.sets,
+        stamps: book.stamps,
+      };
+      tail = tailLines(state, encounter, words, shared).map((l) => l.factor);
+      context.tails[i] = tail;
     }
-    const shared: Shared = {
-      held: book.held,
-      wall: context.wall,
-      sets: book.sets,
-      stamps: book.stamps,
-    };
-    rate = product(linesFor(state, encounter, owned, words, shared));
+    // The product of linesFor's lines, multiplied in the same order.
+    rate = countRate(encounter, owned);
+    for (const factor of tail) rate = Num.mul(rate, factor);
     byOwned.set(owned, rate);
   }
   return rate;
@@ -570,34 +634,77 @@ export function rateBreakdown(
  * `t`: its rate with one more, less its rate now, every multiplier included,
  * so a unit that reaches a milestone gains the doubling of all its kind
  * (#33). Only its own `encounters` and `milestones` lines move, so the
- * bucket's word bonuses and the shared lines are worked out once.
+ * bucket's word bonuses and the shared lines are worked out once, and each
+ * gain is kept by the count owned: a purchase moves one Encounter's count,
+ * so the next search works out one gain, not one per Encounter (#297).
  */
 export function rateGain(
   course: Course,
   state: GameState,
   t: SimMs,
 ): (encounter: Encounter) => Num {
-  const book = rateBook(course, state);
-  const context = contextAt(course, state, book, t);
   const { index } = encountersOf(course);
+  const gainAt = rateGainAt(course, state, t);
   return (encounter) => {
     const i = index.get(encounter);
     if (i === undefined)
       throw new RangeError(
         `rateGain: ${encounter.id} is not in course ${course.id}`,
       );
-    const owned = ownedCount(state, encounter.id);
-    const now = contextRate(course, state, book, context, i, encounter, owned);
-    const more = contextRate(
-      course,
-      state,
-      book,
-      context,
-      i,
-      encounter,
-      owned + 1,
-    );
-    return Num.sub(more, now);
+    return gainAt(i);
+  };
+}
+
+/**
+ * `rateGain` by place in course order, every region, for a caller walking
+ * the Encounters in that order: Pemandu's search asks for each of them at
+ * every purchase (#297).
+ */
+export function rateGainAt(
+  course: Course,
+  state: GameState,
+  t: SimMs,
+): (i: number) => Num {
+  const book = rateBook(course, state);
+  const context = contextAt(course, state, book, t);
+  const { list } = encountersOf(course);
+  const counts = ownedCounts(course, state);
+  return (i) => {
+    const encounter = list[i];
+    if (encounter === undefined)
+      throw new RangeError(
+        `rateGainAt: course ${course.id} has no Encounter ${String(i)}`,
+      );
+    const owned = counts[i] ?? 0;
+    let byOwned = context.gains[i];
+    if (byOwned === undefined) {
+      byOwned = new Map();
+      context.gains[i] = byOwned;
+    }
+    let gain = byOwned.get(owned);
+    if (gain === undefined) {
+      const now = contextRate(
+        course,
+        state,
+        book,
+        context,
+        i,
+        encounter,
+        owned,
+      );
+      const more = contextRate(
+        course,
+        state,
+        book,
+        context,
+        i,
+        encounter,
+        owned + 1,
+      );
+      gain = Num.sub(more, now);
+      byOwned.set(owned, gain);
+    }
+    return gain;
   };
 }
 
@@ -615,18 +722,15 @@ export function rateAt(course: Course, state: GameState, t: SimMs): Num {
   const book = rateBook(course, state);
   const context = contextAt(course, state, book, t);
   const { list } = encountersOf(course);
+  const counts = ownedCounts(course, state);
   let from = 0;
-  while (
-    from < list.length &&
-    context.counts[from] === ownedCount(state, list[from]?.id ?? '')
-  )
-    from += 1;
+  while (from < list.length && context.counts[from] === counts[from]) from += 1;
   let total =
     from === 0 ? Num.from(0) : (context.totals[from - 1] ?? Num.from(0));
   for (let i = from; i < list.length; i += 1) {
     const encounter = list[i];
     if (encounter === undefined) continue;
-    const owned = ownedCount(state, encounter.id);
+    const owned = counts[i] ?? 0;
     context.counts[i] = owned;
     if (owned > 0)
       total = Num.add(

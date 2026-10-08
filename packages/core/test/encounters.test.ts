@@ -7,7 +7,8 @@ import {
   milestonesReached,
   purchaseCost,
 } from '../src/encounters';
-import type { Num } from '../src/num';
+import { BALANCE } from '../src/balance';
+import { Num as NumOf, type Num, type NumTuple } from '../src/num';
 
 /**
  * Encounter costs, bulk buy and milestones (#27 AC2, AC3).
@@ -133,6 +134,54 @@ describe('purchaseCost (AC2)', () => {
   ])('refuses owned %s, count %s', (owned, count) => {
     expect(() => purchaseCost(tea, owned, count)).toThrow(
       /must be a safe (non-negative|positive) integer/,
+    );
+  });
+});
+
+/**
+ * g^owned and the series (g^count - 1) / (g - 1) are kept for every
+ * Encounter at once (#297 AC5): neither reads `c0`. Each test asks a fresh
+ * Encounter, so the per-Encounter cost memo cannot answer, after another
+ * Encounter has filled the shared memo at a different key part, and wants
+ * the bits the formula gives unmemoised, in the same order.
+ */
+describe('purchaseCost shared powers (#297 AC5)', () => {
+  // Worked out inside each test, never at collection.
+  const formula = (c0: number, owned: number, count: number): NumTuple => {
+    const g = NumOf.from(BALANCE.encounters.costGrowth);
+    const one = NumOf.from(1);
+    return NumOf.toTuple(
+      NumOf.mul(
+        NumOf.mul(NumOf.from(c0), NumOf.pow(g, owned)),
+        NumOf.div(NumOf.sub(NumOf.pow(g, count), one), NumOf.sub(g, one)),
+      ),
+    );
+  };
+  const fresh = (c0: number): Encounter => ({
+    id: 'fresh',
+    tags: [],
+    c0,
+    p0: 0.1,
+  });
+
+  it('keys g^owned by the count owned', () => {
+    purchaseCost(fresh(10), 41, 1);
+    expect(NumOf.toTuple(purchaseCost(fresh(10), 42, 1))).toEqual(
+      formula(10, 42, 1),
+    );
+  });
+
+  it('keys the series by the count bought', () => {
+    purchaseCost(fresh(10), 43, 3);
+    expect(NumOf.toTuple(purchaseCost(fresh(10), 43, 4))).toEqual(
+      formula(10, 43, 4),
+    );
+  });
+
+  it('keeps c0 out of the shared powers', () => {
+    purchaseCost(fresh(10), 44, 1);
+    expect(NumOf.toTuple(purchaseCost(fresh(20), 44, 1))).toEqual(
+      formula(20, 44, 1),
     );
   });
 });

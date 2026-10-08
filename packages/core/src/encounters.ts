@@ -56,15 +56,38 @@ export function purchaseCost(
   const key = `${String(owned)}:${String(count)}`;
   let cost = costs.get(key);
   if (cost === undefined) {
-    const first = Num.mul(Num.from(encounter.c0), Num.pow(GROWTH, owned));
-    const series = Num.div(
-      Num.sub(Num.pow(GROWTH, count), ONE),
-      GROWTH_LESS_ONE,
-    );
-    cost = Num.mul(first, series);
+    const first = Num.mul(Num.from(encounter.c0), growthTo(owned));
+    cost = Num.mul(first, seriesOf(count));
     costs.set(key, cost);
   }
   return cost;
+}
+
+/**
+ * g^owned and the series (g^count - 1) / (g - 1), each kept by the one
+ * count it reads: neither reads `c0`, so every Encounter shares them, and a
+ * catch-up pricing each count once per Encounter works each power out once
+ * (#297).
+ */
+const powers = new Map<number, Num>();
+const series = new Map<number, Num>();
+
+function growthTo(owned: number): Num {
+  let power = powers.get(owned);
+  if (power === undefined) {
+    power = Num.pow(GROWTH, owned);
+    powers.set(owned, power);
+  }
+  return power;
+}
+
+function seriesOf(count: number): Num {
+  let sum = series.get(count);
+  if (sum === undefined) {
+    sum = Num.div(Num.sub(Num.pow(GROWTH, count), ONE), GROWTH_LESS_ONE);
+    series.set(count, sum);
+  }
+  return sum;
 }
 
 /**
@@ -74,7 +97,9 @@ export function purchaseCost(
 export function milestonesReached(owned: number): number {
   checkOwned(owned);
   const { milestones, milestoneEvery } = BALANCE.encounters;
-  const listed = milestones.filter((m) => owned >= m).length;
+  // Counted, not filtered: a catch-up asks for every count it rates (#297).
+  let listed = 0;
+  for (const m of milestones) if (owned >= m) listed += 1;
   const last = milestones[milestones.length - 1];
   if (last === undefined || owned < last) return listed;
   return listed + Math.floor((owned - last) / milestoneEvery);

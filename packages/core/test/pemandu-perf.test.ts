@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { regionOneReturn } from '../fixtures/pemandu-returns';
+import {
+  lateGameReturn,
+  regionOneReturn,
+  returnsAt,
+} from '../fixtures/pemandu-returns';
 import { syntheticCourse } from '../fixtures/synthetic-course';
 import { DAY_MS, HOUR_MS, simMs, wallMs } from '../src/clock';
 import type { Course } from '../src/course';
@@ -32,6 +36,11 @@ declare const console: { log(message: string): void };
 declare const process: {
   /** Microseconds of CPU this process has used, since `previous` if given. */
   cpuUsage(previous?: { user: number; system: number }): {
+    user: number;
+    system: number;
+  };
+  /** The same for this thread alone: no compiler or GC helper threads. */
+  threadCpuUsage(previous?: { user: number; system: number }): {
     user: number;
     system: number;
   };
@@ -75,6 +84,48 @@ describe('a 72 h return with Pemandu at 1 s (AC5)', () => {
     // one: the return really buys.
     expect(bought).toBeGreaterThan(1_637);
     expect(ms).toBeLessThan(1_000);
+  });
+});
+
+/**
+ * A late-game player's 1 h catch-up (#297 AC3): every region reached, all
+ * 450 words held, Understanding banked, so Pemandu buys densely. Before
+ * #297 it cost 75.0 / 74.9 µs of CPU a purchase (AC1, `npm run
+ * bench:pemandu`, load about 5). AC3's tenth is measured there, beside the
+ * old code, and recorded on #297; this test guards a slide back
+ * (operator, 2026-10-08: "Generous CI ceiling", then "40 µs in the runner").
+ *
+ * Inside vitest the same code runs about 2.5x slower than bundled, and the
+ * process's CPU counts V8's compiler and GC threads, busy in a fresh worker
+ * (measured: 15 to 89 µs a purchase by process, 15 to 41 by this thread).
+ * So the figure is this thread's CPU, the fastest of a few catch-ups, each
+ * on a fresh course so no memo carries. Measured 2026-10-08 at load 4: about
+ * 15 µs; the code before #297, about 119 µs. The ceiling sits between.
+ */
+const CATCH_UPS = 6;
+const CEILING_US = 40;
+
+describe('a late-game catch-up with Pemandu at 1 s (#297 AC3)', () => {
+  it(`buys at under ${String(CEILING_US)} µs of CPU a purchase, the fastest of ${String(CATCH_UPS)}`, () => {
+    const costs: number[] = [];
+    // one scenario: the fastest of a few runs of one catch-up, for the
+    // machine's load, not a population of cases.
+    for (let run = 0; run < CATCH_UPS; run += 1) {
+      const fresh = syntheticCourse(1);
+      const from = lateGameReturn(fresh);
+      const cpuStart = process.threadCpuUsage();
+      const { state } = advance(fresh, from, returnsAt(from, 1));
+      const cpu = process.threadCpuUsage(cpuStart);
+      const bought = units(state) - units(from);
+      // The catch-up the figures were measured on.
+      expect(bought).toBe(428);
+      costs.push((cpu.user + cpu.system) / bought);
+    }
+    const fastest = Math.min(...costs);
+    console.log(
+      `#297 AC3: a late-game 1 h catch-up took ${fastest.toFixed(2)} µs of this thread's CPU a purchase at its fastest of ${String(CATCH_UPS)} (${costs.map((c) => c.toFixed(1)).join(', ')})`,
+    );
+    expect(fastest).toBeLessThan(CEILING_US);
   });
 });
 

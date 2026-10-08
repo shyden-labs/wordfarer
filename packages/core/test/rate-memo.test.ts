@@ -5,6 +5,7 @@ import { bestPayback, nextPurchaseTick } from '../src/automation';
 import { heldCards, nextFestivalEdge } from '../src/cards';
 import { HOUR_MS, simMs, wallMs, type SimMs } from '../src/clock';
 import type { Course } from '../src/course';
+import { milestonesReached } from '../src/encounters';
 import { Num } from '../src/num';
 import { rateAt, rateGain } from '../src/production';
 import { regionsReached, route } from '../src/route';
@@ -224,6 +225,25 @@ describe('the memos behind a fast catch-up are keyed by every part they read (AC
       },
     ],
     [
+      'one more of an Encounter, to one short of a milestone',
+      (c, s) => {
+        // Between milestones one more gains the same bits at every count, so
+        // only a count whose next unit reaches a milestone moves the gain.
+        const [encounter] = c.regions[0]?.encounters ?? [];
+        if (encounter === undefined)
+          throw new Error('no Encounter in region 0');
+        const owned = s.owned[encounter.id] ?? 0;
+        let short = owned + 1;
+        while (milestonesReached(short + 1) === milestonesReached(owned))
+          short += 1;
+        const at = (count: number): GameState => ({
+          ...s,
+          owned: { ...s.owned, [encounter.id]: count },
+        });
+        return { from: at(short - 1), state: at(short) };
+      },
+    ],
+    [
       'fewer regions reached',
       (c, s) => {
         // Region 1's Encounters owned in thousands cost more than any later
@@ -238,6 +258,26 @@ describe('the memos behind a fast catch-up are keyed by every part they read (AC
           },
         };
         return { from: dear, state: { ...dear, reached: 0, destination: 0 } };
+      },
+    ],
+    [
+      'a course with its Encounters in another order',
+      (c, s) => {
+        // The same owned object: counts kept by place in course order are
+        // stale only when the places move, as fewer regions' do not.
+        const reordered = (whole: Course): Course => ({
+          ...whole,
+          regions: whole.regions.map((region, r) =>
+            r === 0
+              ? { ...region, encounters: [...region.encounters].reverse() }
+              : region,
+          ),
+        });
+        return {
+          course: reordered(c),
+          afresh: () => reordered(syntheticCourse(1)),
+          state: s,
+        };
       },
     ],
     [
