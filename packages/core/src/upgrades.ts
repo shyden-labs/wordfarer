@@ -14,7 +14,6 @@
 import { BALANCE, type InsightUpgradeId, type StampUpgradeId } from './balance';
 import type { Course, Encounter } from './course';
 import { purchaseCost } from './encounters';
-import { memosOn } from './memo';
 import { Num } from './num';
 import { ownedCount, type GameState } from './state';
 
@@ -160,7 +159,6 @@ export function encounterPriceAt(
   count: number,
   factor: number,
 ): Num {
-  if (!memosOn()) return priceOf(encounter, owned, count, factor);
   let byFactor = priceMemo.get(encounter);
   if (byFactor === undefined) {
     byFactor = new Map();
@@ -178,20 +176,10 @@ export function encounterPriceAt(
   }
   let price = byOwned.get(owned);
   if (price === undefined) {
-    price = priceOf(encounter, owned, count, factor);
+    price = Num.mul(purchaseCost(encounter, owned, count), Num.from(factor));
     byOwned.set(owned, price);
   }
   return price;
-}
-
-/** A price worked out: the cost of `count` more, times the cost factor. */
-function priceOf(
-  encounter: Encounter,
-  owned: number,
-  count: number,
-  factor: number,
-): Num {
-  return Num.mul(purchaseCost(encounter, owned, count), Num.from(factor));
 }
 
 /**
