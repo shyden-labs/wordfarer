@@ -14,14 +14,15 @@ import { nextGridTick, simMs, type SimMs } from './clock';
 import type { Course, Encounter } from './course';
 import { Num } from './num';
 import {
-  rateGain,
+  ownedCounts,
+  rateGainAt,
   rateMsShort,
   segments,
   understandingAfter,
   understandingNow,
 } from './production';
 import { regionsReached, route } from './route';
-import { ownedCount, type GameState } from './state';
+import type { GameState } from './state';
 import {
   encounterCostFactor,
   encounterPriceAt,
@@ -113,7 +114,8 @@ function pricedAt(course: Course, state: GameState): Priced {
   const encounters =
     same?.encounters ??
     course.regions.slice(0, reached).flatMap((region) => region.encounters);
-  const counts = encounters.map((encounter) => ownedCount(state, encounter.id));
+  // Course order, every region: the regions reached are its first places.
+  const counts = ownedCounts(course, state);
   const prices = encounters.map((encounter, i) => {
     const owned = counts[i] ?? 0;
     const known = same?.counts[i] === owned ? same.prices[i] : undefined;
@@ -142,13 +144,17 @@ export function bestPayback(
   state: GameState,
 ): string | undefined {
   const held = understandingNow(course, state);
-  const gainOf = rateGain(course, state, state.sim);
+  // The regions reached are the first places in course order, so each
+  // Encounter's place is its index in the gains too.
+  const gainAt = rateGainAt(course, state, state.sim);
   const { encounters, prices } = pricedAt(course, state);
   let best: Candidate | undefined;
-  for (const [i, encounter] of encounters.entries()) {
+  for (let i = 0; i < encounters.length; i += 1) {
+    const encounter = encounters[i];
     const price = prices[i];
-    if (price === undefined || Num.cmp(price, held) > 0) continue;
-    const candidate = { encounter, price, gain: gainOf(encounter) };
+    if (encounter === undefined || price === undefined) continue;
+    if (Num.cmp(price, held) > 0) continue;
+    const candidate = { encounter, price, gain: gainAt(i) };
     if (best === undefined || before(candidate, best)) best = candidate;
   }
   return best?.encounter.id;
