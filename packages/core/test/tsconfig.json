@@ -1,0 +1,15 @@
+{
+  // The core tests run in Node under vitest, and the ones holding recorded
+  // floors (#474) call `floorBreach`, which reads `tests/floors/` from disk.
+  // So the tests see Node's types, while the package's own tsconfig.json
+  // keeps `src/` (and the golden vectors, bundled into each browser engine)
+  // to ECMAScript alone.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    // tests/floors.ts imports scripts/record-floors.ts by its .ts name, as
+    // Node's type stripping needs.
+    "allowImportingTsExtensions": true
+  },
+  "include": ["**/*.ts", "../src/**/*.ts", "../fixtures/**/*.ts"]
+}

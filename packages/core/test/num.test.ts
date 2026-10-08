@@ -171,40 +171,32 @@ describe('arithmetic stays canonical and accurate', () => {
   });
 });
 
-// The Num.pow property checks 1,000 cases against 60-digit decimal.js: 581
-// to 649 ms alone, 3073 ms over ten loaded full-suite runs, and 7635 ms (a
-// timeout) under #28's mutation harness (#72). The bound under test is
-// accuracy, so a 5 s timeout would guard only the machine's load.
-const PROPERTY_TIMEOUT_MS = 60_000;
-
 describe('Num.pow, built from det-math', () => {
-  it(
-    'is canonical and within the derived bound 6e-16 x (|p| + |log10 result| + 2)',
-    { timeout: PROPERTY_TIMEOUT_MS },
-    () => {
-      // Num.pow computes l = (e + log10 m) x p. log10 m carries up to 2 ulp
-      // (2.2e-16) of absolute error, which p multiplies; rounding l adds half
-      // an ulp of l; 10^frac adds 2 ulp. So the relative error is at most
-      // ln 10 x 2.2e-16 x (|p| + |l|) + 6.6e-16 <= 6e-16 x (|p| + |l| + 2).
-      // Measured over 60,000 random cases (2026-10-01): worst 0.79 of this
-      // bound. A guessed (|l| + 1) x 1e-15 was exceeded (1.04 of it).
-      fc.assert(
-        fc.property(
-          positiveTuple,
-          fc.double({ min: -1000, max: 1000, noNaN: true }),
-          (a, p) => {
-            const t = Num.toTuple(Num.pow(Num.fromTuple(a), p));
-            expect(canonical(t)).toBe(true);
-            const want = exact(a).pow(new D(p.toPrecision(40)));
-            const l = Math.abs(want.log(10).toNumber());
-            const bound = 6e-16 * (Math.abs(p) + l + 2);
-            expect(relativeError(t, want)).toBeLessThanOrEqual(bound);
-          },
-        ),
-        { numRuns: 1000 },
-      );
-    },
-  );
+  it('is canonical and within the derived bound 6e-16 x (|p| + |log10 result| + 2)', () => {
+    // 200 random cases a run, each against 60-digit decimal.js (#474: 1,000
+    // took 0.8 s of CPU), and every run draws 200 new ones.
+    // Num.pow computes l = (e + log10 m) x p. log10 m carries up to 2 ulp
+    // (2.2e-16) of absolute error, which p multiplies; rounding l adds half
+    // an ulp of l; 10^frac adds 2 ulp. So the relative error is at most
+    // ln 10 x 2.2e-16 x (|p| + |l|) + 6.6e-16 <= 6e-16 x (|p| + |l| + 2).
+    // Measured over 60,000 random cases (2026-10-01): worst 0.79 of this
+    // bound. A guessed (|l| + 1) x 1e-15 was exceeded (1.04 of it).
+    fc.assert(
+      fc.property(
+        positiveTuple,
+        fc.double({ min: -1000, max: 1000, noNaN: true }),
+        (a, p) => {
+          const t = Num.toTuple(Num.pow(Num.fromTuple(a), p));
+          expect(canonical(t)).toBe(true);
+          const want = exact(a).pow(new D(p.toPrecision(40)));
+          const l = Math.abs(want.log(10).toNumber());
+          const bound = 6e-16 * (Math.abs(p) + l + 2);
+          expect(relativeError(t, want)).toBeLessThanOrEqual(bound);
+        },
+      ),
+      { numRuns: 200 },
+    );
+  });
 
   for (const k of [0, 1, 7, 300, 4000, -300])
     it(`gives 10^${String(k)} exactly`, () => {

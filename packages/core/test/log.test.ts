@@ -23,6 +23,7 @@ import {
 } from '../src/sim';
 import { initialState, type GameState } from '../src/state';
 import { offlineCapMs } from '../src/upgrades';
+import { floorBreach } from '../../../tests/floors';
 
 /**
  * `apply` and `replay` (#34 AC2, AC3, AC6; design §4, §7): the event log is
@@ -384,53 +385,57 @@ describe('resume (operator, 2026-10-03)', () => {
 });
 
 describe('a refused event leaves state unchanged (AC2)', () => {
-  it('for any event at any point of the scenario, apply never throws and never writes to its input', () => {
-    const c = course();
-    let refused = 0;
-    let accepted = 0;
-    const acceptedTypes = new Set<string>();
-    const refusedKinds = new Set<string>();
-    fc.assert(
-      fc.property(
-        fc.integer({ min: 0, max: TYPES.length }),
-        anyEvent(c),
-        (index, partial) => {
-          const state = deepFreeze(before(c, index));
-          const snapshot = deepCopy(state);
-          // The arbitrary's wallMs is an offset from the state's wall clock.
-          const event = {
-            ...partial,
-            seq: state.seq + 1,
-            wallMs: wallMs(state.wall + partial.wallMs),
-          } as GameEvent;
-          const result = apply(c, state, event);
-          expect(state).toEqual(snapshot);
-          if (result.ok) {
-            accepted += 1;
-            acceptedTypes.add(event.type);
-          } else {
-            refused += 1;
-            refusedKinds.add(result.rejection.kind);
-          }
-          expect(result).toEqual(
-            (() => {
-              const reference = direct(c, state, event);
-              return reference.ok
-                ? { ok: true, state: { ...reference.state, seq: event.seq } }
-                : reference;
-            })(),
-          );
-        },
-      ),
-      { seed: 34, numRuns: 400 },
-    );
-    // Both outcomes were reached. Measured on seed 34: 244 refused over 16
-    // kinds, 156 accepted over 11 types; each floor is that figure less one.
-    expect(refused).toBeGreaterThanOrEqual(243);
-    expect(accepted).toBeGreaterThanOrEqual(155);
-    expect(refusedKinds.size).toBeGreaterThanOrEqual(15);
-    expect(acceptedTypes.size).toBeGreaterThanOrEqual(10);
-  }, 120_000);
+  // One property per event type, so each type is drawn 30 times by
+  // construction (#474). One property over any event took 0.6 s of CPU for
+  // 400 runs and left types to the seed: at 200 runs it never accepted a
+  // purchase. Each type's refused and accepted events, and its refusal kinds,
+  // are recorded floors.
+  it.each(TYPES)(
+    'for any %s event at any point of the scenario, apply never throws and never writes to its input',
+    (type) => {
+      const c = course();
+      let accepted = 0;
+      let refused = 0;
+      const kinds = new Set<string>();
+      fc.assert(
+        fc.property(
+          fc.integer({ min: 0, max: TYPES.length }),
+          eventOf(c, type),
+          (index, partial) => {
+            const state = deepFreeze(before(c, index));
+            const snapshot = deepCopy(state);
+            // The arbitrary's wallMs is an offset from the state's wall clock.
+            const event = {
+              ...partial,
+              seq: state.seq + 1,
+              wallMs: wallMs(state.wall + partial.wallMs),
+            } as GameEvent;
+            const result = apply(c, state, event);
+            expect(state).toEqual(snapshot);
+            if (result.ok) accepted += 1;
+            else {
+              refused += 1;
+              kinds.add(result.rejection.kind);
+            }
+            expect(result).toEqual(
+              (() => {
+                const reference = direct(c, state, event);
+                return reference.ok
+                  ? { ok: true, state: { ...reference.state, seq: event.seq } }
+                  : reference;
+              })(),
+            );
+          },
+        ),
+        { seed: 34, numRuns: 30 },
+      );
+      expect({
+        accepted: floorBreach(`core-log/${type}-accepted`, accepted),
+        refused: floorBreach(`core-log/${type}-refused`, refused),
+        kinds: floorBreach(`core-log/${type}-refusal-kinds`, kinds.size),
+      }).toEqual({ accepted: undefined, refused: undefined, kinds: undefined });
+    },
+  );
 
   it('a log with a refused event inserted replays to the state without it', () => {
     const c = course();
@@ -523,10 +528,10 @@ describe('apply and advance commute within the offline cap (design §7)', () => 
           });
         },
       ),
-      { seed: 34, numRuns: 60 },
+      { seed: 34, numRuns: 40 },
     );
-    expect(reached).toBe(60);
-  }, 120_000);
+    expect(reached).toBe(40);
+  });
 
   it('but not when the cap clips: advancing first banks the cap at the earlier time', () => {
     const c = course();
@@ -549,12 +554,22 @@ describe('apply and advance commute within the offline cap (design §7)', () => 
  * Any event of any type, its seq and wall time set by the caller: ids from the course and
  * some it does not have, slots and counts in and out of range.
  */
-function anyEvent(c: Course): fc.Arbitrary<GameEvent> {
+/** Any event of `type`, valid or not, as the property above draws it. */
+function eventOf(
+  c: Course,
+  type: (typeof TYPES)[number],
+): fc.Arbitrary<GameEvent> {
   // An offset from the state's wall clock, back by up to an hour (clamped)
   // or on by up to three: the caller adds the state's wall time.
   const wall = fc.integer({ min: -HOUR_MS, max: 3 * HOUR_MS });
+  // A known id three times in five, so most kinds of event are accepted
+  // somewhere in a few hundred runs (#474), else 'none' or any string.
   const ids = (known: readonly string[]): fc.Arbitrary<string> =>
-    fc.oneof(fc.constantFrom(...known, 'none'), fc.string());
+    fc.oneof(
+      { arbitrary: fc.constantFrom(...known), weight: 2 },
+      { arbitrary: fc.constant('none'), weight: 1 },
+      { arbitrary: fc.string(), weight: 1 },
+    );
   const encounters = c.regions.flatMap((r) => r.encounters.map((e) => e.id));
   const nodes = c.regions.flatMap((r) => r.grammarNodes.map((n) => n.id));
   const words = c.regions[1]?.destinations[0]?.lexicon.map((i) => i.id) ?? [];
@@ -567,18 +582,22 @@ function anyEvent(c: Course): fc.Arbitrary<GameEvent> {
   );
   const slot = fc.integer({ min: 0, max: 4 });
   const seq = fc.constant(0);
-  const arbitraries: fc.Arbitrary<unknown>[] = [
-    fc.record({ type: fc.constant('resume'), seq, wallMs: wall }),
-    fc.record({ type: fc.constant('listen'), seq, wallMs: wall }),
-    fc.record({
+  const arbitraries: Record<(typeof TYPES)[number], fc.Arbitrary<unknown>> = {
+    resume: fc.record({ type: fc.constant('resume'), seq, wallMs: wall }),
+    listen: fc.record({ type: fc.constant('listen'), seq, wallMs: wall }),
+    buyEncounter: fc.record({
       type: fc.constant('buyEncounter'),
       seq,
       wallMs: wall,
       id: ids(encounters),
       count,
     }),
-    fc.record({ type: fc.constant('pickUpWord'), seq, wallMs: wall }),
-    fc.record({
+    pickUpWord: fc.record({
+      type: fc.constant('pickUpWord'),
+      seq,
+      wallMs: wall,
+    }),
+    answerReview: fc.record({
       type: fc.constant('answerReview'),
       seq,
       wallMs: wall,
@@ -587,27 +606,32 @@ function anyEvent(c: Course): fc.Arbitrary<GameEvent> {
       latencyMs: fc.integer({ min: 0, max: 60_000 }),
       promptType: fc.constantFrom('choice', 'typed', 'tiles'),
     }),
-    fc.record({
+    answerPractice: fc.record({
       type: fc.constant('answerPractice'),
       seq,
       wallMs: wall,
       itemId: ids(words),
     }),
-    fc.record({
+    buyUpgrade: fc.record({
       type: fc.constant('buyUpgrade'),
       seq,
       wallMs: wall,
       id: ids(['offlineCap', 'journeySlot2', 'journeySlot3', 'pemanduFaster1']),
     }),
-    fc.record({
+    startJourney: fc.record({
       type: fc.constant('startJourney'),
       seq,
       wallMs: wall,
       slot,
       durationId: ids(['tutorial', '2h', '4h', '8h', '24h']),
     }),
-    fc.record({ type: fc.constant('collectJourney'), seq, wallMs: wall, slot }),
-    fc.record(
+    collectJourney: fc.record({
+      type: fc.constant('collectJourney'),
+      seq,
+      wallMs: wall,
+      slot,
+    }),
+    setSail: fc.record(
       {
         type: fc.constant('setSail'),
         seq,
@@ -616,19 +640,19 @@ function anyEvent(c: Course): fc.Arbitrary<GameEvent> {
       },
       { requiredKeys: ['type', 'seq', 'wallMs'] },
     ),
-    fc.record({
+    buyGrammarNode: fc.record({
       type: fc.constant('buyGrammarNode'),
       seq,
       wallMs: wall,
       id: ids(nodes),
     }),
-    fc.record({
+    setAutomation: fc.record({
       type: fc.constant('setAutomation'),
       seq,
       wallMs: wall,
       enabled: fc.boolean(),
       intervalMs: fc.constantFrom(1000, 2000, 5000, 10_000, 7),
     }),
-  ];
-  return fc.oneof(...arbitraries) as fc.Arbitrary<GameEvent>;
+  };
+  return arbitraries[type] as fc.Arbitrary<GameEvent>;
 }

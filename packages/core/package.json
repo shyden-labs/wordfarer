@@ -8,7 +8,7 @@
     "./fixtures/synthetic-course": "./fixtures/synthetic-course.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p test",
     "build": "esbuild src/index.ts --bundle --platform=neutral --main-fields=module,main --format=esm --outfile=dist/index.js"
   },
   "dependencies": {

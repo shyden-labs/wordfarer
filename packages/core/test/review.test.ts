@@ -48,11 +48,6 @@ function word(rank: Rank, stability: number): WordMemory {
   return { rank, card: reviewCard(stability) };
 }
 
-// The never-lowers property replays 300 review histories of up to 40 steps:
-// 94 to 133 ms alone, 489 ms over ten loaded full-suite runs (#72). It is
-// correctness, so a 5 s timeout would guard only the machine's load.
-const PROPERTY_TIMEOUT_MS = 60_000;
-
 describe('ranks', () => {
   it('run Heard, Recognised, Recalled, Fluent, Mastered', () => {
     expect(RANKS).toEqual([
@@ -206,49 +201,45 @@ describe('a review (AC5)', () => {
     });
   });
 
-  it(
-    'never lowers a rank on a correct answer, over random review histories',
-    { timeout: PROPERTY_TIMEOUT_MS },
-    () => {
-      let correctSteps = 0;
-      fc.assert(
-        fc.property(
-          fc.array(
-            fc.record({
-              correct: fc.boolean(),
-              lateMs: fc.integer({ min: 0, max: 60 * DAY_MS }),
-            }),
-            { minLength: 5, maxLength: 40, size: 'max' },
-          ),
-          (steps) => {
-            let w = newWordMemory(T0);
-            // one scenario: each step reviews the word the step before left.
-            for (const step of steps) {
-              const now = wallMs(w.card.due + step.lateMs);
-              const next = review(w, now, step.correct);
-              const before = RANKS.indexOf(w.rank);
-              const after = RANKS.indexOf(next.rank);
-              if (step.correct) {
-                correctSteps++;
-                expect(after).toBeGreaterThanOrEqual(before);
-                expect(after).toBe(
-                  Math.max(
-                    before,
-                    RANKS.indexOf(rankForStability(next.card.stability)),
-                  ),
-                );
-              } else {
-                expect(after).toBe(Math.max(before - 1, 0));
-              }
-              w = next;
-            }
-          },
+  it('never lowers a rank on a correct answer, over random review histories', () => {
+    let correctSteps = 0;
+    fc.assert(
+      fc.property(
+        fc.array(
+          fc.record({
+            correct: fc.boolean(),
+            lateMs: fc.integer({ min: 0, max: 60 * DAY_MS }),
+          }),
+          { minLength: 5, maxLength: 40, size: 'max' },
         ),
-        { numRuns: 300 },
-      );
-      expect(correctSteps).toBeGreaterThan(1000);
-    },
-  );
+        (steps) => {
+          let w = newWordMemory(T0);
+          // one scenario: each step reviews the word the step before left.
+          for (const step of steps) {
+            const now = wallMs(w.card.due + step.lateMs);
+            const next = review(w, now, step.correct);
+            const before = RANKS.indexOf(w.rank);
+            const after = RANKS.indexOf(next.rank);
+            if (step.correct) {
+              correctSteps++;
+              expect(after).toBeGreaterThanOrEqual(before);
+              expect(after).toBe(
+                Math.max(
+                  before,
+                  RANKS.indexOf(rankForStability(next.card.stability)),
+                ),
+              );
+            } else {
+              expect(after).toBe(Math.max(before - 1, 0));
+            }
+            w = next;
+          }
+        },
+      ),
+      { numRuns: 300 },
+    );
+    expect(correctSteps).toBeGreaterThan(1000);
+  });
 });
 
 describe('Insight for a correct due answer (AC7)', () => {

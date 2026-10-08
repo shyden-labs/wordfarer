@@ -24,14 +24,26 @@ const PINNED: Record<GoldenFunction, string> = {
   expm1: '2c1250daae88b5ac',
   log1p: '2b1b9cb3cddb4cb2',
   meanR: 'ec29edb532f4e19d',
-  review: '1856bc56fcfef272',
+  // The first 30,000 review vectors: see PINNED_VECTORS.
+  review: '49fa93b3f25a97ab',
 };
 
-// Each digest hashes 100,000 vectors (#72): review 306 to 330 ms alone, and
-// 5408 ms, a timeout, in one of ten loaded full-suite runs; meanR 82 to 91 ms
-// alone, 1050 ms loaded. The digest is what is under test, so a 5 s timeout
-// would guard only the machine's load.
-const DIGEST_TIMEOUT_MS = 60_000;
+/**
+ * How many vectors each pin hashes. Review runs every vector through
+ * ts-fsrs, and all 100,000 took 0.5 s of CPU, so its pin reads the first
+ * 1,200 cards (#474); tests/engines still compares all 100,000 in every
+ * engine against Node's bits. The full review digest is 1856bc56fcfef272.
+ */
+const PINNED_VECTORS: Record<GoldenFunction, number> = {
+  pow: VECTORS_PER_FUNCTION,
+  exp: VECTORS_PER_FUNCTION,
+  ln: VECTORS_PER_FUNCTION,
+  log10: VECTORS_PER_FUNCTION,
+  expm1: VECTORS_PER_FUNCTION,
+  log1p: VECTORS_PER_FUNCTION,
+  meanR: VECTORS_PER_FUNCTION,
+  review: 30_000,
+};
 
 describe('golden vectors', () => {
   it('cover 100,000 vectors for each of the eight functions', () => {
@@ -49,11 +61,7 @@ describe('golden vectors', () => {
   });
 
   for (const fn of FUNCTIONS)
-    it(
-      `${fn} hashes to its pinned digest under Node`,
-      { timeout: DIGEST_TIMEOUT_MS },
-      () => {
-        expect(digest(fn)).toBe(PINNED[fn]);
-      },
-    );
+    it(`${fn} hashes to its pinned digest under Node`, () => {
+      expect(digest(fn, PINNED_VECTORS[fn])).toBe(PINNED[fn]);
+    });
 });

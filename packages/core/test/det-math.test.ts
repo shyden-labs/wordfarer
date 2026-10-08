@@ -124,69 +124,74 @@ const DOMAIN: Record<Unary, { min: number; max: number; edges: number[] }> = {
   },
 };
 
-// Each test evaluates up to 5,001 decimal.js references: about 1 s on an
-// idle laptop, and 12 s measured while another suite loaded the machine.
-// Measured again for #72: 151 ms (expm1) to 1715 ms (pow) alone, and up to
-// 6331 ms (log1p) over ten loaded full-suite runs.
-// The bound under test is accuracy, so a 5 s timeout would guard only the
-// machine's load.
-const REFERENCE_TIMEOUT_MS = 60_000;
+// Each random input costs one decimal.js reference at 60 digits or more,
+// 0.24 ms (ln) to 0.31 ms (pow) measured alone, and more in the full suite;
+// 300 a function keeps each test under 0.3 s of CPU there (#474: 2,000 took
+// up to 1.6 s). Every run draws 300 new inputs.
+const RANDOM_INPUTS = 300;
 
-describe(
-  'det-math is within 2 ulp of a 60-digit reference',
-  { timeout: REFERENCE_TIMEOUT_MS },
-  () => {
-    for (const name of Object.keys(UNARY) as Unary[]) {
-      const fn = UNARY[name];
-      const { min, max, edges } = DOMAIN[name];
+describe('det-math is within 2 ulp of a 60-digit reference', () => {
+  for (const name of Object.keys(UNARY) as Unary[]) {
+    const fn = UNARY[name];
+    const { min, max, edges } = DOMAIN[name];
 
-      for (const x of edges)
-        it(`${name}(${String(x)}), at its domain edge`, () => {
+    for (const x of edges)
+      it(`${name}(${String(x)}), at its domain edge`, () => {
+        expect(
+          ulps(fn(x), reference(name, x)),
+          `${name}(${String(x)})`,
+        ).toBeLessThanOrEqual(2n);
+      });
+
+    it(`${name} on ${String(RANDOM_INPUTS)} random inputs`, () => {
+      fc.assert(
+        fc.property(fc.double({ min, max, noNaN: true }), (x) => {
           expect(
             ulps(fn(x), reference(name, x)),
             `${name}(${String(x)})`,
           ).toBeLessThanOrEqual(2n);
-        });
-
-      it(`${name} on 2,000 random inputs`, () => {
-        fc.assert(
-          fc.property(fc.double({ min, max, noNaN: true }), (x) => {
-            expect(
-              ulps(fn(x), reference(name, x)),
-              `${name}(${String(x)})`,
-            ).toBeLessThanOrEqual(2n);
-          }),
-          { numRuns: 2000 },
-        );
-      });
-    }
-
-    it('pow(1.15, n) for every n in 0..5000, the Encounter cost curve', () => {
-      let worst = 0n;
-      for (let n = 0; n <= 5000; n++) {
-        const d = ulps(pow(1.15, n), referencePow(1.15, n));
-        if (d > worst) worst = d;
-      }
-      expect(worst).toBeLessThanOrEqual(2n);
-    });
-
-    it('pow on 2,000 random positive bases and real exponents', () => {
-      fc.assert(
-        fc.property(
-          fc.double({ min: 1e-3, max: 1e3, noNaN: true }),
-          fc.double({ min: -100, max: 100, noNaN: true }),
-          (base, exponent) => {
-            expect(
-              ulps(pow(base, exponent), referencePow(base, exponent)),
-              `pow(${String(base)}, ${String(exponent)})`,
-            ).toBeLessThanOrEqual(2n);
-          },
-        ),
-        { numRuns: 2000 },
+        }),
+        { numRuns: RANDOM_INPUTS },
       );
     });
-  },
-);
+  }
+
+  it('pow(1.15, n) for every n in 0..5000, the Encounter cost curve', () => {
+    // The reference walks the curve one multiplication a step instead of a
+    // full pow for each n (#474: 14 ms against 326 ms, the same 5,001
+    // doubles). Each step rounds to 60 digits, so 5,000 steps drift by
+    // under 1e-55 relative, far inside an ulp.
+    const D = Decimal.clone({
+      precision: 60,
+      rounding: Decimal.ROUND_HALF_EVEN,
+    });
+    const base = exact(D, 1.15);
+    let want = new D(1);
+    let worst = 0n;
+    for (let n = 0; n <= 5000; n++) {
+      const d = ulps(pow(1.15, n), Number(want.toString()));
+      if (d > worst) worst = d;
+      want = want.times(base);
+    }
+    expect(worst).toBeLessThanOrEqual(2n);
+  });
+
+  it(`pow on ${String(RANDOM_INPUTS)} random positive bases and real exponents`, () => {
+    fc.assert(
+      fc.property(
+        fc.double({ min: 1e-3, max: 1e3, noNaN: true }),
+        fc.double({ min: -100, max: 100, noNaN: true }),
+        (base, exponent) => {
+          expect(
+            ulps(pow(base, exponent), referencePow(base, exponent)),
+            `pow(${String(base)}, ${String(exponent)})`,
+          ).toBeLessThanOrEqual(2n);
+        },
+      ),
+      { numRuns: RANDOM_INPUTS },
+    );
+  });
+});
 
 describe('det-math special values follow ECMAScript exactly', () => {
   // Literal expectations, never `**` or Math.*: a fixture computed by the
