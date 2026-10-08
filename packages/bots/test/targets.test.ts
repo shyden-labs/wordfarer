@@ -11,6 +11,8 @@ import {
   learnersOrder,
   learningPays,
   largestShift,
+  longWaits,
+  sailTiming,
   sanity,
   TUNING_TARGETS,
 } from '../src/targets';
@@ -378,6 +380,66 @@ describe('(h) sanity', () => {
     expect(
       sanity(run('casual', 0, 2, { insane: ['rate', 'price.r0-e1'] })),
     ).toEqual(['casual: rate', 'casual: price.r0-e1']);
+  });
+});
+
+/** `base` with sail `i`'s goal met on `reachedDay` instead. */
+function goalMetOn(
+  base: PersonaRun,
+  i: number,
+  reachedDay: number,
+): PersonaRun {
+  return {
+    ...base,
+    sails: base.sails.map((s, k) => (k === i ? { ...s, reachedDay } : s)),
+  };
+}
+
+describe('(h) sailTiming', () => {
+  // Sails on days 0.5, 2.5, 4.5, ...
+  const held = run('idler', 0.5, 2);
+
+  it('names a goal met at the sail before, and passes one met a minute after it', () => {
+    const run = goalMetOn(goalMetOn(held, 3, 4.5 + MIN), 5, 8.5);
+    expect(sailTiming(run)).toEqual([
+      'idler: destination 6’s goal met on day 8.500, outside (8.500, 10.500]',
+    ]);
+  });
+
+  it('names a goal met after its own sail', () => {
+    expect(sailTiming(goalMetOn(held, 3, 6.5 + MIN))).toEqual([
+      'idler: destination 4’s goal met on day 6.501, outside (4.500, 6.500]',
+    ]);
+  });
+
+  it('names a first goal met before the run began', () => {
+    expect(sailTiming(goalMetOn(held, 0, 0))).toEqual([
+      'idler: destination 1’s goal met on day 0.000, outside (0.000, 0.500]',
+    ]);
+  });
+
+  it('names a goal met at no finite moment', () => {
+    expect(sailTiming(goalMetOn(held, 5, NaN))).toEqual([
+      'idler: destination 6’s goal met on day NaN, outside (8.500, 10.500]',
+    ]);
+  });
+});
+
+describe('(h) longWaits', () => {
+  const HOUR = 1 / 24;
+
+  // A minute either side of the hour: a day count holds no exact hour.
+  it('finds each sail whose goal was met over an hour before it, and not one met within the hour', () => {
+    // Sails on days 0.5, 2.5, ..., 14.5, 16.5, ...
+    const sailed = run('idler', 0.5, 2);
+    const waited = goalMetOn(
+      goalMetOn(sailed, 7, 14.5 - HOUR - MIN),
+      8,
+      16.5 - HOUR + MIN,
+    );
+    expect(longWaits(waited)).toEqual([
+      { destination: 8, day: 14.5, reachedDay: 14.5 - HOUR - MIN },
+    ]);
   });
 });
 

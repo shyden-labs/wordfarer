@@ -8,7 +8,8 @@ import { parse } from 'yaml';
  * YAML so a comment cannot stand in for a condition.
  *
  * An early step, `classify`, writes `scope`. On docs-only, only checkout,
- * Node, the classifier, install, Format and the unit suite run; every other
+ * Node, the classifier, install, Format, the unit suite and the guards run;
+ * every other
  * step carries the skip. The skip reads `!= 'docs-only'`, so a scope that
  * is full, empty or missing runs the step: no skip can fire on anything but
  * a docs-only verdict. A step added without its own decision is not in the
@@ -56,6 +57,7 @@ const ORDER = [
   'Lint (zero warnings)',
   'Typecheck (tsc, svelte-check)',
   'Unit tests',
+  'Guards (whole-repo checks)',
   'Pacing bots (under 5 minutes)',
   'Upload the pacing report',
   'Worker tests (sync in workerd + local D1, site and game through the asset router)',
@@ -73,6 +75,7 @@ const DOCS_ONLY = [
   'Install (a warning fails it)',
   'Format',
   'Unit tests',
+  'Guards (whole-repo checks)',
 ];
 
 /** Every other step, and its whole condition. */
@@ -95,7 +98,7 @@ describe('build-and-test’s steps (#360 AC2)', () => {
     expect(steps().map(idOf)).toEqual(ORDER);
   });
 
-  it('on docs-only, run exactly the default-branch check, checkout, Node, the classifier, install, Format and the unit suite', () => {
+  it('on docs-only, run exactly the default-branch check, checkout, Node, the classifier, install, Format, the unit suite and the guards', () => {
     expect(
       steps()
         .filter((s) => s.if === undefined)
