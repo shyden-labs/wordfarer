@@ -34,16 +34,36 @@ export function cultureCard(course: Course, id: string): CultureCard {
   return card;
 }
 
+/**
+ * The held cards of each list of held ids, kept by course, then by the list.
+ * State is never mutated, so a list stands for its contents; every rate a
+ * Pemandu catch-up works out reads the same list (#297).
+ */
+const heldMemo = new WeakMap<
+  Course,
+  WeakMap<readonly string[], readonly CultureCard[]>
+>();
+
 /** The held cards in course order. A held id the course lacks is refused. */
 export function heldCards(
   course: Course,
   state: GameState,
 ): readonly CultureCard[] {
-  for (const id of state.cards) cultureCard(course, id);
-  const held = new Set(state.cards);
-  return course.regions.flatMap((region) =>
-    region.cultureCards.filter((card) => held.has(card.id)),
-  );
+  let byList = heldMemo.get(course);
+  if (byList === undefined) {
+    byList = new WeakMap();
+    heldMemo.set(course, byList);
+  }
+  let kept = byList.get(state.cards);
+  if (kept === undefined) {
+    for (const id of state.cards) cultureCard(course, id);
+    const held = new Set(state.cards);
+    kept = course.regions.flatMap((region) =>
+      region.cultureCards.filter((card) => held.has(card.id)),
+    );
+    byList.set(state.cards, kept);
+  }
+  return kept;
 }
 
 /** Whether one of `card`'s festival windows holds wall time `wall`. */

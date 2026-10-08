@@ -83,25 +83,23 @@ function bucketBonuses(
   const spanDays = (start + HOUR_MS - from) / DAY_MS;
   const skew = state.wall - state.sim;
   const factors = rootFactors(course, state);
-  return Object.entries(state.words)
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([id, word]) => {
-      const { lastReview, stability } = word.card;
-      const meanR =
-        lastReview === null
-          ? 0
-          : meanRetrievability(
-              stability,
-              (from + skew - lastReview) / DAY_MS,
-              spanDays,
-            );
-      const { tags, root } = lexiconItem(course, id);
-      return {
-        tags,
-        bonus: wordBonus(word.rank, meanR),
-        grammar: root === undefined ? 1 : (factors.get(root) ?? 1),
-      };
-    });
+  return sortedWords(state.words).map(([id, word]) => {
+    const { lastReview, stability } = word.card;
+    const meanR =
+      lastReview === null
+        ? 0
+        : meanRetrievability(
+            stability,
+            (from + skew - lastReview) / DAY_MS,
+            spanDays,
+          );
+    const { tags, root } = lexiconItem(course, id);
+    return {
+      tags,
+      bonus: wordBonus(word.rank, meanR),
+      grammar: root === undefined ? 1 : (factors.get(root) ?? 1),
+    };
+  });
 }
 
 /** What one bucket's words give an Encounter: M_words, and grammar's ratio if any. */
@@ -113,7 +111,59 @@ interface WordFactors {
 /** A bucket's word bonuses and, worked out on first use, each Encounter's factors. */
 interface BucketWords {
   readonly bonuses: readonly TaggedBonus[];
+  /** Which bonuses share a tag with each Encounter: the words object's. */
+  readonly matched: Map<Encounter, readonly number[]>;
   readonly factors: Map<Encounter, WordFactors>;
+}
+
+/**
+ * Each words object's entries in code-unit order of id, the order every sum
+ * over them adds in, sorted once rather than once an hour (#297).
+ */
+const sortedMemo = new WeakMap<
+  GameState['words'],
+  readonly (readonly [string, GameState['words'][string]])[]
+>();
+
+function sortedWords(
+  words: GameState['words'],
+): readonly (readonly [string, GameState['words'][string]])[] {
+  let sorted = sortedMemo.get(words);
+  if (sorted === undefined) {
+    sorted = Object.entries(words).sort(([a], [b]) =>
+      a < b ? -1 : a > b ? 1 : 0,
+    );
+    sortedMemo.set(words, sorted);
+  }
+  return sorted;
+}
+
+/**
+ * For each words object, which of its words (by place in id order) share a
+ * tag with each Encounter. Tags come from the course's lexicon, so they hold
+ * for every bucket; each bucket's sums then add those words' bonuses alone,
+ * in the same order, to the same bits (#297).
+ */
+const matchedMemo = new WeakMap<
+  Course,
+  WeakMap<GameState['words'], Map<Encounter, readonly number[]>>
+>();
+
+function matchedOf(
+  course: Course,
+  words: GameState['words'],
+): Map<Encounter, readonly number[]> {
+  let byWords = matchedMemo.get(course);
+  if (byWords === undefined) {
+    byWords = new WeakMap();
+    matchedMemo.set(course, byWords);
+  }
+  let matched = byWords.get(words);
+  if (matched === undefined) {
+    matched = new Map();
+    byWords.set(words, matched);
+  }
+  return matched;
 }
 
 /**
@@ -148,7 +198,11 @@ function bucketWords(course: Course, state: GameState, t: SimMs): BucketWords {
   ]);
   let bucket = byKey.get(key);
   if (bucket === undefined) {
-    bucket = { bonuses: bucketBonuses(course, state, t), factors: new Map() };
+    bucket = {
+      bonuses: bucketBonuses(course, state, t),
+      matched: matchedOf(course, state.words),
+      factors: new Map(),
+    };
     byKey.set(key, bucket);
   }
   return bucket;
@@ -157,23 +211,29 @@ function bucketWords(course: Course, state: GameState, t: SimMs): BucketWords {
 function wordFactors(bucket: BucketWords, encounter: Encounter): WordFactors {
   let factors = bucket.factors.get(encounter);
   if (factors === undefined) {
+    let matched = bucket.matched.get(encounter);
+    if (matched === undefined) {
+      matched = bucket.bonuses.flatMap(({ tags }, i) =>
+        sharesTag(tags, encounter.tags) ? [i] : [],
+      );
+      bucket.matched.set(encounter, matched);
+    }
     factors = {
-      words: multiplier(bucket.bonuses, encounter),
-      grammar: grammarRatio(bucket.bonuses, encounter),
+      words: multiplier(bucket.bonuses, matched),
+      grammar: grammarRatio(bucket.bonuses, matched),
     };
     bucket.factors.set(encounter, factors);
   }
   return factors;
 }
 
+/** 1 + the matched words' bonuses, added in id order. */
 function multiplier(
   bonuses: readonly TaggedBonus[],
-  encounter: Encounter,
+  matched: readonly number[],
 ): number {
   let m = 1;
-  for (const { tags, bonus } of bonuses) {
-    if (sharesTag(tags, encounter.tags)) m += bonus;
-  }
+  for (const i of matched) m += bonuses[i]?.bonus ?? 0;
   return m;
 }
 
@@ -184,16 +244,27 @@ function multiplier(
  */
 function grammarRatio(
   bonuses: readonly TaggedBonus[],
-  encounter: Encounter,
+  matched: readonly number[],
 ): number | undefined {
   let multiplied = 1;
   let covered = false;
-  for (const { tags, bonus, grammar } of bonuses) {
-    if (!sharesTag(tags, encounter.tags)) continue;
-    multiplied += bonus * grammar;
-    if (grammar !== 1) covered = true;
+  for (const i of matched) {
+    const word = bonuses[i];
+    if (word === undefined) continue;
+    multiplied += word.bonus * word.grammar;
+    if (word.grammar !== 1) covered = true;
   }
-  return covered ? multiplied / multiplier(bonuses, encounter) : undefined;
+  return covered ? multiplied / multiplier(bonuses, matched) : undefined;
+}
+
+/** The `words` and `grammar` lines' figures for `encounter` in the bucket holding `t`. */
+function wordFactorsAt(
+  course: Course,
+  state: GameState,
+  encounter: Encounter,
+  t: SimMs,
+): WordFactors {
+  return wordFactors(bucketWords(course, state, t), encounter);
 }
 
 /** M_words for `encounter` in the bucket holding `t`, before grammar. */
@@ -252,6 +323,217 @@ function sharedAt(course: Course, state: GameState, t: SimMs): Shared {
   };
 }
 
+/**
+ * The course's Encounters in course order, every region, with each one's
+ * place: the order `rateBreakdown` adds rates in (#297).
+ */
+const encountersMemo = new WeakMap<
+  Course,
+  {
+    readonly list: readonly Encounter[];
+    readonly index: ReadonlyMap<Encounter, number>;
+  }
+>();
+
+function encountersOf(course: Course): {
+  readonly list: readonly Encounter[];
+  readonly index: ReadonlyMap<Encounter, number>;
+} {
+  let kept = encountersMemo.get(course);
+  if (kept === undefined) {
+    const list = course.regions.flatMap((region) => region.encounters);
+    kept = { list, index: new Map(list.map((e, i) => [e, i])) };
+    encountersMemo.set(course, kept);
+  }
+  return kept;
+}
+
+/**
+ * One stretch of a rate book in which nothing but the counts moves: one
+ * clock hour's words, and one span between festival edges, so each held
+ * card's season is fixed. For each Encounter it keeps its word factors and
+ * its rate at each count asked for; and for the counts last added up, each
+ * Encounter's count and the total so far, so the next total re-adds only
+ * from the first Encounter whose count moved, in the same order and so to
+ * the same bits.
+ */
+interface RateContext {
+  /** Any wall time of the span: a card's season is the same at all of them. */
+  readonly wall: number;
+  readonly t: SimMs;
+  readonly words: (WordFactors | undefined)[];
+  readonly rates: (Map<number, Num> | undefined)[];
+  readonly counts: (number | undefined)[];
+  readonly totals: (Num | undefined)[];
+}
+
+/** What every rate of one state's catch-up shares (#297). */
+interface RateBook {
+  readonly held: readonly CultureCard[];
+  readonly sets: number | undefined;
+  readonly stamps: Num;
+  readonly skew: number;
+  /** By bucket start, then by the festival edge ahead. */
+  readonly contexts: Map<number, Map<number | undefined, RateContext>>;
+  /** The last festival edge looked up: the edge after every wall in `[from, edge)`. */
+  edge:
+    { readonly from: number; readonly edge: number | undefined } | undefined;
+}
+
+/**
+ * Each rate book, kept by course, then by the objects a Pemandu purchase
+ * never replaces (the words, the cards, the upgrades, the grammar owned),
+ * then by the numbers it reads (`memorySince`, the skew, the stamps
+ * earned). Everything `linesFor` and the bucket's words read is in the key
+ * but the counts, which the book keeps per count (#297). State is never
+ * mutated, so each object stands for its contents.
+ */
+const bookMemo = new WeakMap<
+  Course,
+  WeakMap<
+    object,
+    WeakMap<
+      object,
+      WeakMap<
+        object,
+        WeakMap<object, Map<number, Map<number, Map<number, RateBook>>>>
+      >
+    >
+  >
+>();
+
+function within<K, V>(map: Map<K, V>, key: K, make: () => V): V {
+  let value = map.get(key);
+  if (value === undefined) {
+    value = make();
+    map.set(key, value);
+  }
+  return value;
+}
+
+function step<K extends object, V>(
+  map: WeakMap<K, V>,
+  key: K,
+  make: () => V,
+): V {
+  let value = map.get(key);
+  if (value === undefined) {
+    value = make();
+    map.set(key, value);
+  }
+  return value;
+}
+
+function rateBook(course: Course, state: GameState): RateBook {
+  const byWords = step(bookMemo, course, () => new WeakMap());
+  const byCards = step(byWords, state.words, () => new WeakMap());
+  const byUpgrades = step(byCards, state.cards, () => new WeakMap());
+  const byGrammar = step(byUpgrades, state.upgrades, () => new WeakMap());
+  const bySince = step(
+    byGrammar,
+    state.grammar,
+    () => new Map<number, Map<number, Map<number, RateBook>>>(),
+  );
+  const skew = state.wall - state.sim;
+  const bySkew = within(
+    bySince,
+    state.memorySince,
+    () => new Map<number, Map<number, RateBook>>(),
+  );
+  const byStamps = within(bySkew, skew, () => new Map<number, RateBook>());
+  let book = byStamps.get(state.stampsEarned);
+  if (book === undefined) {
+    const held = heldCards(course, state);
+    book = {
+      held,
+      sets: setFactor(course, held),
+      stamps: Num.from(globalMultiplier(state)),
+      skew,
+      contexts: new Map(),
+      edge: undefined,
+    };
+    byStamps.set(state.stampsEarned, book);
+  }
+  return book;
+}
+
+/** The first festival edge after `wall`, reusing the last lookup while it holds. */
+function edgeAfter(book: RateBook, wall: number): number | undefined {
+  const last = book.edge;
+  if (
+    last !== undefined &&
+    wall >= last.from &&
+    (last.edge === undefined || wall < last.edge)
+  )
+    return last.edge;
+  const edge = nextFestivalEdge(book.held, wall);
+  book.edge = { from: wall, edge };
+  return edge;
+}
+
+function contextAt(
+  course: Course,
+  state: GameState,
+  book: RateBook,
+  t: SimMs,
+): RateContext {
+  const wall = t + book.skew;
+  const byEdge = within(
+    book.contexts,
+    bucketStart(t),
+    () => new Map<number | undefined, RateContext>(),
+  );
+  const edge = edgeAfter(book, wall);
+  let context = byEdge.get(edge);
+  if (context === undefined) {
+    const n = encountersOf(course).list.length;
+    context = {
+      wall,
+      t,
+      words: new Array<WordFactors | undefined>(n),
+      rates: new Array<Map<number, Num> | undefined>(n),
+      counts: new Array<number | undefined>(n),
+      totals: new Array<Num | undefined>(n),
+    };
+    byEdge.set(edge, context);
+  }
+  return context;
+}
+
+/** Encounter `i`'s rate with `owned` held in `context`: the product of its lines. */
+function contextRate(
+  course: Course,
+  state: GameState,
+  book: RateBook,
+  context: RateContext,
+  i: number,
+  encounter: Encounter,
+  owned: number,
+): Num {
+  let byOwned = context.rates[i];
+  if (byOwned === undefined) {
+    byOwned = new Map();
+    context.rates[i] = byOwned;
+  }
+  let rate = byOwned.get(owned);
+  if (rate === undefined) {
+    let words = context.words[i];
+    if (words === undefined) {
+      words = wordFactorsAt(course, state, encounter, context.t);
+      context.words[i] = words;
+    }
+    const shared: Shared = {
+      held: book.held,
+      wall: context.wall,
+      sets: book.sets,
+      stamps: book.stamps,
+    };
+    rate = product(linesFor(state, encounter, owned, words, shared));
+    byOwned.set(owned, rate);
+  }
+  return rate;
+}
+
 /** A rate as the product of its lines, multiplied in order. */
 function product(lines: readonly RateLine[]): Num {
   return lines.reduce((r, l) => Num.mul(r, l.factor), Num.from(1));
@@ -295,13 +577,26 @@ export function rateGain(
   state: GameState,
   t: SimMs,
 ): (encounter: Encounter) => Num {
-  const bucket = bucketWords(course, state, t);
-  const shared = sharedAt(course, state, t);
+  const book = rateBook(course, state);
+  const context = contextAt(course, state, book, t);
+  const { index } = encountersOf(course);
   return (encounter) => {
+    const i = index.get(encounter);
+    if (i === undefined)
+      throw new RangeError(
+        `rateGain: ${encounter.id} is not in course ${course.id}`,
+      );
     const owned = ownedCount(state, encounter.id);
-    const words = wordFactors(bucket, encounter);
-    const now = product(linesFor(state, encounter, owned, words, shared));
-    const more = product(linesFor(state, encounter, owned + 1, words, shared));
+    const now = contextRate(course, state, book, context, i, encounter, owned);
+    const more = contextRate(
+      course,
+      state,
+      book,
+      context,
+      i,
+      encounter,
+      owned + 1,
+    );
     return Num.sub(more, now);
   };
 }
@@ -311,9 +606,38 @@ export function totalRate(breakdown: readonly EncounterRate[]): Num {
   return breakdown.reduce((total, e) => Num.add(total, e.rate), Num.from(0));
 }
 
-/** Understanding per second at simulated time `t`, every multiplier included. */
+/**
+ * Understanding per second at simulated time `t`, every multiplier included:
+ * `totalRate(rateBreakdown(...))`, the same lines multiplied and the same
+ * rates added in the same order, kept in the rate book (#297).
+ */
 export function rateAt(course: Course, state: GameState, t: SimMs): Num {
-  return totalRate(rateBreakdown(course, state, t));
+  const book = rateBook(course, state);
+  const context = contextAt(course, state, book, t);
+  const { list } = encountersOf(course);
+  let from = 0;
+  while (
+    from < list.length &&
+    context.counts[from] === ownedCount(state, list[from]?.id ?? '')
+  )
+    from += 1;
+  let total =
+    from === 0 ? Num.from(0) : (context.totals[from - 1] ?? Num.from(0));
+  for (let i = from; i < list.length; i += 1) {
+    const encounter = list[i];
+    if (encounter === undefined) continue;
+    const owned = ownedCount(state, encounter.id);
+    context.counts[i] = owned;
+    if (owned > 0)
+      total = Num.add(
+        total,
+        contextRate(course, state, book, context, i, encounter, owned),
+      );
+    context.totals[i] = total;
+  }
+  return list.length === 0
+    ? Num.from(0)
+    : (context.totals[list.length - 1] ?? Num.from(0));
 }
 
 /**
@@ -377,10 +701,10 @@ export function* segments(
   from: SimMs,
   to: SimMs,
 ): Generator<Segment, void, undefined> {
-  const skew = state.wall - state.sim;
-  const held = heldCards(course, state);
+  const book = rateBook(course, state);
+  const { skew } = book;
   for (let t = from; t < to;) {
-    const edge = nextFestivalEdge(held, t + skew);
+    const edge = edgeAfter(book, t + skew);
     const end = simMs(
       Math.min(
         bucketStart(t) + HOUR_MS,
@@ -407,6 +731,9 @@ function rateMs(course: Course, state: GameState, from: SimMs, to: SimMs): Num {
       `producedBetween: ${String(to)} is before ${String(from)}`,
     );
   }
+  // An empty stretch has no segments: what the loop below would return,
+  // without building them (a Pemandu purchase reads one at its tick, #297).
+  if (to === from) return Num.from(0);
   let total = Num.from(0);
   for (const { start, end, rate } of segments(course, state, from, to)) {
     total = Num.add(total, Num.mul(rate, Num.from(end - start)));

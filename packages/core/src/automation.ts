@@ -21,8 +21,12 @@ import {
   understandingNow,
 } from './production';
 import { regionsReached, route } from './route';
-import type { GameState } from './state';
-import { encounterPrice, upgradeLevel } from './upgrades';
+import { ownedCount, type GameState } from './state';
+import {
+  encounterCostFactor,
+  encounterPriceAt,
+  upgradeLevel,
+} from './upgrades';
 
 /**
  * The route number of the destination Pemandu opens at, or `undefined` when
@@ -62,6 +66,71 @@ function before(a: Candidate, b: Candidate): boolean {
   return a.encounter.id < b.encounter.id;
 }
 
+/** One state's buyable Encounters and the price of one more of each. */
+interface Priced {
+  readonly encounters: readonly Encounter[];
+  readonly prices: readonly Num[];
+  /** The first lowest price, in course order, or none when nothing is buyable. */
+  readonly cheapest: Num | undefined;
+  /** How many of each were owned when priced. */
+  readonly counts: readonly number[];
+  readonly factor: number;
+  readonly reached: number;
+}
+
+/**
+ * Each course's last prices: the next owned object, one purchase on, has
+ * moved one count, so only that Encounter is priced again (#297).
+ */
+const lastPriced = new WeakMap<Course, Priced>();
+
+/**
+ * Each owned-counts object's prices, kept by course, then by the object, with
+ * the other two things a price reads, the cost factor and the regions
+ * reached; only the last is kept per object. A Pemandu purchase and the
+ * search for the next one read the same counts, so they price the
+ * Encounters once (#297). State is never mutated, so an owned object stands
+ * for its contents.
+ */
+const pricedMemo = new WeakMap<Course, WeakMap<GameState['owned'], Priced>>();
+
+function pricedAt(course: Course, state: GameState): Priced {
+  const factor = encounterCostFactor(state);
+  const reached = regionsReached(course, state);
+  let byOwned = pricedMemo.get(course);
+  if (byOwned === undefined) {
+    byOwned = new WeakMap();
+    pricedMemo.set(course, byOwned);
+  }
+  const kept = byOwned.get(state.owned);
+  if (kept !== undefined && kept.factor === factor && kept.reached === reached)
+    return kept;
+  const last = lastPriced.get(course);
+  const same =
+    last !== undefined && last.factor === factor && last.reached === reached
+      ? last
+      : undefined;
+  const encounters =
+    same?.encounters ??
+    course.regions.slice(0, reached).flatMap((region) => region.encounters);
+  const counts = encounters.map((encounter) => ownedCount(state, encounter.id));
+  const prices = encounters.map((encounter, i) => {
+    const owned = counts[i] ?? 0;
+    const known = same?.counts[i] === owned ? same.prices[i] : undefined;
+    return known ?? encounterPriceAt(encounter, owned, 1, factor);
+  });
+  // The first lowest, as a reduce over the prices in order would keep.
+  let cheapest: Num | undefined;
+  for (const price of prices) {
+    if (cheapest === undefined || Num.cmp(price, cheapest) < 0)
+      cheapest = price;
+  }
+  const priced = { encounters, prices, cheapest, counts, factor, reached };
+  byOwned.set(state.owned, priced);
+  lastPriced.set(course, priced);
+  return priced;
+}
+
 /**
  * The Encounter one Pemandu tick buys at the state's simulated time: of
  * those in the regions reached whose next unit the Understanding held pays
@@ -74,14 +143,13 @@ export function bestPayback(
 ): string | undefined {
   const held = understandingNow(course, state);
   const gainOf = rateGain(course, state, state.sim);
+  const { encounters, prices } = pricedAt(course, state);
   let best: Candidate | undefined;
-  for (const region of course.regions.slice(0, regionsReached(course, state))) {
-    for (const encounter of region.encounters) {
-      const price = encounterPrice(state, encounter, 1);
-      if (Num.cmp(price, held) > 0) continue;
-      const candidate = { encounter, price, gain: gainOf(encounter) };
-      if (best === undefined || before(candidate, best)) best = candidate;
-    }
+  for (const [i, encounter] of encounters.entries()) {
+    const price = prices[i];
+    if (price === undefined || Num.cmp(price, held) > 0) continue;
+    const candidate = { encounter, price, gain: gainOf(encounter) };
+    if (best === undefined || before(candidate, best)) best = candidate;
   }
   return best?.encounter.id;
 }
@@ -157,14 +225,7 @@ export function nextPurchaseTick(
   state: GameState,
   until: SimMs,
 ): { readonly next: PurchaseTick | undefined; readonly checks: number } {
-  const prices = course.regions
-    .slice(0, regionsReached(course, state))
-    .flatMap((region) => region.encounters)
-    .map((encounter) => encounterPrice(state, encounter, 1));
-  const cheapest = prices.reduce<Num | undefined>(
-    (low, p) => (low === undefined || Num.cmp(p, low) < 0 ? p : low),
-    undefined,
-  );
+  const { cheapest } = pricedAt(course, state);
   if (cheapest === undefined) return { next: undefined, checks: 0 };
   const every = state.automation.intervalMs;
   const from = state.anchor.sim;

@@ -19,11 +19,19 @@ export interface Stop {
   readonly destination: Destination;
 }
 
+/** Each course's route, worked out once: a course is never mutated (#297). */
+const routeMemo = new WeakMap<Course, readonly Stop[]>();
+
 /** Every destination of the course, numbered region by region in course order. */
 export function route(course: Course): readonly Stop[] {
-  return course.regions.flatMap((region, r) =>
-    region.destinations.map((destination) => ({ region: r, destination })),
-  );
+  let stops = routeMemo.get(course);
+  if (stops === undefined) {
+    stops = course.regions.flatMap((region, r) =>
+      region.destinations.map((destination) => ({ region: r, destination })),
+    );
+    routeMemo.set(course, stops);
+  }
+  return stops;
 }
 
 /**

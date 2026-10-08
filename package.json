@@ -25,6 +25,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "build": "npm run build --workspaces --if-present",
+    "bench:pemandu": "esbuild scripts/bench-pemandu.ts --bundle --platform=node --format=esm --log-level=warning --outfile=node_modules/.cache/yawelo-idle/bench-pemandu.mjs && node node_modules/.cache/yawelo-idle/bench-pemandu.mjs",
     "golden-log": "esbuild scripts/golden-log.ts --bundle --platform=node --format=esm --log-level=warning --outfile=node_modules/.cache/yawelo-idle/golden-log.mjs && node node_modules/.cache/yawelo-idle/golden-log.mjs",
     "notices": "node scripts/third-party-notices.ts",
     "pacing:calibrate": "node scripts/pacing-calibrate.ts",
