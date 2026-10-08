@@ -1,40 +1,40 @@
 # Handover: Yawelo Idle
 
-**Written:** 2026-10-08 15:05 UTC (after #509 and #510).
+**Written:** 2026-10-08 16:15 UTC (after #474, PR #512).
 **Next session:** launch Claude from a **new terminal** in `~/Developer/Repos/yawelo-idle` (see "Node" below). A hook names the session "Yawelo Idle"; type `/color green` once.
 
 ## Progress (global rule: every close-out states both estimates)
 
-From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawelo Idle Stories"` at 15:04 UTC:
+From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawelo Idle Stories"` at 16:14 UTC:
 
-- **By tickets: 22% complete** (72 of 327 in-scope stories closed).
-  - Measured pace: 8.86 a day over 7 days. At that pace: 2026-11-06.
+- **By tickets: 22% complete** (73 of 328 in-scope stories closed).
+  - Measured pace: 9.00 a day over 7 days. At that pace: 2026-11-06.
   - **ETA to release-ready: 2026-12-23 to 2027-02-01** (low to medium confidence).
-- **By effort: 22% complete** (347 of 1,551 points closed).
-  - Measured pace: 40.43 points a day. At that pace: 2026-11-07.
+- **By effort: 23% complete** (355 of 1,549 points closed).
+  - Measured pace: 41.57 points a day. At that pace: 2026-11-06.
   - **ETA to release-ready: 2026-12-19 to 2027-01-29** (low to medium confidence).
 - **Measured:** the counts and the paces. **Assumed:** 4–6 stories (20–30 points) a working day; about 30 unfiled prestige stories (130–180 points, #328, #329); 1.5–2.5 weeks of outside waits.
-- **The release-ready ranges are carried** from 00:21 UTC. This session closed #506 (5 points) and filed nothing: inside the ranges' rounding.
+- **The release-ready ranges are carried** from 00:21 UTC. This session closed #474 (8), re-scored #416 from 8 to 3 and filed #513 (3): inside the ranges' rounding.
 
 ## The order (Shyden: "Cleanup first, every project", 2026-10-08)
 
-1. **Unit tests under 1 s each, cut tests at or under 0.3 s of CPU, no process or outside connection in a unit test:** **#474 next** (packages/core property tests: words, sim, pemandu-tick, log, automation, det-math, num, encounters, golden-vectors, review; remove every `*_TIMEOUT_MS`), then #475 (5), #490, #491, #476, #477 (8). The 12 tests still over 1 s on Node 26 are named in PR #507: #474 owns words, sim, pemandu-tick, det-math; #475 owns bots run, svelte-gates, floorless-searches, literal-floors. Start #474 with a measurement pass (`.superpowers/sdd/477/vitest.reach.config.ts`), at load < 6, on Node 26. Vitest is now 5.0.3 (#510): re-check anything a plan says about Vitest 4.
+1. **Unit tests under 1 s each, cut tests at or under 0.3 s of CPU, no process or outside connection in a unit test:** #474 is done. **#475 next** (5: bots run, svelte-gates, floorless-searches, literal-floors, named in PR #507), then #490, #491, #476, #477 (8). Use #474's tools (`.superpowers/sdd/474/`): `m.zsh <file> [pattern]` (per-test CPU plus recorded floors), `beforeafter.zsh` (develop's tests swapped in from git, then the branch's), `mut.py` and `old.py` (each mutation against the new tests and against develop's). Judge CPU in the full parallel suite, which ran about 1.5x higher than alone.
 2. **#505** (3 points): `floors:record -- --suite <name>`, no browser suites by default. Also remove the recorder's `{ unrecordable }` suite form, unused since #506 (comment on #505).
-3. **#497:** a daily check that dev serves `develop`'s head, and `workflow_dispatch` on deploy-dev. (Both merges this session reached dev normally.)
+3. **#497:** a daily check that dev serves `develop`'s head, and `workflow_dispatch` on deploy-dev. **#513** (3): verify-dev also waits for the Pages adapter's new deployment.
 4. **#432** stays open for its evidence (10 CI runs with `writeFloors` never slow, then `.superpowers/sdd/432/ci/scan.sh`).
 5. **#467** (needs Docker), then #51 → #104 → #102; #110 → #103, #125 → #124 → #128; #464 before the first production release.
 6. **One M1 floor burn-down a session alongside** (#411–#416, #368–#375, #84, #36).
 
-## What this session did (2026-10-08 14:17 to 15:05 UTC)
+## What this session did (2026-10-08 15:19 to 16:15 UTC)
 
-- **#506, PR #509** (`7c24bab`, merged as `5eb0dba`, deployed and verified): the sync Worker tests run on wrangler's own `createTestHarness`, **every case inside workerd** (operator 14:34 UTC: "keep everything running through the same things and be as consistant as you can"). The three cases that need an environment no deploy has go to a test-only wrapper Worker in the same harness (`apps/sync-worker/test/injected-worker.ts`, `wrangler.injected.jsonc`). It wraps the real handler, makes the one change the `x-inject` header names, refuses any other with 400, and returns what the handler logged. A test holds its config equal to `wrangler.jsonc` except for `name` and `main`. 17 cases kept plus 2 (19).
-  - `@cloudflare/vitest-pool-workers` is gone from the package, the tsconfig, the lock and the root `overrides` (only `sharp` is left). Its config is now `vitest.harness.config.ts`, like the other harness suites.
-  - `tests/unit/worker-runtime.test.ts`: new check that the Workers runtime enters the lock only through wrangler. It searches the lock entries naming wrangler or miniflare, floored at 2 (`tests/floors/worker-runtime.json`). It was red first on the pool.
-  - The Dependabot `vitest >=5` ignore is gone; the floor recorder runs the sync Worker harness like the others; spec §12.4 amended.
-  - 17 predicted mutations, 17 matched (`.superpowers/sdd/506/mut.py`). AC6: wrangler moved alone to 4.147.0 in a scratch worktree, with the guard and the suite green and no hand edit. **#506 closed.**
-- **#510 (Dependabot, Vitest 4.1.11 → 5.0.3)** opened minutes after the ignore went. CI was green with **identical totals in every suite** (5,911 / 22 / 19 / 21 / 52 / 12, browser 27 and 12). Merged as `d9a78a3`, deployed and verified (60 of 60 steps; `/health` read by hand).
-- **Floors:** raised by hand three times (the guards' own readings, old figures checked first), because `floors:record` still runs browser suites (#505).
-- **Lesson recorded:** `feedback-session-shell-may-run-node-24`.
+- **#474, PR #512** (head `0ccdbc7`, merged as `8aa0c39`): every packages/core test is under 0.3 s of its own CPU in the full suite. At load 11 to 12 the slowest read 265 ms, against 5,158 ms (words) before. Every `*_TIMEOUT_MS` and both bare `120_000` limits are gone. **#474 closed.**
+  - words, sim, pemandu-tick, log and automation: fewer seeded runs, with what they reach recorded in `tests/floors/core-*.json`. The sanity checks throw once a step instead of making about 30 `expect` calls, and the number of values checked is a floor. sim's splits are aimed at hour edges. pemandu-tick ends half its horizons on a tick (`atUntil`). log runs one property per event type.
+  - det-math (300), num (200) and encounters (280) take fewer random inputs. `pow(1.15, n)` walks its reference by multiplication. Node's review pin reads the first 30,000 vectors, while the engines spec still compares all 100,000.
+  - `packages/core/test/tsconfig.json` (new): the core tests get Node types, because `floorBreach` reads from disk. `src/` and the golden vectors stay ECMAScript-only (a planted `process` is refused in each).
+  - 13 predicted mutations, 13 matched. Run against develop's tests too: nothing the old tests caught is lost.
+  - This converted 6 of #416's scopes (13 sites) ahead of #411. #416 is re-scored to 3, and #411 has a note that it must re-record these floors at its global seed.
+- **Dev:** deploy succeeded, but verify-dev failed once: `robots.txt` read 404 14 s after the Pages adapter deployed. Read by hand: `/health` reports commit `8aa0c39` with `db: ok`, the gate answers 401, and `robots.txt` answers 200. **#513 filed** (3 points) instead of a re-run.
+- **Lesson recorded:** `feedback-cut-properties-against-old-tests`.
 
 ## Waiting on Shyden
 
@@ -49,11 +49,12 @@ From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawel
 
 ## State
 
-- **`develop`** is at `d9a78a3` (read with `git rev-parse origin/develop` when written), deployed and verified on dev (run 37796585304). This handover's PR follows it.
+- **`develop`** is at `8aa0c39` (read with `git rev-parse` when written). Deployed to dev, but its verify job failed on the #513 race (dev checked by hand, see above). This handover's PR follows it.
 - **Open PRs:** #438 (#341, behind develop); this handover's PR. No Dependabot PRs open.
-- **Node:** CI runs 26.11.1; the laptop has 26.10.0 at `/opt/homebrew/opt/node/bin` (see "Waiting on Shyden" 1). The main checkout's `node_modules` came from `npm install` on Node 24 this session (the lock does not depend on it); run `npm ci` on 26 before benchmarking.
+- **Node:** CI runs 26.11.1; the laptop has 26.10.0 at `/opt/homebrew/opt/node/bin` (see "Waiting on Shyden" 1). The main checkout's `node_modules` came from `npm ci` on Node 26 this session. This session's shell was again Node 24 first in PATH, so every Node command was prefixed with Node 26.
 - **Worktrees:** `../yawelo-idle-develop-bench` (detached at `9566388`; re-run `npm ci` on Node 26 before using it), `../yawelo-idle-297-before` (`c84cf07`, the pre-#297 baseline), and `../yawelo-idle-297`, `-341`, `-341-gate`, `-348`, `-348-red`, `-35` from earlier sessions. This session's scratch worktree was removed.
 - **Session tools (git-ignored):**
+  - `.superpowers/sdd/474/`: `m.zsh`, `beforeafter.zsh`, `compare.py`, `mut.py` (13 mutations), `old.py`, `prof.py` + `vitest.prof.config.ts` (a CPU profile per test), `write-floors.py` (writes the core floor files from a `FLOORS_RECORD` file).
   - `.superpowers/sdd/506/`: `mut.py` (17 mutations with predictions, refuses a moved total), `raise.py <unit log>` (raises each grown floor to its guard's reading, after checking the old figure), `probe.ts` (harness vs `getPlatformProxy` timings), PR and closing texts.
   - `.superpowers/sdd/477/`: `reach.setup.ts` + `vitest.reach.config.ts` (per test: process starts, socket connects, CPU and wall to `MEASURE_OUT`).
   - `.superpowers/sdd/501/measure.zsh` (per-test CPU on Node 26 then 24).
@@ -64,7 +65,7 @@ From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawel
 
 1. **Run `ListAgents` first,** then `node -v`: if it is not 26, prefix Node commands with `export PATH=/opt/homebrew/opt/node/bin:$PATH;`.
 2. **Read the state of every ticket named below from GitHub before working on it** (`gh issue view N --json state`).
-3. **#474:** move it to In Progress; `npm ci` on Node 26; measure every packages/core test's CPU and wall with `.superpowers/sdd/477/vitest.reach.config.ts` at load < 6; write the plan (which property, what smaller input still covers, its reached-counter); then tests first. Then #475, #490, #491, #476, #477.
+3. **#475:** move it to In Progress; measure with `.superpowers/sdd/474/m.zsh`, profile with `prof.py`, plan the cuts, then write the tests first. Then #490, #491, #476, #477. **#513** can go between them.
 4. **After any merge,** read the merge SHA and select its deploy-dev run by that SHA (a Monitor until-loop while it appears); if none appears in 10 minutes, it is #497 again: comment there, and the next merge carries it.
 5. **One test run at a time from this session.** Benchmark only at load < 6 (Monitor until-loop on `sysctl -n vm.loadavg`), and judge on CPU, not wall.
-6. **At close-out,** run the progress script, state both estimates, and check the closed stories against "Website follows the game" (this session's were tooling only: nothing for players to see). Settle the handover as one commit.
+6. **At close-out,** run the progress script, state both estimates, and check the closed stories against "Website follows the game" (this session's, #474, was test speed only: nothing for players to see). Settle the handover as one commit.
