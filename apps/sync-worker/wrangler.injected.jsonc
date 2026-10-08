@@ -1,0 +1,22 @@
+// TEST ONLY (#506), never deployed: the sync Worker wrapped by
+// test/injected-worker.ts, which changes one thing in its environment per
+// request (a commit, a D1 that throws) inside workerd. Everything but `name`
+// and `main` must equal wrangler.jsonc: test/health.test.ts refuses any drift.
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "yawelo-idle-sync-injected",
+  "main": "test/injected-worker.ts",
+  "compatibility_date": "2026-09-30",
+  "workers_dev": true,
+  "preview_urls": false,
+  "vars": {
+    "COMMIT": "local",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "yawelo-idle-dev",
+      "migrations_dir": "migrations",
+    },
+  ],
+}

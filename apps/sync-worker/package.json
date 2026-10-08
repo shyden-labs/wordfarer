@@ -4,12 +4,9 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run -c vitest.harness.config.ts",
     "types": "wrangler types --strict-vars=false",
     "typecheck": "tsc --noEmit"
-  },
-  "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.22.0"
   },
   "dependencies": {
     "@yawelo-idle/lockdown": "*"

@@ -59,10 +59,6 @@
     "workerd": true
   },
   "overrides": {
-    "@cloudflare/vitest-pool-workers": {
-      "wrangler": "$wrangler",
-      "miniflare": "5.20261006.0-alpha"
-    },
     "sharp": "0.35.5"
   }
 }

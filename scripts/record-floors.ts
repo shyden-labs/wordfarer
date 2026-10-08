@@ -17,12 +17,11 @@
  *   longer exists (or a suite that did not reach it);
  * - one id was asserted from two places, or read two values: two guards
  *   sharing a figure would let either go blind behind the other;
- * - a file calling `floorBreach` belongs to no suite the recorder can run
- *   (the sync Worker's suite runs inside workerd, which has no file system);
+ * - a file calling `floorBreach` belongs to no suite the recorder can run;
  * - any suite failed or did not start.
  *
  * Yawelo Idle runs eight suites, and the root unit suite skips the others
- * (pacing, the game, site and dev-hosts harnesses, the sync Worker, the
+ * (pacing, the game, site, dev-hosts and sync Worker harnesses, the
  * engines, the web smoke suite), so each suite is
  * asked for its own file list rather than the recorder copying their globs.
  *
@@ -242,15 +241,11 @@ export const SUITES: readonly Suite[] = [
     run: ['npm', 'run', 'test'],
   },
   {
-    name: 'sync Worker suite',
+    name: 'sync Worker harness',
     cwd: 'apps/sync-worker',
-    list: VITEST_LIST,
+    list: [...VITEST_LIST, '-c', 'vitest.harness.config.ts'],
     files: vitestListed,
-    run: {
-      unrecordable:
-        'it runs inside workerd, which has no file system for floorBreach ' +
-        'to record to',
-    },
+    run: ['npm', 'run', 'test'],
   },
   {
     name: 'engines suite',
