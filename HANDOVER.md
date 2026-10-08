@@ -1,11 +1,11 @@
 # Handover: Yawelo Idle
 
-**Written:** 2026-10-08 09:45 UTC (after #496).
+**Written:** 2026-10-08 10:20 UTC (after #496 and #498).
 **Next session:** launch Claude from `~/Developer/Repos/yawelo-idle`. A hook names the session "Yawelo Idle"; type `/color green` once.
 
 ## Progress (global rule: every close-out states both estimates)
 
-From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawelo Idle Stories"` at 09:43 UTC (#297 still open then; it adds 1 story and 8 points when closed):
+From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawelo Idle Stories"` at 10:17 UTC (#297 counted: it had been shut since 02:30 UTC, see below):
 
 - **By tickets: 21% complete** (69 of 323 in-scope stories closed).
   - Measured pace: 8.43 a day over 7 days (14, 8, 2, 15, 10, 6, 4). At that pace: 2026-11-08.
@@ -19,7 +19,7 @@ From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawel
 ## The order (Shyden: "Cleanup first, every project", 2026-10-08)
 
 1. **Unit tests under 1 s each, cut tests at or under 0.3 s of CPU, and no process or outside connection in a unit test** (global; at the top until #477 lands):
-   - **#297: close it once dev serves `7c191cd` or later** (resume step 2). AC3 is met (operator 09:40 UTC: "Met: close #297").
+   - **#297 is done:** AC3 met (operator decision 09:40 UTC), deployed to dev by deploy-dev run 37759252087 (42 steps, 0 skipped), board Done.
    - **Then #474, #475 (now 5), #490, #491, #476, #477 (now 8).** #490 moves the script and git-behaviour tests to an integration suite; #491 reads git's index in-process (operator 07:18 UTC: "Read git's index in-process"); #477 gained AC7, the unit setup refusing every process entry point and outside connection.
 2. **#497** (new, 3 points): a daily check that dev serves `develop`'s head, and `workflow_dispatch` on deploy-dev.
 3. **#432 stays open for its evidence:** 10 CI runs with `writeFloors` never slow, then `.superpowers/sdd/432/ci/scan.sh`.
@@ -36,8 +36,9 @@ From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawel
   - **measured 11.5x on the fastest runs (6.16 vs 70.70 µs), 9.7x at p25, 9.4x at the median** (single-process alternation, 150 rounds, load about 7). Whole-process `bench:pemandu` medians swing 10–25 µs back to back even at load 3, so a quiet AC1-style median was not obtainable;
   - **CI guard:** `pemandu-perf.test.ts`, the fastest of six fresh catch-ups under **40 µs of this thread's CPU** a purchase (operator: "Generous CI ceiling", then "40 µs in the runner"). Inside vitest the code runs about 2.5x slower than bundled, and process CPU counts V8's helper threads; seen red on the old code at 114.95 µs;
   - two new `rate-memo` key-part cases (gain at a milestone; counts whose course places move); **23 key-part mutations matched and 7 wider ones went red** on the final commit.
-- **GitHub dropped #496's push event:** no workflow and 0 check-runs on `7c191cd` an hour after the merge (same App identity as #488 and #489, which deployed; githubstatus all operational). Filed **#497**. This handover's merge deploys `develop`'s head, #496 included.
-- **Lesson recorded:** `feedback-worktree-install-starts-spotlight` (an `npm ci` in a new worktree sent the load from 11 to 30).
+- **GitHub dropped #496's push event:** no workflow and 0 check-runs on `7c191cd` an hour after the merge (same App identity as #488 and #489, which deployed; githubstatus all operational). Filed **#497**. The first handover's merge (#498, `50c6a26`) carried #496 to dev: deploy-dev run 37759252087, 42 steps, 0 skipped, verify serving `50c6a26`.
+- **#297 had been shut since 02:30 UTC** by PR #485, whose body said "does not" plus the closing keyword and #297; the last handover called it open and I did not re-read it. My handover PR #498 then quoted the operator's answer containing the same keyword and number. **Built `~/.claude/hooks/no-closing-keywords.py`** (operator 10:01 UTC: "Build it, every project"): it refuses close/fix/resolve before an issue reference in `git commit` and `gh pr create/edit/merge` texts and named body files. 28 cases, 8 mutations matched, registered in `~/.claude/settings.json` (backup `settings.json.bak-closing-hook-2026-10-08`) and seen refusing live; the global rule names it.
+- **Lessons recorded:** `feedback-worktree-install-starts-spotlight` (an `npm ci` in a new worktree sent the load from 11 to 30); `feedback-reread-ticket-state-at-resume`.
 
 ## Waiting on Shyden
 
@@ -66,7 +67,7 @@ From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawel
 ## Resume steps
 
 1. **Run `ListAgents` first.**
-2. **Close #297** once deploy-dev for this handover's merge (or any later develop commit) has run and verify-dev passed on a commit containing `7c191cd`. Read the run's steps by name first. If no run started again, the push was dropped again: note it on #497 and say so to Shyden (deploy-dev has no manual trigger until #497).
+2. **Read the state of every ticket named below from GitHub before working on it** (`gh issue view N --json state`): this session worked on #297 for hours as open when it had been shut at 02:30 UTC.
 3. **Then #474** (core property tests under 1 s, at or under 0.3 s of CPU), **#475, #490, #491, #476, #477** in that order. Measure with `.superpowers/sdd/477/vitest.reach.config.ts`.
 4. **One test run at a time from this session**, whatever its class or worktree. **Benchmark only at load < 6** (Monitor until-loop on `sysctl -n vm.loadavg`), and prefer the alternation harness over whole-process medians.
 5. **At close-out,** run the progress script, state both estimates, and check the closed stories against "Website follows the game" (today's work is test and performance only: nothing for players to see). Settle the handover as one commit.
