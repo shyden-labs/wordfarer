@@ -15,6 +15,12 @@ import {
   pemanduIntervalsMs,
   upgradeCatalogue,
 } from '../src/upgrades';
+import {
+  judgeShopAlong,
+  shopCounts,
+  type ShopCount,
+  type ShopKind,
+} from './shop-agreement';
 import { BOT_EPOCH_WALL_MS, syntheticCourse } from './synthetic-course';
 
 /**
@@ -79,6 +85,8 @@ export interface PlayerStart {
  * One day of the golden play (#473): the policy as the day began, the index
  * of the day's first event in the log, and the day's events the rules
  * accepted, by type, and refused, by kind, as the play itself counted them.
+ * `shop` is the day's shop offers judged against `apply` (#479): how many of
+ * each kind it accepted and refused.
  */
 export interface GoldenDay {
   readonly day: number;
@@ -86,6 +94,7 @@ export interface GoldenDay {
   readonly start: PlayerStart;
   readonly accepted: Readonly<Record<string, number>>;
   readonly refused: Readonly<Record<string, number>>;
+  readonly shop: Readonly<Record<ShopKind, ShopCount>>;
 }
 
 /** What one day played again from its recorded start sends, and where it ends. */
@@ -448,7 +457,10 @@ export function playGolden(
     const start = player.start();
     const from = player.events.length;
     playDay(player, day);
-    played.push({ day, from, start, ...player.takeCounts() });
+    const counts = player.takeCounts();
+    const sent = player.events.slice(from);
+    const shop = shopCounts(judgeShopAlong(course, start.state, sent));
+    played.push({ day, from, start, ...counts, shop });
   }
   return { initial, events: player.events, live: player.state, days: played };
 }
