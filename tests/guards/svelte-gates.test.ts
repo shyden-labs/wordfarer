@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { ESLint, type Linter } from 'eslint';
 import { parse } from 'jsonc-parser';
 import { floorBreach } from '../floors';
-import { committableFiles } from './tracked-files';
+import { committableFiles } from '../unit/tracked-files';
 
 /**
  * The Svelte gates (#123 AC2): a deliberate unused variable in a `.svelte`
@@ -16,6 +16,11 @@ import { committableFiles } from './tracked-files';
  * project service accepts (a path not on disk is a parsing error, measured
  * while planning #123), and one test per component proves each workspace's
  * config reaches its own components.
+ *
+ * In the guards suite (#475): loading the repo's ESLint config costs about
+ * 950 ms of CPU and the first typed lint 580 ms more (measured alone), the
+ * toolchain's start-up rather than this test's work (operator, 2026-10-08:
+ * "Guards suite").
  *
  * svelte-check: every workspace holding a component typechecks with
  * `svelte-check --fail-on-warnings` and a tsconfig that reports unused
@@ -36,11 +41,6 @@ const workspaceOf = (path: string): string =>
 
 const PLANTED =
   '<script lang="ts">\n  const unused = 1;\n</script>\n\n<p>x</p>\n';
-
-// Typed linting loads the project service on the first lint: 6.2 s measured
-// while planning #123, past vitest's 5 s default, so each case has its own
-// budget rather than a warm-up whose failure would only skip the cases.
-const LINT_TIMEOUT_MS = 60_000;
 
 const eslint = new ESLint();
 
@@ -91,7 +91,6 @@ describe('the Svelte gates (#123 AC2)', () => {
         fatal: undefined,
       });
     },
-    LINT_TIMEOUT_MS,
   );
 
   it.each(WORKSPACES)(
