@@ -1,4 +1,4 @@
-import { sep } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 
 /**
  * The rules tests/unit/setup.ts enforces on every unit test (#477), kept
@@ -39,6 +39,13 @@ export const REFUSED = [
   'fs.globSync',
   'fs.glob',
   'fs.promises.glob',
+  'fs.readFileSync',
+  'fs.readFile',
+  'fs.promises.readFile',
+  'fs.openSync',
+  'fs.open',
+  'fs.promises.open',
+  'fs.createReadStream',
 ];
 
 /**
@@ -67,6 +74,44 @@ export const walkProblem = (test: string, dirs: readonly string[]): string =>
 
 export const recursiveProblem = (test: string, dir: string): string =>
   `${test}: lists ${dir} recursively; ${WALKS}`;
+
+/**
+ * Reading 20 or more of the checkout's files is a whole-tree read too (#515's
+ * measure, #530), whatever route found their names; so is any read of git's
+ * own record of the tree (`.git/index` and the rest of the git directory),
+ * except inside `isIgnored`, which reads it to answer one path.
+ */
+export const READ_LIMIT = 20;
+
+/** The parts of `fs` gitDirsOf reads, so a test can hand it a stand-in. */
+export interface GitDirReader {
+  existsSync(path: string): boolean;
+  statSync(path: string): { isDirectory(): boolean };
+  readFileSync(path: string, encoding: 'utf8'): string;
+}
+
+/**
+ * Every directory holding git's record of the tree for the checkout whose
+ * `.git` is `dot`: `.git` itself, and in a worktree, where `.git` is a file,
+ * the directory its `gitdir:` line names (relative to the file) and that
+ * one's `commondir`, the main repository's git directory.
+ */
+export const gitDirsOf = (dot: string, fs: GitDirReader): string[] => {
+  if (!fs.existsSync(dot) || fs.statSync(dot).isDirectory()) return [dot];
+  const named = /^gitdir: (.+)$/m.exec(fs.readFileSync(dot, 'utf8'));
+  if (named?.[1] === undefined) return [dot];
+  const gitdir = resolve(dirname(dot), named[1].trim());
+  const common = join(gitdir, 'commondir');
+  return fs.existsSync(common)
+    ? [dot, gitdir, resolve(gitdir, fs.readFileSync(common, 'utf8').trim())]
+    : [dot, gitdir];
+};
+
+export const gitProblem = (test: string, path: string): string =>
+  `${test}: reads ${path}, git’s own record of the tree; ${BELONGS}`;
+
+export const readProblem = (test: string, files: number): string =>
+  `${test}: reads ${String(files)} of the checkout’s files; ${BELONGS}`;
 
 export interface Target {
   host?: string;

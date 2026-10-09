@@ -19,3 +19,19 @@ export const refuseWholeTree = (reader: string, root: string): void => {
   if (insideCheckout(resolve(root), process.cwd()))
     throw new Error(treeProblem(asking(), reader));
 };
+
+// `isIgnored` reads git's own record of the tree to answer one path, which
+// #530 allows: the setup lets the git directory be read while one runs.
+let lookups = 0;
+
+/** Runs `read` as an ignore lookup, whose reads of the git directory are allowed. */
+export const asIgnoreLookup = <T>(read: () => T): T => {
+  lookups += 1;
+  try {
+    return read();
+  } finally {
+    lookups -= 1;
+  }
+};
+
+export const inIgnoreLookup = (): boolean => lookups > 0;

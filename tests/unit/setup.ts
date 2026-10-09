@@ -4,13 +4,17 @@ import type net from 'node:net';
 import { relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, vi } from 'vitest';
-import { asking } from './setup-refuse';
+import { asking, inIgnoreLookup } from './setup-refuse';
 import {
   connectProblem,
   cpuProblem,
   FLOORS_DIR,
+  gitDirsOf,
+  gitProblem,
   insideCheckout,
   processProblem,
+  READ_LIMIT,
+  readProblem,
   recursiveProblem,
   REFUSED_PROCESS,
   targetOf,
@@ -86,7 +90,7 @@ netModule.Socket.prototype.connect = function checked(
 // outside the checkout passes through.
 vi.mock('./tracked-files', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./tracked-files')>();
-  const { refuseWholeTree } = await import('./setup-refuse');
+  const { asIgnoreLookup, refuseWholeTree } = await import('./setup-refuse');
   return {
     ...actual,
     committableFiles: (pathspecs: readonly string[] = [], cwd = '.') => {
@@ -97,6 +101,8 @@ vi.mock('./tracked-files', async (importOriginal) => {
       refuseWholeTree('ignoredPaths', root);
       return actual.ignoredPaths(root);
     },
+    isIgnored: (path: string, root = '.') =>
+      asIgnoreLookup(() => actual.isIgnored(path, root)),
   };
 });
 vi.mock('./old-name', async (importOriginal) => {
@@ -117,15 +123,20 @@ const fsModule = require('node:fs') as typeof fs;
 const CHECKOUT = resolve('.');
 const FLOORS = resolve(FLOORS_DIR);
 const listed = new Set<string>();
-const inside = (dir: unknown): string | null => {
+/** The absolute path a path argument names, or null for a descriptor. */
+const fullPath = (given: unknown): string | null => {
   const path =
-    dir instanceof URL
-      ? fileURLToPath(dir)
-      : typeof dir === 'string' || Buffer.isBuffer(dir)
-        ? String(dir)
+    given instanceof URL
+      ? fileURLToPath(given)
+      : typeof given === 'string' || Buffer.isBuffer(given)
+        ? String(given)
         : null;
-  if (path === null) return null;
-  const full = resolve(path);
+  return path === null ? null : resolve(path);
+};
+/** `dir` relative to the checkout when a walk there counts, or null. */
+const inside = (dir: unknown): string | null => {
+  const full = fullPath(dir);
+  if (full === null) return null;
   if (!insideCheckout(full, CHECKOUT) || insideCheckout(full, FLOORS))
     return null;
   return relative(CHECKOUT, full) || '.';
@@ -184,9 +195,50 @@ for (const name of ['globSync', 'glob']) wrap(fsModule, name, byGlob);
 for (const name of ['readdir', 'opendir'])
   wrap(fsModule.promises, name, byPath, true);
 wrap(fsModule.promises, 'glob', byGlob);
+
+// Reads (#530): any file of git's own record of the tree outside an ignore
+// lookup, and a twentieth distinct file of the checkout, by any route. The
+// git directories are found before anything is patched: in a worktree `.git`
+// is a file naming one outside the checkout, and that one's `commondir`.
+const GIT_DIRS = gitDirsOf(resolve('.git'), fsModule);
+const readFiles = new Set<string>();
+const byRead: Check = (args) => {
+  if (inIgnoreLookup()) return null;
+  const full = fullPath(args[0]);
+  if (full === null) return null;
+  if (GIT_DIRS.some((dir) => insideCheckout(full, dir)))
+    return gitProblem(asking(), relative(CHECKOUT, full));
+  if (!insideCheckout(full, CHECKOUT) || insideCheckout(full, FLOORS))
+    return null;
+  // Node's own module loader reads every file a require loads through this
+  // fs (wrangler pulls in undici's 20 and more at collection): a dependency
+  // being loaded, not files a test reads. Only under node_modules: the tree's
+  // own modules reach a unit test through Vitest, so a require of the tree's
+  // files counts like any other read.
+  if (
+    /(^|\/)node_modules\//.test(relative(CHECKOUT, full)) &&
+    (new Error().stack ?? '').includes('node:internal/modules/')
+  )
+    return null;
+  readFiles.add(full);
+  return readFiles.size >= READ_LIMIT
+    ? readProblem(asking(), readFiles.size)
+    : null;
+};
+for (const name of [
+  'readFileSync',
+  'readFile',
+  'openSync',
+  'open',
+  'createReadStream',
+])
+  wrap(fsModule, name, byRead);
+for (const name of ['readFile', 'open'])
+  wrap(fsModule.promises, name, byRead, true);
 syncBuiltinESMExports();
 beforeEach(() => {
   listed.clear();
+  readFiles.clear();
 });
 
 let started = process.threadCpuUsage();
