@@ -1,11 +1,10 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { floorBreach } from '../floors';
 import { searched } from '../searched';
 import { grepLines } from './grep';
 import { LINE_HOME, lineOf, lineReadersIn } from './line-of';
-import { committableFiles } from './tracked-files';
 
 /**
  * Guards name the line an editor, `git grep -n` and GitHub show (#417).
@@ -135,27 +134,5 @@ describe('no guard asks TypeScript for a line outside the one home (#417 AC1)', 
       accesses,
       readers: [],
     });
-  });
-
-  it('finds none in any TypeScript file git has', () => {
-    const files = committableFiles(['*.ts', '*.mts', '*.cts', '*.tsx']).filter(
-      (path) => existsSync(path),
-    );
-    const readings = files
-      .filter((path) => path !== LINE_HOME)
-      .map((path) => lineReadersIn(parse(path, readFileSync(path, 'utf8'))));
-    const findings = readings.flatMap(({ readers }) => readers);
-    expect(
-      searched(findings, { of: files, what: 'TypeScript files git has' }),
-    ).toEqual([]);
-    expect(
-      floorBreach('line-of/typescript-files', files.length),
-    ).toBeUndefined();
-    // Liveness: a reader blind to member access would read none.
-    const accesses = readings.reduce(
-      (sum, reading) => sum + reading.accesses,
-      0,
-    );
-    expect(floorBreach('line-of/accesses', accesses)).toBeUndefined();
   });
 });

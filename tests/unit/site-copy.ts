@@ -1,11 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import ts from 'typescript';
 import {
   CopyLine,
   type Figure,
   type Source,
 } from '../../apps/site/src/copy-line';
-import { committableFiles } from './tracked-files';
+import { isIgnored } from './tracked-files';
 
 /**
  * Readers for `site-copy.test.ts` (#334): the walk over the site's copy and
@@ -74,18 +74,22 @@ export interface SpecDocs {
   readonly parent: string;
   /** The website design spec's text. */
   readonly site: string;
-  /** Every path git tracks or would track. */
-  readonly files: ReadonlySet<string>;
+  /** Whether git tracks or would track a path: one path at a time, so no test reads the whole tree's list (#515). */
+  readonly files: { has(path: string): boolean };
 }
 
 const PARENT = 'docs/superpowers/specs/2026-10-01-yawelo-idle-design.md';
 const SITE = 'docs/superpowers/specs/2026-10-04-website-design.md';
 
+/** Whether `path` names a file on disk; a directory or nothing is not one. */
+const isFile = (path: string): boolean =>
+  statSync(path, { throwIfNoEntry: false })?.isFile() ?? false;
+
 export function readSpecDocs(): SpecDocs {
   return {
     parent: readFileSync(PARENT, 'utf8'),
     site: readFileSync(SITE, 'utf8'),
-    files: new Set(committableFiles()),
+    files: { has: (path) => isFile(path) && !isIgnored(path) },
   };
 }
 

@@ -113,6 +113,11 @@ describe('resolves', () => {
     ['#9999', false],
     ['file:TRADEMARKS.md', true],
     ['file:NOT-A-FILE.md', false],
+    // What git would commit, looked up one path at a time (#515): a file
+    // below the root, never a directory, never a file git ignores.
+    ['file:docs/superpowers/specs/2026-10-04-website-design.md', true],
+    ['file:docs', false],
+    ['file:node_modules/typescript/package.json', false],
     ['parent 3.4' as Source, false],
   ])('%s resolves: %s', (source, expected) => {
     expect(resolves(source, readSpecDocs())).toBe(expected);

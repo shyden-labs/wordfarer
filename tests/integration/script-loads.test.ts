@@ -23,7 +23,7 @@ const hasMain = (path: string) =>
 
 /**
  * Written out so each script gets its own test without running workspace code
- * at collection (tests/unit/collection-calls.test.ts). The first test derives
+ * at collection (tests/guards/collection-calls.test.ts). The first test derives
  * the population from git twice and fails on any difference, either way.
  */
 const SCRIPTS = [

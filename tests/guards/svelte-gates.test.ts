@@ -29,7 +29,7 @@ import { committableFiles } from '../unit/tracked-files';
 
 /**
  * Written out, so each component gets its own test without running workspace
- * code at collection (tests/unit/collection-calls.test.ts). The first test
+ * code at collection (tests/guards/collection-calls.test.ts). The first test
  * derives both lists from git and fails on any difference, either way.
  */
 const COMPONENTS = ['packages/ui/src/Shell.svelte'] as const;
