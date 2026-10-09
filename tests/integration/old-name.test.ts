@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
@@ -12,7 +12,10 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { walkTree } from '../unit/old-name';
+import { floorBreach } from '../floors';
+import { searched } from '../searched';
+import { grepCounts, OLD, walkTree } from '../unit/old-name';
+import { committableFiles } from '../unit/tracked-files';
 
 /**
  * walkTree (#432) on fixture repositories, moved out of the unit suite by
@@ -62,8 +65,33 @@ const nestedRepository = (depth: number): string => {
   return root;
 };
 
+/**
+ * Lines naming the old name per file, as `git grep` counts them over tracked
+ * and committable untracked files: git's own count, which `grepCounts`
+ * makes in-process for the unit suite (#491).
+ */
+function gitGrepCounts(root = '.'): Map<string, number> {
+  const run = spawnSync(
+    'git',
+    ['grep', '--untracked', '-i', '-F', '-c', '-z', '-e', OLD],
+    { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+  );
+  // 0: matches, 1: none; anything else is a failure, refused.
+  if (run.status !== 0 && run.status !== 1)
+    throw new Error(`git grep failed: ${run.stderr}`);
+  const counts = new Map<string, number>();
+  for (const line of run.stdout.split('\n')) {
+    if (line === '') continue;
+    const [path, count] = line.split('\0');
+    if (path === undefined || count === undefined || !/^\d+$/.test(count))
+      throw new Error(`cannot read git grep's line: ${JSON.stringify(line)}`);
+    counts.set(path, Number(count));
+  }
+  return counts;
+}
+
 describe('walkTree (#432)', () => {
-  it('spawns git once, however many directories it walks', () => {
+  it('starts no git, however many directories it walks (#491)', () => {
     const root = nestedRepository(12);
     const git = countingGit();
     const path = process.env['PATH'];
@@ -76,7 +104,7 @@ describe('walkTree (#432)', () => {
     }
     const runs = git.runs();
     rmSync(git.dir, { recursive: true, force: true });
-    expect(runs).toBe(1);
+    expect(runs).toBe(0);
   });
 
   it('leaves out an ignored directory whole and an ignored file, and keeps the rest', () => {
@@ -98,5 +126,26 @@ describe('walkTree (#432)', () => {
       chmodSync(ignored, 0o755);
       rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe('grepCounts against git grep (#491)', () => {
+  it('counts as many lines naming the old name in each file as git grep does', () => {
+    const grep = gitGrepCounts();
+    const counted = grepCounts(committableFiles());
+    const named = [...new Set([...grep.keys(), ...counted.keys()])].sort();
+    const misread = named
+      .filter((path) => grep.get(path) !== counted.get(path))
+      .map(
+        (path) =>
+          `${path}: git grep counts ${String(grep.get(path) ?? 0)}, grepCounts ${String(counted.get(path) ?? 0)}`,
+      );
+    expect(
+      searched(misread, { of: named, what: 'files naming the old name' }),
+      misread.join('\n'),
+    ).toEqual([]);
+    expect(
+      floorBreach('old-name/git-grep-files', named.length),
+    ).toBeUndefined();
   });
 });

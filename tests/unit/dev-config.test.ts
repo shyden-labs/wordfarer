@@ -1,9 +1,9 @@
-import { spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { unstable_readConfig } from 'wrangler';
 import { parse } from 'yaml';
+import { isIgnored } from './tracked-files';
 import { runOf } from './workflow-steps';
 import { floorBreach } from '../floors';
 import { searched } from '../searched';
@@ -315,10 +315,10 @@ describe('the dev D1 database, created by the pipeline (#357 AC1)', () => {
   });
 
   it('keeps the generated deploy config, which holds the id, out of git (#391)', () => {
-    const ignored = (path: string) =>
-      spawnSync('git', ['check-ignore', '--quiet', path], { cwd: ROOT }).status;
-    expect(ignored(`apps/sync-worker/${DEPLOY_CONFIG}`)).toBe(0);
-    expect(ignored('apps/sync-worker/wrangler.jsonc')).toBe(1);
+    // As git check-ignore answers, read in-process (#491); the same answers
+    // from git itself are compared in tests/integration/tracked-files.test.ts.
+    expect(isIgnored(`apps/sync-worker/${DEPLOY_CONFIG}`, ROOT)).toBe(true);
+    expect(isIgnored('apps/sync-worker/wrangler.jsonc', ROOT)).toBe(false);
   });
 });
 
