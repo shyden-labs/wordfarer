@@ -75,7 +75,7 @@ export const UNPROVED: Readonly<Record<string, number>> = {
   'packages/lockdown/test/lockdown.test.ts › serves blocking robots.txt on a non-prod host without credentials': 1,
   'tests/unit/burn-down.test.ts › ignores entries left over once their items are taken': 1,
   'tests/unit/burn-down.test.ts › leaves nothing when every item is matched': 1,
-  'tests/unit/ci-scope.test.ts › a commit changing nothing is full (an empty diff)': 1,
+  'tests/integration/ci-scope.test.ts › a commit changing nothing is full (an empty diff)': 1,
   'tests/unit/ci-scope.test.ts › is full for a mix with the code path first, judging both': 1,
   'tests/unit/ci-scope.test.ts › is full for an empty diff, saying there was nothing to judge': 1,
   'tests/unit/ci-scope.test.ts › reads an empty diff as no changes': 1,

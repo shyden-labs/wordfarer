@@ -1,4 +1,3 @@
-import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdtempSync,
@@ -558,41 +557,7 @@ describe('planRecord', () => {
   });
 });
 
-/** A suite's files as it lists them; a list that fails is thrown, by name. */
-const listedBy = (each: Suite): string[] => {
-  const [command, ...args] = each.list as [string, ...string[]];
-  const listed = spawnSync(command, args, { cwd: each.cwd, encoding: 'utf8' });
-  const refusal = runRefusal(`${each.name}'s file list`, listed);
-  if (refusal !== undefined) throw new Error(refusal);
-  return suiteFiles(each, listed.stdout);
-};
-
 describe('the recorder over this repository', () => {
-  it('finds every test file git has in exactly one suite it knows', () => {
-    // Each suite lists its own files, so a suite added to package.json and
-    // not here, or a config whose include moved, shows as a file in none.
-    const membership = new Map(
-      SUITES.map((each) => [each.name, listedBy(each)] as const),
-    );
-    const testFiles = committableFiles().filter((file) =>
-      /\.(test|spec)\.ts$/.test(file),
-    );
-    const homeless = testFiles
-      .map((file) => ({
-        file,
-        suites: SUITES.filter(({ name }) =>
-          (membership.get(name) ?? []).includes(file),
-        ).map(({ name }) => name),
-      }))
-      .filter(({ suites }) => suites.length !== 1);
-    expect(
-      searched(homeless, { of: testFiles, what: 'test files git has' }),
-    ).toEqual([]);
-    expect(
-      floorBreach('record-floors/test-files', testFiles.length),
-    ).toBeUndefined();
-  }, 120_000);
-
   it('reads every TypeScript file git has, refuses none, and misses no file whose code names floorBreach (#448)', () => {
     const files = committableFiles([...TYPESCRIPT_FILES]).filter((path) =>
       existsSync(path),

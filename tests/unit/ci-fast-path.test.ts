@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 
@@ -166,44 +165,12 @@ describe('deploy-dev always tests in full (#360 AC3)', () => {
   });
 });
 
-describe('the default-branch step (#460 AC2)', () => {
+describe('the default-branch step (#460 AC2; its shell runs in tests/integration/ci-fast-path.test.ts)', () => {
   const step = () =>
     steps().find((s) => idOf(s) === 'The default branch is develop') ?? {};
-  /** The step's shell, run as Actions runs it: bash with -e. */
-  const run = (branch: string) => {
-    const script = step().run;
-    if (typeof script !== 'string') throw new Error('the step has no run');
-    try {
-      const stdout = execFileSync('bash', ['-e', '-c', script], {
-        encoding: 'utf8',
-        env: { PATH: process.env.PATH, DEFAULT_BRANCH: branch },
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-      return { status: 0, stdout };
-    } catch (error) {
-      const failed = error as { status: number; stdout: string };
-      return { status: failed.status, stdout: failed.stdout };
-    }
-  };
-
   it('reads the repository’s default branch from the event', () => {
     expect(step().env).toEqual({
       DEFAULT_BRANCH: '${{ github.event.repository.default_branch }}',
     });
   });
-
-  it('passes when the default branch is develop', () => {
-    expect(run('develop')).toEqual({ status: 0, stdout: '' });
-  });
-
-  for (const branch of ['main', '', 'Develop', 'develop ', 'feature/develop'])
-    it(`fails, naming the setting, when the default branch is ${JSON.stringify(branch)}`, () => {
-      expect(run(branch)).toEqual({
-        status: 1,
-        stdout:
-          `::error::The default branch is '${branch}', not develop, so ` +
-          'Dependabot security fixes and its config live outside the develop ' +
-          'gate (#460). Set it in Settings > General > Default branch.\n',
-      });
-    });
 });
