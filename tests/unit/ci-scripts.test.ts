@@ -10,7 +10,7 @@ import { check, ciScripts, type Reads } from '../../scripts/ci-scripts';
  * earlier commit red twice (#123, run 37553023215; #475, run 37814355403).
  *
  * The decision runs in-process with git's reads stood in: no process starts
- * in a unit test. The hook runs the script itself (tests/unit/pre-push.test.ts
+ * in a unit test. The hook runs the script itself (tests/integration/pre-push.test.ts
  * names the gate).
  */
 
@@ -118,7 +118,7 @@ describe('the npm scripts the head’s ci.yml runs (#518 AC1)', () => {
     ]);
   });
 
-  it('reads the real ci.yml: the ten scripts build-and-test runs', () => {
+  it('reads the real ci.yml: the eleven scripts build-and-test runs', () => {
     expect(ciScripts(readFileSync('.github/workflows/ci.yml', 'utf8'))).toEqual(
       [
         'build',
@@ -126,6 +126,7 @@ describe('the npm scripts the head’s ci.yml runs (#518 AC1)', () => {
         'lint',
         'test:engines',
         'test:guards',
+        'test:integration',
         'test:pacing',
         'test:unit',
         'test:web',

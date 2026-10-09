@@ -86,6 +86,13 @@ jobs:
       - name: Guards (whole-repo checks)
         timeout-minutes: 1
         run: npm run test:guards
+      # Tests where a process is the thing tested: shell scripts, the git
+      # hook, git on fixture repositories, scripts loading under Node (#490).
+      # A unit test starts no process. One measured limit.
+      - name: Integration tests
+        timeout-minutes: 1
+        if: ${{ steps.classify.outputs.scope != 'docs-only' }}
+        run: npm run test:integration
       # The personas play the real core and the spec's pacing targets are
       # checked (#35); AC7 holds the suite under 5 minutes on the runner.
       - name: Pacing bots (under 5 minutes)

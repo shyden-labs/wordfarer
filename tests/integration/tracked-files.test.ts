@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { committableFiles } from './tracked-files';
+import { committableFiles } from '../unit/tracked-files';
 
 /**
  * The one file walk (#385), in a real repository (#405). During a merge or a

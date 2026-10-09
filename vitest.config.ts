@@ -23,6 +23,8 @@ export default defineConfig({
       'apps/site/test/**',
       // The whole-repo guards are their own suite (vitest.guards.config.ts).
       'tests/guards/**',
+      // Tests that start a process are their own suite (vitest.integration.config.ts).
+      'tests/integration/**',
     ],
   },
 });
