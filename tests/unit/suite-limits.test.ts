@@ -11,6 +11,7 @@ import syncWorker from '../../apps/sync-worker/vitest.harness.config';
 import web from '../../apps/web/vitest.harness.config';
 import engines from '../../playwright.engines.config';
 import { webSmokeConfig } from '../../playwright.web.config';
+import { NON_UNIT_VITEST_CONFIGS } from './suite-configs';
 import { runOf } from './workflow-steps';
 
 /**
@@ -164,18 +165,10 @@ describe('no non-unit suite’s config sets a limit of its own (#476 AC2)', () =
     },
   );
 
-  it('covers every Vitest config but the unit suite’s', () => {
-    const root = readdirSync('.').filter((f) =>
-      /^vitest\..+\.config\.ts$/.test(f),
-    );
-    const apps = readdirSync('apps').flatMap((app) =>
-      readdirSync(`apps/${app}`)
-        .filter((f) => /^vitest\..*config\.ts$/.test(f))
-        .map((f) => `apps/${app}/${f}`),
-    );
-    expect([...root, ...apps].sort()).toEqual(
-      VITEST.map(([file]) => file).sort(),
-    );
+  // That this list is every one there is lists the tree: a guard (#530,
+  // tests/guards/suite-configs.test.ts).
+  it('tests every non-unit Vitest config the guard finds', () => {
+    expect(VITEST.map(([file]) => file)).toEqual([...NON_UNIT_VITEST_CONFIGS]);
   });
 
   it('turns off Playwright’s per-test default in the cross-engine check', () => {

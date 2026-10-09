@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs';
 import {
   bundledPackages,
   pickFile,
-  renderNotices,
   SHIPPED_WORKSPACES,
   type Lockfile,
 } from '../../scripts/third-party-notices';
@@ -39,9 +38,8 @@ function directDependencies(workspace: string): string[] {
 }
 
 describe('THIRD-PARTY-NOTICES.md', () => {
-  it('is exactly what the generator renders from the lockfile (npm run notices)', () => {
-    expect(listing).toBe(renderNotices(lock, '.'));
-  });
+  // That the file is exactly what the generator renders reads every bundled
+  // package's folder: a guard (#530, tests/guards/third-party-notices.test.ts).
 
   for (const workspace of SHIPPED_WORKSPACES) {
     // package.json is fixture data, read here so each dependency is its own test.

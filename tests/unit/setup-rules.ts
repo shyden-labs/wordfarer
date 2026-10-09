@@ -1,3 +1,5 @@
+import { sep } from 'node:path';
+
 /**
  * The rules tests/unit/setup.ts enforces on every unit test (#477), kept
  * apart from it so each is tested on its own (tests/unit/setup.test.ts).
@@ -25,7 +27,46 @@ export const REFUSED_PROCESS = [
 export const REFUSED = [
   ...REFUSED_PROCESS.map((name) => `child_process.${name}`),
   'net.Socket.prototype.connect',
+  'tracked-files.committableFiles',
+  'tracked-files.ignoredPaths',
+  'old-name.walkTree',
+  'fs.readdirSync',
+  'fs.readdir',
+  'fs.promises.readdir',
+  'fs.opendirSync',
+  'fs.opendir',
+  'fs.promises.opendir',
+  'fs.globSync',
+  'fs.glob',
+  'fs.promises.glob',
 ];
+
+/**
+ * A unit test reads no whole tree (#530): a whole-tree check belongs in the
+ * guards suite (global rule, 2026-10-08). The named readers are refused on
+ * the checkout or any directory in it, and so is a walk, which #515 measured
+ * as listing three or more of the checkout's directories. tests/floors is
+ * not counted: floorBreach lists it once per worker.
+ */
+export const WALK_LIMIT = 3;
+
+export const FLOORS_DIR = 'tests/floors';
+
+export const insideCheckout = (path: string, checkout: string): boolean =>
+  path === checkout || path.startsWith(`${checkout}${sep}`);
+
+const BELONGS =
+  'a test that reads the whole tree belongs in tests/guards (#530)';
+const WALKS = 'a test that walks the tree belongs in tests/guards (#530)';
+
+export const treeProblem = (test: string, reader: string): string =>
+  `${test}: ${reader} reads the whole checkout; ${BELONGS}`;
+
+export const walkProblem = (test: string, dirs: readonly string[]): string =>
+  `${test}: lists ${String(dirs.length)} of the checkout’s directories (${dirs.join(', ')}); ${WALKS}`;
+
+export const recursiveProblem = (test: string, dir: string): string =>
+  `${test}: lists ${dir} recursively; ${WALKS}`;
 
 export interface Target {
   host?: string;
