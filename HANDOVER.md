@@ -1,20 +1,20 @@
 # Handover: Yawelo Idle
 
-**Written:** 2026-10-08 17:30 UTC (after #475, PR #517).
+**Written:** 2026-10-09 03:52 UTC (after #520, PR #521; #475 before it).
 **Next session:** launch Claude from a **new terminal** in `~/Developer/Repos/yawelo-idle` (see "Node" below). A hook names the session "Yawelo Idle"; type `/color green` once.
 
 ## Progress (global rule: every close-out states both estimates)
 
-From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawelo Idle Stories"` at 17:28 UTC:
+From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawelo Idle Stories"` at 03:51 UTC on 2026-10-09:
 
-- **By tickets: 22% complete** (74 of 330 in-scope stories closed).
-  - Measured pace: 9.14 a day over 7 days. At that pace: 2026-11-05.
+- **By tickets: 23% complete** (75 of 331 in-scope stories closed).
+  - Measured pace: 7.29 a day over 7 days (today's 1 so far counts in it). At that pace: 2026-11-14.
   - **ETA to release-ready: 2026-12-23 to 2027-02-01** (low to medium confidence).
-- **By effort: 23% complete** (363 of 1,559 points closed).
-  - Measured pace: 42.71 points a day. At that pace: 2026-11-05.
+- **By effort: 23% complete** (364 of 1,560 points closed).
+  - Measured pace: 35.29 points a day. At that pace: 2026-11-12.
   - **ETA to release-ready: 2026-12-19 to 2027-01-29** (low to medium confidence).
 - **Measured:** the counts and the paces. **Assumed:** 4–6 stories (20–30 points) a working day; about 30 unfiled prestige stories (130–180 points, #328, #329); 1.5–2.5 weeks of outside waits.
-- **The release-ready ranges are carried** from 00:21 UTC. This session closed #475 (re-scored 5 → 8 when it took on the guards suite) and filed #515 (5) and #518 (2): inside the ranges' rounding.
+- **The release-ready ranges are carried** from 00:21 UTC. This session closed #475 (re-scored 5 → 8 when it took on the guards suite) and #520 (1), and filed #515 (5) and #518 (2): inside the ranges' rounding.
 
 ## The order (Shyden: "Cleanup first, every project", 2026-10-08)
 
@@ -25,7 +25,9 @@ From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawel
 5. **#467** (needs Docker), then #51 → #104 → #102; #110 → #103, #125 → #124 → #128; #464 before the first production release.
 6. **One M1 floor burn-down a session alongside** (#411–#416, #368–#375, #84, #36).
 
-## What this session did (2026-10-08 16:24 to 17:30 UTC)
+## What this session did (2026-10-08 16:24 to 2026-10-09 03:52 UTC)
+
+- **#520, PR #521** (merged as `f19617a`, deployed to dev, read by hand). **Every push now runs the guards suite** after format, lint and typecheck (Shyden, 2026-10-09: _"Yes, run them"_, the global rule; a side agent flagged that #475 wired it into CI only). A push therefore waits while another session's heavy test run holds the machine: `test-lock: … waits` is a queue, not a failure. **#520 closed.**
 
 - **#475, PR #517** (head `ede6a4f`, merged as `4ae03aa`, deployed to dev and read by hand). **#475 closed.**
   - **Bots run tests:** the slowest went from 992 to 149 ms of CPU. They play the Capped buyer's first day, once and shared. The sail-timing restart moved into `SailLog` (packages/bots/src/run.ts), with a stand-in test. Develop's old 11-day Idler test missed a missing restart; the new test catches it.
@@ -49,7 +51,7 @@ From this repo's own `node scripts/board-progress.ts PVT_kwDOEOcG584BlRWb "Yawel
 
 ## State
 
-- **`develop`** is at `4ae03aa` (read with `git rev-parse` when written). Deployed to dev, with all 43 steps of deploy-dev run 37815841249 green. `/health` reports that commit with `db: ok`. This handover's PR follows it.
+- **`develop`** is at `f19617a` (read with `git rev-parse` when written). Deployed to dev, with all 43 steps of deploy-dev run 37880562056 green. `/health` reports that commit with `db: ok`. This handover's PR follows it.
 - **Open PRs:** #438 (#341, behind develop); this handover's PR. No Dependabot PRs open.
 - **Node:** CI runs 26.11.1; the laptop has 26.10.0 at `/opt/homebrew/opt/node/bin`.
 - **Worktrees:** unchanged from the last handover (`../yawelo-idle-develop-bench`, `../yawelo-idle-297-before`, and older ones). None added.
