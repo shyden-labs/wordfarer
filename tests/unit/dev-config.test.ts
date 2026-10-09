@@ -1,9 +1,10 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { unstable_readConfig } from 'wrangler';
 import { parse } from 'yaml';
 import { isIgnored } from './tracked-files';
+import { WRANGLER_CONFIGS } from './wrangler-configs';
 import { runOf } from './workflow-steps';
 import { floorBreach } from '../floors';
 import { searched } from '../searched';
@@ -81,20 +82,15 @@ function readDeployConfig(path: string): DeployConfig {
   };
 }
 
-/** Every wrangler config in the repo, found on disk rather than listed. */
-function wranglerConfigs(dir = ROOT): string[] {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.name === 'node_modules' || entry.name.startsWith('.')) return [];
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) return wranglerConfigs(path);
-    return /^wrangler\.(jsonc?|toml)$/.test(entry.name) ? [path] : [];
-  });
-}
-
-const configs = wranglerConfigs().map((path) => ({
-  file: relative(ROOT, path),
-  config: readDeployConfig(path),
-}));
+// The four by name: that they are every wrangler config in the repo walks
+// the tree, a guard (#530, tests/guards/wrangler-configs.test.ts).
+// Read on first use, inside a test, not at collection.
+let read: { file: string; config: DeployConfig }[] | undefined;
+const configs = (): { file: string; config: DeployConfig }[] =>
+  (read ??= WRANGLER_CONFIGS.map((file) => ({
+    file,
+    config: readDeployConfig(join(ROOT, file)),
+  })));
 
 /** The dev hostname that reaches a binding (apps/dev-hosts/hosts.ts). */
 function devHost(binding: string): string {
@@ -105,21 +101,12 @@ function devHost(binding: string): string {
 }
 
 function byName(name: string): DeployConfig {
-  const found = configs.find(({ config }) => config.name === name);
+  const found = configs().find(({ config }) => config.name === name);
   if (found === undefined) throw new Error(`no wrangler config named ${name}`);
   return found.config;
 }
 
 describe('the dev Workers’ deploy configs', () => {
-  it('finds the three dev Workers and the hostname adapter on disk (liveness)', () => {
-    expect(configs.map(({ file }) => file).sort()).toEqual([
-      'apps/dev-hosts/wrangler.jsonc',
-      'apps/site/wrangler.jsonc',
-      'apps/sync-worker/wrangler.jsonc',
-      'apps/web/wrangler.jsonc',
-    ]);
-  });
-
   it('serves the site Worker on workers.dev with no route, gate first (#332)', () => {
     const site = byName('yawelo-idle-site-dev');
     expect(site.routes).toBeUndefined();
@@ -158,7 +145,7 @@ describe('the dev Workers’ deploy configs', () => {
     // The Pages adapter sets neither key: Pages has no workers.dev address,
     // and its own pages.dev address answers 404 (apps/dev-hosts/test).
     expect(
-      configs
+      configs()
         .map(({ config }) => [
           config.name,
           config.workers_dev,
@@ -216,7 +203,7 @@ describe('the dev Workers’ deploy configs', () => {
   });
 
   it('declares no secret as a plain var (the password is a Worker secret)', () => {
-    const declared = configs.flatMap(({ file, config }) =>
+    const declared = configs().flatMap(({ file, config }) =>
       Object.keys(config.vars).map((name) => ({ file, name })),
     );
     expect(declared).toContainEqual({

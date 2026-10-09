@@ -55,7 +55,8 @@ describe('the setup is the unit suite’s (#477 AC7)', () => {
       'execFileSync',
       'fork',
     ]);
-    expect(REFUSED).toEqual([
+    // The whole-tree readers after these: setup-whole-tree.test.ts (#530).
+    expect(REFUSED.slice(0, 8)).toEqual([
       ...REFUSED_PROCESS.map((name) => `child_process.${name}`),
       'net.Socket.prototype.connect',
     ]);
