@@ -145,7 +145,7 @@ describe('the forms that raise a limit, each refused (#477 AC3)', () => {
     expect(read(source)).toEqual({
       findings: [`f.test.ts:1: ${problem}`],
       sites: 1,
-      others: 0,
+      declarations: 0,
     });
   });
 
@@ -184,48 +184,100 @@ describe('the forms that leave the limit alone, each read (#477 AC3)', () => {
     ['a timeout option of something else', 'run({ timeout: 5_000 });', 0],
     ['a testTimeout read, not set', 'const t = config.test?.testTimeout;', 0],
   ])('%s', (_form, source, sites) => {
-    expect(read(source)).toEqual({ findings: [], sites, others: 0 });
+    expect(read(source)).toEqual({ findings: [], sites, declarations: 0 });
   });
 });
 
-describe('whose names it judges: Vitest’s, as the file imports them (#477 AC3)', () => {
-  it('judges a test under the name it is imported as', () => {
+describe('every test call is judged, wherever its name comes from (#477 AC3)', () => {
+  it('judges a test imported from a helper module', () => {
+    expect(
+      parse(`import { test } from './fixtures'; test('t', () => {}, ${OVER});`),
+    ).toEqual({
+      findings: [`f.test.ts:1: test: a third argument, ${OVER}, sets a limit`],
+      sites: 1,
+      declarations: 0,
+    });
+  });
+
+  it('judges a test built with test.extend, and the extend call itself', () => {
     expect(
       parse(
-        `import { it as spec } from 'vitest'; spec('t', () => {}, ${OVER});`,
+        `import { test } from 'vitest'; const it = test.extend({}); it('t', () => {}, ${OVER});`,
       ),
     ).toEqual({
       findings: [`f.test.ts:1: it: a third argument, ${OVER}, sets a limit`],
-      sites: 1,
-      others: 0,
+      sites: 2,
+      declarations: 0,
     });
   });
 
-  it('counts a file’s own suite builder, and a method named describe, as others, judging neither', () => {
-    expect(
-      parse(
-        `function suite(name: string, why?: string) {} suite('a', 'b');
-interface R { describe(n: string): void }
-it('t', () => {}, ${OVER});`,
-      ),
-    ).toEqual({ findings: [], sites: 0, others: 4 });
+  it('judges a test whose name the file never imports', () => {
+    expect(parse(`it('t', () => {}, ${OVER});`)).toEqual({
+      findings: [`f.test.ts:1: it: a third argument, ${OVER}, sets a limit`],
+      sites: 1,
+      declarations: 0,
+    });
   });
 
-  it('counts vi.setConfig on a vi that is not Vitest’s as another, judging none', () => {
-    expect(parse('const vi = { setConfig() {} }; vi.setConfig({});')).toEqual({
+  it('refuses a file’s own function named like a test, so no call goes unjudged', () => {
+    expect(
+      parse("const suite = (n: string, why?: string) => n; suite('a', 'b');"),
+    ).toEqual({
+      findings: [
+        'f.test.ts:1: suite: the file’s own suite shadows Vitest’s; rename it so every test call can be judged',
+      ],
+      sites: 1,
+      declarations: 0,
+    });
+  });
+
+  it('refuses a file’s own hook look-alike, and counts its declaration', () => {
+    expect(parse('function afterAll() {} afterAll();')).toEqual({
+      findings: [
+        'f.test.ts:1: afterAll: the file’s own afterAll shadows Vitest’s; rename it so every test call can be judged',
+      ],
+      sites: 1,
+      declarations: 1,
+    });
+  });
+
+  it('counts a method named describe as a declaration, with no call to judge', () => {
+    expect(parse('interface R { describe(n: string): void }')).toEqual({
       findings: [],
       sites: 0,
-      others: 1,
+      declarations: 1,
     });
   });
 
-  it('refuses a namespace import of vitest, whose calls it cannot place', () => {
-    expect(parse("import * as v from 'vitest'; v.it('t', () => {});")).toEqual({
-      findings: [
-        "f.test.ts:1: import * as v from 'vitest' cannot be read for limits",
-      ],
+  it.each([
+    [
+      'a test name imported under another',
+      "import { it as spec } from 'vitest';",
+      'import { it as spec } renames a test name, so its calls cannot be told apart; import it under its own name',
+    ],
+    [
+      'another name imported as a test name',
+      "import { helper as it } from './fixtures';",
+      'import { helper as it } renames a test name, so its calls cannot be told apart; import it under its own name',
+    ],
+    [
+      'a namespace import of vitest',
+      "import * as v from 'vitest';",
+      "import * as v from 'vitest' cannot be read for limits",
+    ],
+  ])('refuses %s', (_form, source, problem) => {
+    expect(parse(source)).toEqual({
+      findings: [`f.test.ts:1: ${problem}`],
       sites: 0,
-      others: 0,
+      declarations: 0,
+    });
+  });
+
+  it('refuses vi.setConfig on any vi', () => {
+    expect(parse('const vi = { setConfig() {} }; vi.setConfig({});')).toEqual({
+      findings: ['f.test.ts:1: vi.setConfig changes a limit at run time'],
+      sites: 1,
+      declarations: 0,
     });
   });
 });

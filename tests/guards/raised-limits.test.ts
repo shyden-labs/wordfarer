@@ -62,7 +62,7 @@ let walked:
         code: string;
         findings: string[];
         sites: number;
-        others: number;
+        declarations: number;
       }[];
     }
   | undefined;
@@ -95,7 +95,7 @@ describe('no unit test or unit config raises a limit (#477 AC3, AC4)', () => {
     expect(floorBreach('raised-limits/files', files.length)).toBeUndefined();
   });
 
-  it('reads as many tests, suites, hooks and limit keys in each file as its text writes, Vitest’s judged and the rest counted', () => {
+  it('reads as many tests, suites, hooks and limit keys in each file as its text writes, every call judged and declarations counted', () => {
     const { files, readings } = repository();
     const written = (code: string): number =>
       WRITTEN.reduce(
@@ -103,10 +103,13 @@ describe('no unit test or unit config raises a limit (#477 AC3, AC4)', () => {
         0,
       );
     const misread = readings
-      .filter(({ code, sites, others }) => written(code) !== sites + others)
+      .filter(
+        ({ code, sites, declarations }) =>
+          written(code) !== sites + declarations,
+      )
       .map(
-        ({ file, code, sites, others }) =>
-          `${file}: ${String(written(code))} written, ${String(sites)} judged + ${String(others)} not Vitest’s`,
+        ({ file, code, sites, declarations }) =>
+          `${file}: ${String(written(code))} written, ${String(sites)} judged + ${String(declarations)} declared`,
       );
     expect(
       searched(misread, { of: files, what: 'unit suite files' }),
