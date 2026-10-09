@@ -491,16 +491,16 @@ describe('the file lists', () => {
   });
 });
 
-const suite = (name: string, unrecordable?: string): Suite => ({
+const fixtureSuite = (name: string, unrecordable?: string): Suite => ({
   name,
   cwd: '.',
   list: [],
   files: vitestListed,
   run: unrecordable === undefined ? ['run', name] : { unrecordable },
 });
-const UNIT = suite('unit');
-const PACING = suite('pacing');
-const WORKERD = suite('workerd', 'no file system');
+const UNIT = fixtureSuite('unit');
+const PACING = fixtureSuite('pacing');
+const WORKERD = fixtureSuite('workerd', 'no file system');
 const FIXTURE_SUITES = [UNIT, PACING, WORKERD];
 const MEMBERSHIP = new Map([
   ['unit', ['u1.test.ts', 'u2.test.ts', 'both.test.ts']],

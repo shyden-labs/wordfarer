@@ -13,11 +13,16 @@ import { lineOf } from './line-of';
  * a number from 1 to the limit (0 turns the limit off); a namespace import of
  * vitest, whose calls it cannot place.
  *
- * Tests, suites, hooks and `vi` are Vitest's when the file imports them from
- * 'vitest' (the unit config sets no globals), under any local name. A call or
- * declaration that spells one of those names but is the file's own (a fixture
- * builder named `suite`, a method named `describe`) is counted in `others`, so
- * the guard's text count is met by `sites + others`.
+ * Every call named `it`, `test`, `describe`, `suite` or a hook is judged,
+ * wherever the name comes from: Vitest, a helper module, a re-export, or a
+ * local `test.extend(...)`. Nothing is left unjudged (operator, 2026-10-09:
+ * "everything needs to be checked"), so the forms that would hide a call are
+ * refused instead: a file's own binding of one of those names that is not
+ * built with `.extend` (rename it), an import that renames a test name, and
+ * a namespace import of vitest. A declaration named like one (a method
+ * signature `describe(...)`) has no call to judge and is counted in
+ * `declarations`, so the guard's text count is met by
+ * `sites + declarations`.
  *
  * `sites` counts what was judged, refused or not: each test, suite and hook
  * call, each `vi.setConfig`, each limit key set.
@@ -28,7 +33,7 @@ export const UNIT_LIMIT_MS = 1_000;
 export interface LimitReading {
   findings: string[];
   sites: number;
-  others: number;
+  declarations: number;
 }
 
 const TESTS = new Set(['it', 'test', 'describe', 'suite']);
@@ -40,6 +45,7 @@ const HOOKS = new Set([
   'onTestFinished',
   'onTestFailed',
 ]);
+const NAMES = new Set([...TESTS, ...HOOKS, 'vi']);
 const LIMIT_KEYS = new Set(['testTimeout', 'hookTimeout', 'teardownTimeout']);
 
 const isFunction = (node: ts.Node): boolean =>
@@ -83,35 +89,71 @@ const chainOf = (
 export function raisedLimitsIn(sf: ts.SourceFile): LimitReading {
   const findings: string[] = [];
   let sites = 0;
-  let others = 0;
+  let declarations = 0;
   const refuse = (node: ts.Node, problem: string): void => {
     findings.push(`${sf.fileName}:${String(lineOf(sf, node))}: ${problem}`);
   };
 
-  // Local name -> Vitest's name, for everything imported from 'vitest'.
-  const vitest = new Map<string, string>();
+  // Imports that would hide a test call: a renamed test name, or vitest as
+  // a namespace.
   for (const statement of sf.statements) {
     if (
       !ts.isImportDeclaration(statement) ||
-      !ts.isStringLiteral(statement.moduleSpecifier) ||
-      statement.moduleSpecifier.text !== 'vitest'
+      !ts.isStringLiteral(statement.moduleSpecifier)
     )
       continue;
     const bindings = statement.importClause?.namedBindings;
     if (bindings === undefined) continue;
     if (ts.isNamespaceImport(bindings)) {
-      refuse(
-        bindings,
-        `import * as ${bindings.name.text} from 'vitest' cannot be read for limits`,
-      );
+      if (statement.moduleSpecifier.text === 'vitest')
+        refuse(
+          bindings,
+          `import * as ${bindings.name.text} from 'vitest' cannot be read for limits`,
+        );
       continue;
     }
-    for (const element of bindings.elements)
-      vitest.set(
-        element.name.text,
-        (element.propertyName ?? element.name).text,
-      );
+    for (const element of bindings.elements) {
+      const imported = element.propertyName?.text;
+      const local = element.name.text;
+      if (
+        imported !== undefined &&
+        imported !== local &&
+        (NAMES.has(imported) || NAMES.has(local))
+      )
+        refuse(
+          element,
+          `import { ${imported} as ${local} } renames a test name, so its calls cannot be told apart; import it under its own name`,
+        );
+    }
   }
+
+  // The file's own bindings of a test or hook name: built with
+  // `<test>.extend(...)` is a test; anything else shadows Vitest's.
+  const shadowed = new Set<string>();
+  const isExtend = (node: ts.Expression | undefined): boolean => {
+    if (node === undefined || !ts.isCallExpression(node)) return false;
+    const chain = chainOf(node.expression);
+    return (
+      chain !== null &&
+      TESTS.has(chain.root.text) &&
+      chain.members.at(-1) === 'extend'
+    );
+  };
+  const bind = (node: ts.Node): void => {
+    if (
+      (ts.isVariableDeclaration(node) ||
+        ts.isFunctionDeclaration(node) ||
+        ts.isParameter(node) ||
+        ts.isClassDeclaration(node)) &&
+      node.name !== undefined &&
+      ts.isIdentifier(node.name) &&
+      NAMES.has(node.name.text) &&
+      !(ts.isVariableDeclaration(node) && isExtend(node.initializer))
+    )
+      shadowed.add(node.name.text);
+    ts.forEachChild(node, bind);
+  };
+  bind(sf);
 
   const options = (name: string, node: ts.Expression): void => {
     if (!ts.isObjectLiteralExpression(node)) {
@@ -133,7 +175,6 @@ export function raisedLimitsIn(sf: ts.SourceFile): LimitReading {
   };
 
   const testCall = (call: ts.CallExpression, name: string): void => {
-    sites += 1;
     const [, second, third] = call.arguments;
     if (second !== undefined && !isFunction(second)) options(name, second);
     if (third !== undefined && !isFunction(third)) {
@@ -147,7 +188,6 @@ export function raisedLimitsIn(sf: ts.SourceFile): LimitReading {
   };
 
   const hookCall = (call: ts.CallExpression, name: string): void => {
-    sites += 1;
     const second = call.arguments[1];
     if (second !== undefined)
       refuse(
@@ -163,17 +203,20 @@ export function raisedLimitsIn(sf: ts.SourceFile): LimitReading {
       : node.expression;
     const chain = chainOf(callee);
     if (chain === null) return;
-    const local = chain.root.text;
-    const own = vitest.get(local);
-    if (own !== undefined && TESTS.has(own))
-      testCall(node, [own, ...chain.members].join('.'));
-    else if (own !== undefined && HOOKS.has(own) && chain.members.length === 0)
-      hookCall(node, own);
-    else if (
-      TESTS.has(local) ||
-      (HOOKS.has(local) && chain.members.length === 0)
-    )
-      others += 1;
+    const name = chain.root.text;
+    const isTest = TESTS.has(name);
+    const isHook = HOOKS.has(name) && chain.members.length === 0;
+    if (!isTest && !isHook) return;
+    sites += 1;
+    if (shadowed.has(name)) {
+      refuse(
+        node,
+        `${name}: the file’s own ${name} shadows Vitest’s; rename it so every test call can be judged`,
+      );
+      return;
+    }
+    if (isTest) testCall(node, [name, ...chain.members].join('.'));
+    else hookCall(node, name);
   };
 
   const visit = (node: ts.Node): void => {
@@ -186,17 +229,15 @@ export function raisedLimitsIn(sf: ts.SourceFile): LimitReading {
       ts.isIdentifier(node.name) &&
       (TESTS.has(node.name.text) || HOOKS.has(node.name.text))
     )
-      others += 1;
+      declarations += 1;
     if (
       ts.isPropertyAccessExpression(node) &&
       node.name.text === 'setConfig' &&
       ts.isIdentifier(node.expression) &&
       node.expression.text === 'vi'
     ) {
-      if (vitest.get('vi') === 'vi') {
-        sites += 1;
-        refuse(node, 'vi.setConfig changes a limit at run time');
-      } else others += 1;
+      sites += 1;
+      refuse(node, 'vi.setConfig changes a limit at run time');
     }
     if (
       (ts.isPropertyAssignment(node) ||
@@ -216,5 +257,5 @@ export function raisedLimitsIn(sf: ts.SourceFile): LimitReading {
     ts.forEachChild(node, visit);
   };
   visit(sf);
-  return { findings, sites, others };
+  return { findings, sites, declarations };
 }
