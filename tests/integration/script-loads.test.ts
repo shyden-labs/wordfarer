@@ -73,7 +73,7 @@ describe('the scripts load under Node’s own loader (#391)', () => {
           '--eval',
           `await import(${JSON.stringify(url)});`,
         ],
-        { cwd: ROOT, encoding: 'utf8', timeout: 30_000 },
+        { cwd: ROOT, encoding: 'utf8' },
       );
       expect(run.stderr).toBe('');
       expect(run.status).toBe(0);

@@ -9,8 +9,8 @@ import { runOf } from './workflow-steps';
  * The integration suite stays wired (#490). A unit test starts no process
  * (global rule, 2026-10-08), so the tests where a process is the thing tested
  * run as their own suite, under one measured limit at their CI step and none
- * of their own. A step removed, its limit dropped, a per-test limit turned
- * back on, or a glob that lets a test run twice or not at all would let them
+ * of their own (both held in suite-limits.test.ts, #476). A step removed, or
+ * a glob that lets a test run twice or not at all would let them
  * pass by not running; this suite fails instead. The workflow is read as
  * parsed YAML, so a comment naming a command cannot stand in for a step.
  */
@@ -20,7 +20,6 @@ interface Step {
   // YAML may type it otherwise: read it through runOf.
   run?: unknown;
   if?: string;
-  'timeout-minutes'?: number;
 }
 
 const ci = parse(readFileSync('.github/workflows/ci.yml', 'utf8')) as {
@@ -47,11 +46,6 @@ describe('the integration suite in CI (#490)', () => {
     );
   });
 
-  it('holds the step to its one measured limit on the runner', () => {
-    const [at] = runs('npm run test:integration');
-    expect(steps[at ?? -1]?.['timeout-minutes']).toBe(1);
-  });
-
   it('is what npm run test:integration runs: tests/integration and nothing else, which the unit suite leaves out', () => {
     const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as {
       scripts: Record<string, string>;
@@ -63,9 +57,5 @@ describe('the integration suite in CI (#490)', () => {
       'tests/integration/**/*.test.ts',
     ]);
     expect(root.test?.exclude).toContain('tests/integration/**');
-  });
-
-  it('sets no per-test limit: the CI step’s is the one', () => {
-    expect(integration.test?.testTimeout).toBe(0);
   });
 });

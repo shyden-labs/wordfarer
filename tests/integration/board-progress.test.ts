@@ -62,7 +62,6 @@ function runWrapper(
   const run = spawnSync(process.execPath, [SCRIPT, ...args], {
     cwd: ROOT,
     encoding: 'utf8',
-    timeout: 30_000,
     env: {
       ...process.env,
       PATH: `${dir}:${process.env['PATH'] ?? ''}`,

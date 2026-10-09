@@ -38,6 +38,8 @@ export function webSmokeConfig(
   const shared: PlaywrightTestConfig = {
     testDir: 'tests/web',
     workers: 1,
+    // One limit, at the CI step (#476): none per test.
+    timeout: 0,
     forbidOnly: true,
     retries: 0,
     reporter: 'list',
@@ -57,7 +59,6 @@ export function webSmokeConfig(
         command: `npx wrangler dev --config apps/web/wrangler.jsonc --ip 127.0.0.1 --port ${String(PORT)}`,
         url: `${local}/play/`,
         reuseExistingServer: false,
-        timeout: 120_000,
       },
     });
   }

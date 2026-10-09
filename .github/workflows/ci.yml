@@ -30,8 +30,9 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-24.04
-    # GitHub's default is 360 minutes (#44). The pacing step alone may take
-    # up to 5 (#35 AC7), so the job allows 20.
+    # GitHub's default is 360 minutes (#44). Each test suite but the unit
+    # suite holds its own step to one measured limit (#476), so the job allows
+    # 20 for those and the rest.
     timeout-minutes: 20
     # The browsers and their system libraries come baked into Playwright's own
     # image, so no step downloads from an apt mirror. `--with-deps` did, and a
@@ -94,10 +95,11 @@ jobs:
         if: ${{ steps.classify.outputs.scope != 'docs-only' }}
         run: npm run test:integration
       # The personas play the real core and the spec's pacing targets are
-      # checked (#35); AC7 holds the suite under 5 minutes on the runner.
-      - name: Pacing bots (under 5 minutes)
+      # checked (#35). AC7 asked for under 5 minutes; its one measured limit
+      # is 2 (#476: slowest 40 s of 15 runs, 2026-10-09).
+      - name: Pacing bots (under 2 minutes)
         id: pacing
-        timeout-minutes: 5
+        timeout-minutes: 2
         if: ${{ steps.classify.outputs.scope != 'docs-only' }}
         run: npm run test:pacing
       # Only after a pacing run that passed or failed: a step before it that
@@ -112,13 +114,18 @@ jobs:
           name: ${{ inputs.ref && format('pacing-report-{0}', inputs.ref) || 'pacing-report' }}
           path: pacing-report.json
           if-no-files-found: error
+      # Each suite below: one measured limit, at least 3 times its slowest
+      # run (#476), and none inside it.
       - name: Worker tests (sync in workerd + local D1, site and game through the asset router)
+        timeout-minutes: 1
         if: ${{ steps.classify.outputs.scope != 'docs-only' }}
         run: npm run test:worker
       - name: Cross-engine determinism (Node, Chromium, Firefox, WebKit)
+        timeout-minutes: 1
         if: ${{ steps.classify.outputs.scope != 'docs-only' }}
         run: npm run test:engines
       - name: Web smoke (the built game in a local Worker, on Chromium, Firefox and WebKit)
+        timeout-minutes: 1
         if: ${{ steps.classify.outputs.scope != 'docs-only' }}
         run: npm run test:web
       - name: Build (a warning fails it)

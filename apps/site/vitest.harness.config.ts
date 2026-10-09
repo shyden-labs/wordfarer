@@ -10,6 +10,8 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     include: ['test/**/*.test.ts'],
-    hookTimeout: 60_000,
+    // One limit, at the CI step (#476): none per test or per hook.
+    testTimeout: 0,
+    hookTimeout: 0,
   },
 });

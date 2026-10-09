@@ -8,12 +8,13 @@ import { defineConfig } from 'vitest/config';
  * and its limits.
  *
  * Its one limit is its CI step's `timeout-minutes`, measured (global rule,
- * 2026-10-07; #476): `testTimeout: 0` turns off Vitest's per-test default, and
- * no test inside sets its own.
+ * 2026-10-07; #476): `testTimeout: 0` and `hookTimeout: 0` turn off Vitest's
+ * per-test and per-hook defaults, and no test inside sets its own.
  */
 export default defineConfig({
   test: {
     include: ['tests/integration/**/*.test.ts'],
     testTimeout: 0,
+    hookTimeout: 0,
   },
 });
