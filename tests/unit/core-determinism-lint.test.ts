@@ -1,6 +1,7 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { ESLint, type Linter } from 'eslint';
 import tseslint from 'typescript-eslint';
+import { coreDeterminismBlock } from '../../eslint.core-determinism';
 
 /**
  * The determinism ban on packages/core/src (M1 design §2.1 and §3, #26 AC3).
@@ -22,21 +23,17 @@ const BAN_RULES = new Set([
 
 const CORE_FIXTURE = 'packages/core/src/fixture.ts';
 
+// The bans alone, under TypeScript's parser: loading eslint.config.js and
+// every plugin it names ran past the unit hook limit under a full parallel
+// run (#477). That the full config applies exactly this block to core's
+// source is held in tests/guards/core-determinism-config.test.ts.
 const eslint = new ESLint({
+  overrideConfigFile: true,
   overrideConfig: [
-    { files: ['**/*.ts'], ...tseslint.configs.disableTypeChecked },
+    { files: ['**/*.ts'], languageOptions: { parser: tseslint.parser } },
+    coreDeterminismBlock,
   ],
 });
-
-// ESLint loads eslint.config.js and its plugins on the first lint, not in the
-// constructor: the first lintText took 485 to 574 ms, every later one 2 to
-// 4 ms (#72). The first case paid it for the whole file and timed out under
-// load, so the load happens here and each case's duration is its own lint.
-const CONFIG_LOAD_TIMEOUT_MS = 60_000;
-
-beforeAll(async () => {
-  await eslint.calculateConfigForFile(CORE_FIXTURE);
-}, CONFIG_LOAD_TIMEOUT_MS);
 
 async function lint(
   code: string,
