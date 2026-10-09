@@ -5,8 +5,9 @@ import pacing from '../../vitest.pacing.config';
 import { runOf } from './workflow-steps';
 
 /**
- * The pacing suite stays wired (#35 AC4, AC6, AC7). A CI step removed, its
- * time limit dropped or its report no longer uploaded would let the pacing
+ * The pacing suite stays wired (#35 AC4, AC6; its time limit, AC7, is held in
+ * suite-limits.test.ts, #476). A CI step removed or its report no longer
+ * uploaded would let the pacing
  * checks pass by not running; this suite fails instead. The workflow is read
  * as parsed YAML, so a comment naming a command cannot stand in for a step.
  */
@@ -18,7 +19,6 @@ interface Step {
   run?: unknown;
   uses?: string;
   if?: string;
-  'timeout-minutes'?: number;
   with?: Record<string, unknown>;
 }
 
@@ -36,11 +36,6 @@ describe('the pacing suite in CI (#35)', () => {
     expect(unit, 'test:unit step').toHaveLength(1);
     expect(suite, 'test:pacing step').toHaveLength(1);
     expect(suite[0]).toBeGreaterThan(unit[0] ?? Infinity);
-  });
-
-  it('holds the step to 5 minutes on the runner (AC7)', () => {
-    const [at] = runs('npm run test:pacing');
-    expect(steps[at ?? -1]?.['timeout-minutes']).toBe(5);
   });
 
   it('uploads pacing-report.json after it, even when the suite fails, and fails when the file is missing (AC6)', () => {

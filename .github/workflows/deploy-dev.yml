@@ -184,6 +184,8 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - name: Smoke the game on dev (Chromium, Firefox and WebKit, behind the dev password)
+        # One measured limit, at least 3 times its slowest run (#476).
+        timeout-minutes: 1
         env:
           WEB_SMOKE_URL: https://dev.yawelo-idle.shyden.co.uk/
           DEV_BASIC_AUTH_PASSWORD: ${{ secrets.DEV_BASIC_AUTH_PASSWORD }}

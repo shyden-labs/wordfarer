@@ -46,8 +46,6 @@ test('the golden log replays to its recorded hash', async ({
   page,
   browserName,
 }) => {
-  // About 4 s of CPU in Node; an engine may take several times that.
-  test.setTimeout(300_000);
   const { header } = readGolden(text);
   await page.setContent('<!doctype html><title>golden log</title>');
   await page.addScriptTag({ content: bundle });

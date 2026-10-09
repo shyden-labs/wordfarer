@@ -8,9 +8,9 @@ import { runOf } from './workflow-steps';
 /**
  * The guards suite stays wired (#475). Whole-repo guards, which read or parse
  * the whole tree, run as their own suite (global rule, 2026-10-08), out of
- * the unit suite and its limits, under one measured limit at their CI step.
- * A step removed, its limit dropped, a docs-only skip added (the guards read
- * docs too), or a glob that lets a guard run twice or not at all would let
+ * the unit suite and its limits, under one measured limit at their CI step
+ * (held in suite-limits.test.ts, #476). A step removed, a docs-only skip
+ * added (the guards read docs too), or a glob that lets a guard run twice or not at all would let
  * them pass by not running; this suite fails instead. The workflow is read
  * as parsed YAML, so a comment naming a command cannot stand in for a step.
  */
@@ -20,7 +20,6 @@ interface Step {
   // YAML may type it otherwise: read it through runOf.
   run?: unknown;
   if?: string;
-  'timeout-minutes'?: number;
 }
 
 const ci = parse(readFileSync('.github/workflows/ci.yml', 'utf8')) as {
@@ -41,11 +40,6 @@ describe('the guards suite in CI (#475)', () => {
     expect(step?.name).toBe('Guards (whole-repo checks)');
     // Docs-only changes run it too: old-name and others read every file.
     expect(step?.if).toBeUndefined();
-  });
-
-  it('holds the step to 1 minute on the runner, its one measured limit', () => {
-    const [at] = runs('npm run test:guards');
-    expect(steps[at ?? -1]?.['timeout-minutes']).toBe(1);
   });
 
   it('is what npm run test:guards runs: tests/guards and nothing else, which the unit suite leaves out', () => {

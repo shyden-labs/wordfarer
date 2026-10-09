@@ -95,88 +95,84 @@ describe('the pacing suite', () => {
   });
 });
 
-describe(
-  'the pacing targets (AC4), at the spec’s bounds',
-  { timeout: 600_000 },
-  () => {
-    it.each(ASSERTED)(
-      '(a) %s sets sail for the first time after 30 to 60 minutes',
-      async (name) => {
-        expect(firstSail(await run(name), CI_BOUNDS)).toEqual([]);
-      },
-    );
+describe('the pacing targets (AC4), at the spec’s bounds', () => {
+  it.each(ASSERTED)(
+    '(a) %s sets sail for the first time after 30 to 60 minutes',
+    async (name) => {
+      expect(firstSail(await run(name), CI_BOUNDS)).toEqual([]);
+    },
+  );
 
-    it('(b) the Casual Learner reaches each later destination 1 to 3 days after the one before', async () => {
-      expect(gaps(await run('casual'), CI_BOUNDS)).toEqual([]);
-    });
+  it('(b) the Casual Learner reaches each later destination 1 to 3 days after the one before', async () => {
+    expect(gaps(await run('casual'), CI_BOUNDS)).toEqual([]);
+  });
 
-    it('(c) the Casual Learner reaches the finale in 3 to 5 weeks', async () => {
-      expect(finale(await run('casual'), CI_BOUNDS)).toEqual([]);
-    });
+  it('(c) the Casual Learner reaches the finale in 3 to 5 weeks', async () => {
+    expect(finale(await run('casual'), CI_BOUNDS)).toEqual([]);
+  });
 
-    it('(d) the Idler reaches the finale within 10 weeks', async () => {
-      expect(idlerFinishes(await run('idler'), CI_BOUNDS)).toEqual([]);
-    });
+  it('(d) the Idler reaches the finale within 10 weeks', async () => {
+    expect(idlerFinishes(await run('idler'), CI_BOUNDS)).toEqual([]);
+  });
 
-    it.each(ASSERTED)(
-      '(e) every open of %s offers a meaningful decision',
-      async (name) => {
-        const r = await run(name);
-        expect(r.openDays.length).toBeGreaterThan(10);
-        expect(decisions(r)).toEqual([]);
-      },
-    );
+  it.each(ASSERTED)(
+    '(e) every open of %s offers a meaningful decision',
+    async (name) => {
+      const r = await run(name);
+      expect(r.openDays.length).toBeGreaterThan(10);
+      expect(decisions(r)).toEqual([]);
+    },
+  );
 
-    it('(f) learning pays: the Casual Learner reaches the finale at least 20% sooner than the Non-learner', async () => {
+  it('(f) learning pays: the Casual Learner reaches the finale at least 20% sooner than the Non-learner', async () => {
+    expect(
+      learningPays(await run('casual'), await run('nonlearner'), CI_BOUNDS),
+    ).toEqual([]);
+  });
+
+  it('(f) the Diligent Learner finishes no later than the Casual Learner, nor the Casual Learner than the Idler', async () => {
+    expect(
+      learnersOrder(
+        await run('diligent'),
+        await run('casual'),
+        await run('idler'),
+      ),
+    ).toEqual([]);
+  });
+
+  it('(g) clicking never beats idling: the Clicker takes at least 95% of the Casual Learner’s time to reach each sail’s goal', async () => {
+    expect(
+      clickingNeverWins(await run('clicker'), await run('casual'), CI_BOUNDS),
+    ).toEqual([]);
+  });
+
+  it.each(ASSERTED)(
+    '(h) %s meets no NaN, negative or infinite value',
+    async (name) => {
+      const r = await run(name);
+      expect(r.events).toBeGreaterThan(1_000);
+      expect(sanity(r)).toEqual([]);
+    },
+  );
+
+  // Real multi-sail runs (Shyden, 2026-10-08, #475: "we still need these
+  // tests, but they do not belong in unit tests"): every sail of a long
+  // run starts a new one, so its goal is timed from the states after the
+  // sail before. The unit suite proves that restart on stand-in states.
+  it.each(ASSERTED)(
+    '(h) %s meets each sail’s goal after the sail before and no later than its own',
+    async (name) => {
+      const r = await run(name);
+      expect(searched(sailTiming(r), { of: r.sails, what: 'sails' })).toEqual(
+        [],
+      );
       expect(
-        learningPays(await run('casual'), await run('nonlearner'), CI_BOUNDS),
-      ).toEqual([]);
-    });
+        floorBreach(`pacing-sails/${name}`, r.sails.length),
+      ).toBeUndefined();
+    },
+  );
 
-    it('(f) the Diligent Learner finishes no later than the Casual Learner, nor the Casual Learner than the Idler', async () => {
-      expect(
-        learnersOrder(
-          await run('diligent'),
-          await run('casual'),
-          await run('idler'),
-        ),
-      ).toEqual([]);
-    });
-
-    it('(g) clicking never beats idling: the Clicker takes at least 95% of the Casual Learner’s time to reach each sail’s goal', async () => {
-      expect(
-        clickingNeverWins(await run('clicker'), await run('casual'), CI_BOUNDS),
-      ).toEqual([]);
-    });
-
-    it.each(ASSERTED)(
-      '(h) %s meets no NaN, negative or infinite value',
-      async (name) => {
-        const r = await run(name);
-        expect(r.events).toBeGreaterThan(1_000);
-        expect(sanity(r)).toEqual([]);
-      },
-    );
-
-    // Real multi-sail runs (Shyden, 2026-10-08, #475: "we still need these
-    // tests, but they do not belong in unit tests"): every sail of a long
-    // run starts a new one, so its goal is timed from the states after the
-    // sail before. The unit suite proves that restart on stand-in states.
-    it.each(ASSERTED)(
-      '(h) %s meets each sail’s goal after the sail before and no later than its own',
-      async (name) => {
-        const r = await run(name);
-        expect(searched(sailTiming(r), { of: r.sails, what: 'sails' })).toEqual(
-          [],
-        );
-        expect(
-          floorBreach(`pacing-sails/${name}`, r.sails.length),
-        ).toBeUndefined();
-      },
-    );
-
-    it('(h) the Idler waits hours with its goal met before an open lets it sail', async () => {
-      expect(longWaits(await run('idler')).length).toBeGreaterThan(0);
-    });
-  },
-);
+  it('(h) the Idler waits hours with its goal met before an open lets it sail', async () => {
+    expect(longWaits(await run('idler')).length).toBeGreaterThan(0);
+  });
+});
