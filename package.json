@@ -16,6 +16,7 @@
     "check:ci-scripts": "node scripts/ci-scripts.ts",
     "test:unit": "vitest run",
     "test:guards": "vitest run -c vitest.guards.config.ts",
+    "test:integration": "vitest run -c vitest.integration.config.ts",
     "floors:record": "node scripts/record-floors.ts",
     "test:worker": "npm run test --workspace @yawelo-idle/sync-worker --workspace @yawelo-idle/web --workspace @yawelo-idle/site --workspace @yawelo-idle/dev-hosts",
     "test:pacing": "vitest run -c vitest.pacing.config.ts",

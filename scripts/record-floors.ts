@@ -20,8 +20,8 @@
  * - a file calling `floorBreach` belongs to no suite the recorder can run;
  * - any suite failed or did not start.
  *
- * Yawelo Idle runs nine suites, and the root unit suite skips the others
- * (the guards, pacing, the game, site, dev-hosts and sync Worker harnesses, the
+ * Yawelo Idle runs ten suites, and the root unit suite skips the others
+ * (the guards, integration, pacing, the game, site, dev-hosts and sync Worker harnesses, the
  * engines, the web smoke suite), so each suite is
  * asked for its own file list rather than the recorder copying their globs.
  *
@@ -215,6 +215,13 @@ export const SUITES: readonly Suite[] = [
     list: [...VITEST_LIST, '-c', 'vitest.guards.config.ts'],
     files: vitestListed,
     run: ['npm', 'run', 'test:guards'],
+  },
+  {
+    name: 'integration suite',
+    cwd: '.',
+    list: [...VITEST_LIST, '-c', 'vitest.integration.config.ts'],
+    files: vitestListed,
+    run: ['npm', 'run', 'test:integration'],
   },
   {
     name: 'pacing suite',

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { floorBreach } from '../floors';
-import { committableFiles } from './tracked-files';
+import { committableFiles } from '../unit/tracked-files';
 
 /**
  * Every script with an `import.meta.main` entry loads under Node's own

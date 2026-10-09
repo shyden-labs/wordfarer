@@ -13,28 +13,43 @@
 import { execFileSync } from 'node:child_process';
 import { BOARD_QUERY, closeOutLines } from '../packages/progress/src/index.ts';
 
+/** Runs `gh` with these arguments and returns what it prints. */
+export type Gh = (args: readonly string[]) => string;
+
+const USAGE =
+  'usage: node scripts/board-progress.ts <board-node-id> "<board title>"';
+
+/**
+ * The close-out lines for the board `args` names (`<node-id> <title>`), read
+ * through `gh`, as of `today` (YYYY-MM-DD). Throws the usage line before
+ * calling `gh` when either is missing, and whatever `gh` or the title check
+ * throws, so no line is ever given for a board not read whole.
+ */
+export function boardProgress(
+  args: readonly string[],
+  gh: Gh,
+  today: string,
+): string[] {
+  const [id, title] = args;
+  if (id === undefined || title === undefined) throw new Error(USAGE);
+  const out = gh([
+    'api',
+    'graphql',
+    '--paginate',
+    '--slurp',
+    '-f',
+    `query=${BOARD_QUERY}`,
+    '-f',
+    `id=${id}`,
+  ]);
+  return closeOutLines(JSON.parse(out) as unknown[], title, today);
+}
+
 if (import.meta.main) {
-  const [id, title] = process.argv.slice(2);
-  if (id === undefined || title === undefined) {
-    throw new Error(
-      'usage: node scripts/board-progress.ts <board-node-id> "<board title>"',
-    );
-  }
-  const out = execFileSync(
-    'gh',
-    [
-      'api',
-      'graphql',
-      '--paginate',
-      '--slurp',
-      '-f',
-      `query=${BOARD_QUERY}`,
-      '-f',
-      `id=${id}`,
-    ],
-    { encoding: 'utf8' },
+  const lines = boardProgress(
+    process.argv.slice(2),
+    (args) => execFileSync('gh', args, { encoding: 'utf8' }),
+    new Date().toISOString().slice(0, 10),
   );
-  const today = new Date().toISOString().slice(0, 10);
-  const lines = closeOutLines(JSON.parse(out) as unknown[], title, today);
   process.stdout.write(`${lines.join('\n')}\n`);
 }
