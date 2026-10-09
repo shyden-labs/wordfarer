@@ -21,6 +21,7 @@
   "include": [
     "tests/**/*.ts",
     "scripts/**/*.ts",
+    "eslint.core-determinism.ts",
     "vitest.config.ts",
     "vitest.pacing.config.ts",
     "playwright.engines.config.ts",

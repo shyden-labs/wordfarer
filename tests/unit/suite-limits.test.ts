@@ -4,6 +4,7 @@ import { parse } from 'yaml';
 import guards from '../../vitest.guards.config';
 import integration from '../../vitest.integration.config';
 import pacing from '../../vitest.pacing.config';
+import unit from '../../vitest.config';
 import devHosts from '../../apps/dev-hosts/vitest.harness.config';
 import site from '../../apps/site/vitest.harness.config';
 import syncWorker from '../../apps/sync-worker/vitest.harness.config';
@@ -94,6 +95,24 @@ const SUITES = [
 
 const jobOf = (job: string): Workflow['jobs'][string] | undefined =>
   job === 'smoke' ? deployDev.jobs[job] : ci.jobs[job];
+
+describe('the unit suite’s limit is its runner’s: 1 s, judged with coverage off (#477 AC1, AC5)', () => {
+  it('holds each test and each hook to 1 s', () => {
+    expect(unit.test?.testTimeout).toBe(1_000);
+    expect(unit.test?.hookTimeout).toBe(1_000);
+  });
+
+  it('runs in its own CI step, with no coverage to slow it', () => {
+    const steps = ci.jobs['build-and-test']?.steps ?? [];
+    const at = steps.filter((s) => runOf(s) === 'npm run test:unit');
+    expect(at, 'test:unit step').toHaveLength(1);
+    const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as {
+      scripts: Record<string, string>;
+    };
+    expect(pkg.scripts['test:unit']).toBe('vitest run');
+    expect(unit.test).not.toHaveProperty('coverage');
+  });
+});
 
 describe('each non-unit suite’s one limit is its CI step’s (#476 AC1)', () => {
   it.each(SUITES)(
