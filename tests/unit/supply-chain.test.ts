@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { parse } from 'yaml';
 import { withoutYamlComments, withoutYamlQuotes } from './source-text';
-import { committableFiles } from './tracked-files';
 import { isRecord } from './workflow-secrets';
 import { floorBreach } from '../floors';
 import { searched } from '../searched';
@@ -140,21 +139,6 @@ describe('the CI supply chain is pinned', () => {
       ({ text }) => text.match(/uses:\s*["']?([^\s"']+)/)?.[1] ?? text,
     );
     expect(read.sort()).toEqual(parsedUses().sort());
-  });
-
-  it('reads every file that can hold a uses: line (Refs #82)', () => {
-    const tracked = committableFiles();
-    expect(tracked, 'positive control').toContain('.github/workflows/ci.yml');
-    const composites = tracked.filter((path) =>
-      /(^|\/)action\.ya?ml$/.test(path),
-    );
-    expect(
-      searched(composites, { of: tracked, what: 'committable files' }),
-      'a composite action’s steps sit outside .github/workflows, unscanned',
-    ).toEqual([]);
-    expect(
-      floorBreach('supply-chain/action-file-walk', tracked.length),
-    ).toBeUndefined();
   });
 
   it('every third-party action is pinned to a full commit SHA', () => {
@@ -442,46 +426,5 @@ describe('the install is reproducible', () => {
     expect(lock.lockfileVersion).toBe(3);
     expect(lock.name).toBe(pkg().name);
     expect(lock.packages['']?.devDependencies).toEqual(pkg().devDependencies);
-  });
-
-  it('every package.json below the root is a workspace, so the root npm entry covers it (#332)', () => {
-    // Dependabot's one npm entry reads the root manifest and its lock file,
-    // which hold every workspace's dependencies. A manifest outside the
-    // workspaces would have its own dependencies and nothing to update them.
-    // Two readings: git's files, and the workspaces the root lock file links,
-    // which is what that npm entry reads. Read from the file, not `npm query`:
-    // starting npm took 1.0-1.4 s, and timed this test out under load (#432).
-    const manifests = committableFiles()
-      .filter((path) => /(^|\/)package\.json$/.test(path))
-      .filter((path) => path !== 'package.json')
-      .map((path) => dirname(path))
-      .sort();
-    const lock = JSON.parse(readFileSync('package-lock.json', 'utf8')) as {
-      packages: Record<string, { link?: boolean; resolved?: string }>;
-    };
-    const workspaces = Object.values(lock.packages)
-      .filter(({ link }) => link === true)
-      .map(({ resolved }) => resolved ?? '')
-      .sort();
-    expect(workspaces, 'positive control: the site is one').toContain(
-      'apps/site',
-    );
-    expect(manifests).toEqual(workspaces);
-  });
-
-  it('nothing under node_modules is tracked or committable', () => {
-    const tracked = committableFiles();
-    expect(tracked, 'positive control: the walk sees this repo').toContain(
-      'package.json',
-    );
-    const installed = tracked.filter((path) =>
-      /(^|\/)node_modules\//.test(path),
-    );
-    expect(
-      searched(installed, { of: tracked, what: 'committable files' }),
-    ).toEqual([]);
-    expect(
-      floorBreach('supply-chain/node-modules-walk', tracked.length),
-    ).toBeUndefined();
   });
 });

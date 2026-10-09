@@ -20,7 +20,7 @@ The global `~/.claude/CLAUDE.md` rules all apply here. This file adds what is sp
 
 - `main` and `develop`. Each ticket gets its own branch, with a PR into `develop`, never directly into `main`. Every `develop` merge deploys the dev environment (web Worker + sync Worker + D1 dev) once the pipeline exists (milestone M0).
 - TDD: failing test first. Zero warnings policy. Dependabot targets `develop`. Actions are SHA-pinned.
-- One test per case: a population known before the run is generated as one test each, never looped inside a test body. `tests/unit/one-test-per-case.test.ts` refuses the loop unless it carries `// runtime population: <why>` or `// one scenario: <why>`, and its `BURN_DOWN` list only shrinks (#58).
+- One test per case: a population known before the run is generated as one test each, never looped inside a test body. `tests/guards/one-test-per-case.test.ts` (the guards suite, #515) refuses the loop unless it carries `// runtime population: <why>` or `// one scenario: <why>`, and its `BURN_DOWN` list only shrinks (#58).
 - Write `Refs #N` in commit messages and PR bodies, never close/fix/resolve next to an issue number unless you mean it.
 
 ## Progress at close-out

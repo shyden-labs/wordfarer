@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { floorBreach } from '../floors';
 import { searched } from '../searched';
-import { committableFiles } from './tracked-files';
 import { withoutYamlComments } from './source-text';
 import { SCHEDULED_ENVIRONMENTS, scanSchedule } from './scheduled-workflows';
 
@@ -305,11 +304,16 @@ jobs: {}
 });
 
 describe('this repo’s scheduled workflows stay off production (#460 AC3)', () => {
-  /** The guards' one walk (#385), so a new workflow is judged before its commit. */
+  /**
+   * Every workflow GitHub reads: the YAML files directly in
+   * .github/workflows, on disk, so a new one is judged before its commit.
+   * One directory, not the whole tree's file list (#515).
+   */
   const tracked = (): string[] =>
-    committableFiles().filter((path) =>
-      /^\.github\/workflows\/[^/]+\.ya?ml$/.test(path),
-    );
+    readdirSync('.github/workflows')
+      .filter((name) => /\.ya?ml$/.test(name))
+      .map((name) => `.github/workflows/${name}`)
+      .sort();
   const readLocal = (path: string): string =>
     readFileSync(path.replace(/^\.\//, ''), 'utf8');
   const scanAll = () =>
