@@ -13,7 +13,8 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * The pre-push hook (#123 AC2; Shyden chose the static gates on #123,
- * 2026-10-06): format, lint and typecheck run before every push, then the
+ * 2026-10-06): first the check that every commit has each npm script the
+ * head's ci.yml runs (#518), then format, lint and typecheck, then the
  * guards suite (#520; Shyden, 2026-10-09: "Yes, run them", the global rule
  * that whole-repo guards run at pre-push), and `npm install` installs the
  * hook. Unit, Worker and browser suites stay in CI.
@@ -24,7 +25,13 @@ import { describe, expect, it } from 'vitest';
  */
 
 const HOOK = '.githooks/pre-push';
-const GATES = ['format:check', 'lint', 'typecheck', 'test:guards'] as const;
+const GATES = [
+  'check:ci-scripts',
+  'format:check',
+  'lint',
+  'typecheck',
+  'test:guards',
+] as const;
 
 const FAKE_NPM = `#!/bin/sh
 printf '%s\\n' "$*" >> "$NPM_LOG"
@@ -72,7 +79,7 @@ describe('the pre-push hook (#123 AC2)', () => {
     expect(statSync(HOOK).mode & 0o111).toBe(0o111);
   });
 
-  it('runs format:check, lint, typecheck and the guards, in that order, and passes', () => {
+  it('runs the ci-scripts check, format:check, lint, typecheck and the guards, in that order, and passes', () => {
     expect(runHook()).toEqual({ status: 0, calls: GATES.map(call) });
   });
 
