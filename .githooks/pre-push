@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # The static gates, run before every push (#123, Shyden 2026-10-06): format,
 # lint and typecheck (tsc and svelte-check), the checks that need no test lock
-# and fail in seconds to a minute. Unit, Worker and browser suites stay in CI.
+# and fail in seconds to a minute. Then the guards suite, about 2 s (#520,
+# Shyden 2026-10-09: "Yes, run them"): the whole-repo guards run at pre-push
+# by the global rule, so a push waits while another heavy test run holds the
+# machine. Unit, Worker and browser suites stay in CI.
 # `npm install` installs this hook: the root `prepare` script points git's
 # core.hooksPath at .githooks.
 set -euo pipefail
@@ -9,3 +12,4 @@ set -euo pipefail
 npm run --silent format:check
 npm run --silent lint
 npm run --silent typecheck
+npm run --silent test:guards
