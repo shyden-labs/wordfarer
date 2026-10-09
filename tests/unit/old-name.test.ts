@@ -7,7 +7,7 @@ import {
   ALLOWANCE_KEYS,
   ALLOWANCES,
   type Allowance,
-  gitGrepCounts,
+  grepCounts,
   judge,
   keyOf,
   linesNaming,
@@ -252,17 +252,18 @@ describe('the repository names the game Yawelo Idle (#356)', () => {
     expect(floorBreach('old-name/files', files.length)).toBeUndefined();
   });
 
-  it('reads as many lines naming it in each file as git grep counts', () => {
-    const { naming } = repository();
-    // Control c, per file: git's own count of the same lines, sharing no
-    // code with the reader.
-    const grep = gitGrepCounts();
+  it('reads as many lines naming it in each file as a fixed-string grep counts', () => {
+    const { files, naming } = repository();
+    // Control c, per file: a grep's count of the same lines, sharing no code
+    // with the reader. git grep's own count is compared with this one in
+    // tests/integration/old-name.test.ts (#491).
+    const grep = grepCounts(files);
     const named = [...new Set([...naming.keys(), ...grep.keys()])].sort();
     const misread = named
       .filter((path) => (naming.get(path) ?? 0) !== (grep.get(path) ?? 0))
       .map(
         (path) =>
-          `${path}: git grep counts ${String(grep.get(path) ?? 0)}, the reader ${String(naming.get(path) ?? 0)}`,
+          `${path}: grep counts ${String(grep.get(path) ?? 0)}, the reader ${String(naming.get(path) ?? 0)}`,
       );
     expect(
       searched(misread, { of: named, what: 'files naming the old name' }),

@@ -1,9 +1,9 @@
-import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { floorBreach } from '../floors';
 import { searched } from '../searched';
+import { grepLines } from './grep';
 import { LINE_HOME, lineOf, lineReadersIn } from './line-of';
 import { committableFiles } from './tracked-files';
 
@@ -74,28 +74,11 @@ describe('lineOf over a real file whose strings hold U+2028 (#417 AC2)', () => {
       ts.forEachChild(node, visit);
     };
     visit(sf);
-    // Each call's first line names its test. One git grep finds them all, so
-    // the check costs one process, not one a call (#432).
+    // Each call's first line names its test. A fixed-string grep finds them
+    // all in-process, numbering lines as git grep -n does, at \n alone
+    // (#491; tests/integration/grep.test.ts compares it with git grep).
     const firsts = calls.map((call) => call.getText(sf).split('\n')[0] ?? '');
-    const hits = execFileSync(
-      'git',
-      [
-        'grep',
-        '-n',
-        '--untracked',
-        '-F',
-        ...firsts.flatMap((first) => ['-e', first]),
-        '--',
-        path,
-      ],
-      { encoding: 'utf8' },
-    )
-      .split('\n')
-      .filter((hit) => hit !== '')
-      .map((hit) => {
-        const [, line = '', ...text] = hit.split(':');
-        return { line: Number(line), text: text.join(':') };
-      });
+    const hits = grepLines(sf.text, firsts);
     const differ = calls.flatMap((call, index) => {
       const first = firsts[index] ?? '';
       const lines = hits
@@ -105,7 +88,7 @@ describe('lineOf over a real file whose strings hold U+2028 (#417 AC2)', () => {
       return lines.length === 1 && lines[0] === line
         ? []
         : [
-            `${first}: git grep -n says ${lines.join(', ')}, lineOf ${String(line)}`,
+            `${first}: grep -n says ${lines.join(', ')}, lineOf ${String(line)}`,
           ];
     });
     expect(

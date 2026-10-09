@@ -1,6 +1,6 @@
-import { spawnSync } from 'node:child_process';
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { grepLines } from './grep';
 import { ignoredPaths } from './tracked-files';
 
 /**
@@ -281,26 +281,24 @@ export function walkTree(root = '.'): string[] {
 }
 
 /**
- * Lines naming the old name per file, as `git grep` counts them over tracked
- * and committable untracked files: a reading that shares no code with
- * `linesNaming`.
+ * Lines naming the old name per file of `files`, counted as `git grep
+ * --untracked -i -F -c` counts them, in-process (#491): a reading that shares
+ * no code with `linesNaming`. A path not on disk (staged, then deleted) is
+ * not read, as git grep reads the working tree. The count from git grep
+ * itself is compared with this in tests/integration/old-name.test.ts.
  */
-export function gitGrepCounts(root = '.'): Map<string, number> {
-  const run = spawnSync(
-    'git',
-    ['grep', '--untracked', '-i', '-F', '-c', '-z', '-e', OLD],
-    { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
-  );
-  // 0: matches, 1: none; anything else is a failure, refused.
-  if (run.status !== 0 && run.status !== 1)
-    throw new Error(`git grep failed: ${run.stderr}`);
+export function grepCounts(
+  files: readonly string[],
+  root = '.',
+): Map<string, number> {
   const counts = new Map<string, number>();
-  for (const line of run.stdout.split('\n')) {
-    if (line === '') continue;
-    const [path, count] = line.split('\0');
-    if (path === undefined || count === undefined || !/^\d+$/.test(count))
-      throw new Error(`cannot read git grep's line: ${JSON.stringify(line)}`);
-    counts.set(path, Number(count));
+  for (const path of files) {
+    const at = join(root, path);
+    if (!existsSync(at) || !statSync(at).isFile()) continue;
+    const lines = grepLines(readFileSync(at, 'utf8'), [OLD], {
+      ignoreCase: true,
+    }).length;
+    if (lines > 0) counts.set(path, lines);
   }
   return counts;
 }
