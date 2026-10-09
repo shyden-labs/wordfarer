@@ -29,6 +29,7 @@ const hasMain = (path: string) =>
 const SCRIPTS = [
   'scripts/board-progress.ts',
   'scripts/ci-scope.ts',
+  'scripts/ci-scripts.ts',
   'scripts/d1-binding.ts',
   'scripts/dev-secrets.ts',
   'scripts/ensure-d1.ts',

@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# The static gates, run before every push (#123, Shyden 2026-10-06): format,
+# First, every commit on the branch has each npm script the head's ci.yml
+# runs (#518): every-commit runs the head's ci.yml against each commit, so a
+# step added with its script in a later commit turns the earlier ones red.
+# It reads git alone and takes under a second.
+# Then the static gates (#123, Shyden 2026-10-06): format,
 # lint and typecheck (tsc and svelte-check), the checks that need no test lock
 # and fail in seconds to a minute. Then the guards suite, about 2 s (#520,
 # Shyden 2026-10-09: "Yes, run them"): the whole-repo guards run at pre-push
@@ -9,6 +13,7 @@
 # core.hooksPath at .githooks.
 set -euo pipefail
 
+npm run --silent check:ci-scripts
 npm run --silent format:check
 npm run --silent lint
 npm run --silent typecheck
